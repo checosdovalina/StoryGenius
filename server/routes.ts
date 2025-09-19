@@ -562,6 +562,42 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // RUTA TEMPORAL PARA CREAR ADMIN - ELIMINAR DESPUÉS DE USAR
+  app.post("/api/create-admin-temp", async (req, res) => {
+    try {
+      const adminEmail = 'admin@gbsport.com';
+      const adminPassword = 'admin123';
+      
+      // Verificar si ya existe
+      const existingUser = await storage.getUserByEmail(adminEmail);
+      if (existingUser) {
+        return res.status(400).json({ error: 'Usuario admin ya existe' });
+      }
+      
+      // Crear usuario admin
+      const adminUser = await storage.createUser({
+        username: 'admin',
+        email: adminEmail,
+        password: adminPassword,
+        name: 'Administrador GBSport',
+        club: 'GBSport',
+        role: 'admin'
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Usuario admin creado exitosamente',
+        credentials: {
+          email: adminEmail,
+          password: adminPassword
+        }
+      });
+    } catch (error) {
+      console.error('Error creating admin:', error);
+      res.status(500).json({ error: 'Error creando usuario admin' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
