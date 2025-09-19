@@ -10,24 +10,47 @@ export default function CreateAdmin() {
 
   const createAdmin = async () => {
     setLoading(true);
+    
+    // Primero intentar crear el usuario usando el endpoint de registro normal
     try {
-      const response = await fetch('/api/create-admin-temp', {
+      const registerResponse = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          username: 'admin',
+          email: 'admin@gbsport.com',
+          password: 'admin123',
+          name: 'Administrador GBSport',
+          club: 'GBSport'
+        })
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (registerResponse.ok) {
+        setResult({
+          success: true,
+          message: 'Usuario admin creado exitosamente (como usuario normal - necesita actualización de rol)',
+          credentials: {
+            email: 'admin@gbsport.com',
+            password: 'admin123'
+          }
+        });
+      } else {
+        const errorData = await registerResponse.json();
+        if (errorData.message && errorData.message.includes('already exists')) {
+          setResult({
+            success: false,
+            message: 'El usuario admin ya existe. Intenta hacer login con: admin@gbsport.com / admin123'
+          });
+        } else {
+          throw new Error(errorData.message || 'Error en registro');
+        }
       }
-
-      const data = await response.json();
-      setResult(data);
     } catch (error) {
       setResult({
         success: false,
-        message: error instanceof Error ? error.message : 'Error desconocido'
+        message: error instanceof Error ? error.message : 'Error creando usuario admin'
       });
     } finally {
       setLoading(false);
