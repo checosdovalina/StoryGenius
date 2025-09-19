@@ -34,6 +34,7 @@ export interface IStorage {
   // Tournament registrations
   registerPlayerForTournament(registration: InsertTournamentRegistration): Promise<TournamentRegistration>;
   getTournamentRegistrations(tournamentId: string): Promise<TournamentRegistration[]>;
+  getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date }>>;
   getPlayerTournaments(playerId: string): Promise<Tournament[]>;
   unregisterPlayerFromTournament(tournamentId: string, playerId: string): Promise<void>;
 
@@ -175,6 +176,29 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(tournamentRegistrations)
       .where(eq(tournamentRegistrations.tournamentId, tournamentId));
+  }
+
+  async getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date }>> {
+    const result = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        name: users.name,
+        club: users.club,
+        role: users.role,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        // Password field omitted for security
+        registeredAt: tournamentRegistrations.registeredAt
+      })
+      .from(users)
+      .innerJoin(tournamentRegistrations, eq(users.id, tournamentRegistrations.playerId))
+      .where(eq(tournamentRegistrations.tournamentId, tournamentId))
+      .orderBy(asc(tournamentRegistrations.registeredAt));
+    
+    return result;
   }
 
   async getPlayerTournaments(playerId: string): Promise<Tournament[]> {

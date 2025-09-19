@@ -3,16 +3,22 @@ import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { Tournament } from "@shared/schema";
+import { Tournament, User } from "@shared/schema";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users, Trophy, ArrowLeft } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar, MapPin, Users, Trophy, ArrowLeft, UserPlus, X } from "lucide-react";
 import { format } from "date-fns";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 export default function TournamentDetailPage() {
   const { id: tournamentId } = useParams();
@@ -138,16 +144,136 @@ export default function TournamentDetailPage() {
   );
 }
 
+const registerPlayerSchema = z.object({
+  playerId: z.string().min(1, "Debe seleccionar un jugador")
+});
+
 function PlayersTab({ tournament, canManage }: { tournament: Tournament; canManage?: boolean }) {
+  const [showRegisterDialog, setShowRegisterDialog] = useState(false);
+  const { toast } = useToast();
+
+  // Get tournament players
+  const { data: players = [], isLoading: loadingPlayers } = useQuery<Array<User & { registeredAt: string }>>({
+    queryKey: [`/api/tournaments/${tournament.id}/players`]
+  });
+
+  // Get all users for registration dropdown
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    enabled: canManage
+  });
+
+  // Register player mutation
+  const registerMutation = useMutation({
+    mutationFn: async (playerId: string) => {
+      const response = await apiRequest("POST", `/api/tournaments/${tournament.id}/register-player`, { playerId });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/players`] });
+      setShowRegisterDialog(false);
+      toast({ title: "Jugador registrado exitosamente", variant: "default" });
+    },
+    onError: () => {
+      toast({ title: "Error al registrar jugador", variant: "destructive" });
+    }
+  });
+
+  // Unregister player mutation
+  const unregisterMutation = useMutation({
+    mutationFn: async (playerId: string) => {
+      const response = await apiRequest("DELETE", `/api/tournaments/${tournament.id}/players/${playerId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/players`] });
+      toast({ title: "Jugador desregistrado exitosamente", variant: "default" });
+    },
+    onError: () => {
+      toast({ title: "Error al desregistrar jugador", variant: "destructive" });
+    }
+  });
+
+  const form = useForm<z.infer<typeof registerPlayerSchema>>({
+    resolver: zodResolver(registerPlayerSchema),
+    defaultValues: { playerId: "" }
+  });
+
+  const onSubmit = (values: z.infer<typeof registerPlayerSchema>) => {
+    registerMutation.mutate(values.playerId);
+  };
+
+  // Filter available users (not already registered)
+  const registeredPlayerIds = players.map(p => p.id);
+  const availableUsers = allUsers.filter(user => !registeredPlayerIds.includes(user.id));
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Jugadores Registrados</span>
+          <span>Jugadores Registrados ({players.length}/{tournament.maxPlayers})</span>
           {canManage && (
-            <Button data-testid="button-add-player">
-              Agregar Jugador
-            </Button>
+            <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-player">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Agregar Jugador
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Registrar Jugador</DialogTitle>
+                  <DialogDescription>
+                    Selecciona un jugador para registrar en este torneo.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="playerId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Jugador</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-player">
+                                <SelectValue placeholder="Seleccionar jugador..." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {availableUsers.map((user) => (
+                                <SelectItem key={user.id} value={user.id}>
+                                  {user.name} ({user.email})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowRegisterDialog(false)}
+                        data-testid="button-cancel-register"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={registerMutation.isPending}
+                        data-testid="button-confirm-register"
+                      >
+                        {registerMutation.isPending ? "Registrando..." : "Registrar"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           )}
         </CardTitle>
         <CardDescription>
@@ -155,11 +281,60 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400" data-testid="text-no-players">
-          <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No hay jugadores registrados aún</p>
-          <p className="text-sm">Los jugadores aparecerán aquí cuando se registren</p>
-        </div>
+        {loadingPlayers ? (
+          <div className="text-center py-8" data-testid="loading-players">
+            <p>Cargando jugadores...</p>
+          </div>
+        ) : players.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400" data-testid="text-no-players">
+            <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No hay jugadores registrados aún</p>
+            <p className="text-sm">Los jugadores aparecerán aquí cuando se registren</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {players.map((player, index) => (
+              <div key={player.id} className="flex items-center justify-between p-4 border rounded-lg" data-testid={`player-card-${player.id}`}>
+                <div className="flex items-center space-x-4">
+                  <div className="h-10 w-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
+                      {player.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white" data-testid={`player-name-${player.id}`}>
+                      {player.name}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400" data-testid={`player-email-${player.id}`}>
+                      {player.email}
+                    </p>
+                    {player.club && (
+                      <p className="text-xs text-gray-400" data-testid={`player-club-${player.id}`}>
+                        {player.club}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge variant="outline" data-testid={`player-registered-date-${player.id}`}>
+                    {format(new Date(player.registeredAt), 'dd/MM/yyyy')}
+                  </Badge>
+                  {canManage && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => unregisterMutation.mutate(player.id)}
+                      disabled={unregisterMutation.isPending}
+                      data-testid={`button-unregister-${player.id}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -156,6 +156,75 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.get("/api/tournaments/:id/players", async (req, res) => {
+    try {
+      const players = await storage.getTournamentPlayers(req.params.id);
+      // Remove password from response for security
+      const safePlayerData = players.map(({ password, ...player }) => player);
+      res.json(safePlayerData);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tournament players" });
+    }
+  });
+
+  // Admin/organizer can register any player
+  app.post("/api/tournaments/:id/register-player", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get tournament to check permissions
+      const tournament = await storage.getTournament(req.params.id);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Only admin or tournament organizer can register other players
+      if (req.user!.role !== "admin" && tournament.organizerId !== req.user!.id) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const registrationData = insertTournamentRegistrationSchema.parse({
+        tournamentId: req.params.id,
+        playerId: req.body.playerId
+      });
+
+      const registration = await storage.registerPlayerForTournament(registrationData);
+      res.status(201).json(registration);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid registration data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to register player" });
+    }
+  });
+
+  // Admin/organizer can unregister specific players
+  app.delete("/api/tournaments/:id/players/:playerId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get tournament to check permissions
+      const tournament = await storage.getTournament(req.params.id);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Only admin or tournament organizer can unregister other players
+      if (req.user!.role !== "admin" && tournament.organizerId !== req.user!.id) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      await storage.unregisterPlayerFromTournament(req.params.id, req.params.playerId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unregister player" });
+    }
+  });
+
   // Court routes
   app.get("/api/courts", async (req, res) => {
     try {
