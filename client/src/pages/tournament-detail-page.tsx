@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, MapPin, Users, Trophy, ArrowLeft, UserPlus, X } from "lucide-react";
 import { format } from "date-fns";
@@ -148,8 +149,15 @@ const registerPlayerSchema = z.object({
   playerId: z.string().min(1, "Debe seleccionar un jugador")
 });
 
+const padelRegistrationSchema = z.object({
+  partnerName: z.string().min(1, "El nombre de la pareja es requerido"),
+  partnerPhone: z.string().min(10, "El teléfono debe tener al menos 10 dígitos")
+});
+
 function PlayersTab({ tournament, canManage }: { tournament: Tournament; canManage?: boolean }) {
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
+  const [searchingPartner, setSearchingPartner] = useState(false);
+  const [foundPartner, setFoundPartner] = useState<User | null>(null);
   const { toast } = useToast();
 
   // Get tournament players
@@ -194,13 +202,139 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     }
   });
 
+  // Search partner by phone mutation
+  const searchPartnerMutation = useMutation({
+    mutationFn: async (phone: string) => {
+      const response = await apiRequest("GET", `/api/users/search-by-phone/${phone}`);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setFoundPartner(data);
+      setSearchingPartner(false);
+    },
+    onError: () => {
+      setFoundPartner(null);
+      setSearchingPartner(false);
+    }
+  });
+
+  // Create padel pair mutation
+  const createPairMutation = useMutation({
+    mutationFn: async (pairData: { player2Id?: string; player2Name?: string; player2Phone?: string }) => {
+      console.log("Creating pair with data:", pairData);
+      const response = await apiRequest("POST", "/api/padel-pairs", pairData);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create pair: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log("Pair created successfully:", result);
+      return result;
+    },
+    onError: (error) => {
+      console.error("Error creating pair:", error);
+      toast({
+        title: "Error al crear pareja",
+        description: error.message || "No se pudo crear la pareja",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Register with pair mutation
+  const registerWithPairMutation = useMutation({
+    mutationFn: async (pairId?: string) => {
+      console.log("Registering with pair ID:", pairId);
+      const response = await apiRequest("POST", `/api/tournaments/${tournament.id}/register-with-pair`, { pairId });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to register with pair: ${response.status} ${errorText}`);
+      }
+      
+      console.log("Registration successful");
+      return response;
+    },
+    onSuccess: () => {
+      console.log("Registration mutation onSuccess called");
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/players`] });
+      setShowRegisterDialog(false);
+      setFoundPartner(null);
+      padelForm.reset();
+      toast({ title: "Pareja registrada exitosamente en el torneo", variant: "default" });
+    },
+    onError: (error) => {
+      console.error("Error registering with pair:", error);
+      toast({ 
+        title: "Error al registrar pareja en el torneo", 
+        description: error.message || "Error desconocido",
+        variant: "destructive" 
+      });
+    }
+  });
+
   const form = useForm<z.infer<typeof registerPlayerSchema>>({
     resolver: zodResolver(registerPlayerSchema),
     defaultValues: { playerId: "" }
   });
 
+  const padelForm = useForm<z.infer<typeof padelRegistrationSchema>>({
+    resolver: zodResolver(padelRegistrationSchema),
+    defaultValues: { 
+      partnerName: "",
+      partnerPhone: ""
+    }
+  });
+
   const onSubmit = (values: z.infer<typeof registerPlayerSchema>) => {
     registerMutation.mutate(values.playerId);
+  };
+
+  const onPadelSubmit = async (values: z.infer<typeof padelRegistrationSchema>) => {
+    console.log("onPadelSubmit called with values:", values);
+    console.log("foundPartner:", foundPartner);
+    
+    try {
+      let pairData;
+      
+      if (foundPartner) {
+        // Partner is already registered - use their ID
+        pairData = { player2Id: foundPartner.id };
+        console.log("Using existing partner with ID:", foundPartner.id);
+      } else {
+        // Partner is not registered yet - store their name and phone
+        pairData = {
+          player2Name: values.partnerName,
+          player2Phone: values.partnerPhone
+        };
+        console.log("Creating new partner with data:", pairData);
+      }
+
+      console.log("About to create pair...");
+      // Create the pair first
+      const pair = await createPairMutation.mutateAsync(pairData);
+      console.log("Pair created, about to register...");
+      
+      // Then register with the pair
+      await registerWithPairMutation.mutateAsync(pair.id);
+      console.log("Registration completed successfully");
+    } catch (error) {
+      console.error("Error in onPadelSubmit:", error);
+      toast({ 
+        title: "Error al crear pareja", 
+        description: error instanceof Error ? error.message : "No se pudo crear la pareja y registrar en el torneo",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const searchPartner = async (phone: string) => {
+    if (phone.length >= 10) {
+      setSearchingPartner(true);
+      searchPartnerMutation.mutate(phone);
+    }
   };
 
   // Filter available users (not already registered)
@@ -220,58 +354,139 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                   Agregar Jugador
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Registrar Jugador</DialogTitle>
+                  <DialogTitle>
+                    {tournament.sport === "padel" ? "Registrar Pareja" : "Registrar Jugador"}
+                  </DialogTitle>
                   <DialogDescription>
-                    Selecciona un jugador para registrar en este torneo.
+                    {tournament.sport === "padel" 
+                      ? "Proporciona la información de tu pareja para el torneo de padel."
+                      : "Selecciona un jugador para registrar en este torneo."
+                    }
                   </DialogDescription>
                 </DialogHeader>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="playerId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Jugador</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                
+                {tournament.sport === "padel" ? (
+                  <Form {...padelForm}>
+                    <form onSubmit={padelForm.handleSubmit(onPadelSubmit)} className="space-y-4">
+                      <FormField
+                        control={padelForm.control}
+                        name="partnerName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nombre de la pareja</FormLabel>
                             <FormControl>
-                              <SelectTrigger data-testid="select-player">
-                                <SelectValue placeholder="Seleccionar jugador..." />
-                              </SelectTrigger>
+                              <Input 
+                                placeholder="Nombre completo de tu pareja"
+                                {...field}
+                                data-testid="input-partner-name"
+                              />
                             </FormControl>
-                            <SelectContent>
-                              {availableUsers.map((user) => (
-                                <SelectItem key={user.id} value={user.id}>
-                                  {user.name} ({user.email})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowRegisterDialog(false)}
-                        data-testid="button-cancel-register"
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={registerMutation.isPending}
-                        data-testid="button-confirm-register"
-                      >
-                        {registerMutation.isPending ? "Registrando..." : "Registrar"}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={padelForm.control}
+                        name="partnerPhone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Teléfono de la pareja</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Número de teléfono"
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  searchPartner(e.target.value);
+                                }}
+                                data-testid="input-partner-phone"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              {searchingPartner ? "Buscando..." : 
+                               foundPartner ? `✓ Usuario encontrado: ${foundPartner.name}` :
+                               field.value.length >= 10 ? "Usuario no encontrado - se creará una invitación" : 
+                               "Introduce el teléfono para buscar si ya está registrado"
+                              }
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowRegisterDialog(false);
+                            setFoundPartner(null);
+                            padelForm.reset();
+                          }}
+                          data-testid="button-cancel-padel-register"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={createPairMutation.isPending || registerWithPairMutation.isPending}
+                          data-testid="button-confirm-padel-register"
+                        >
+                          {createPairMutation.isPending || registerWithPairMutation.isPending ? "Registrando..." : "Registrar Pareja"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                ) : (
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="playerId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Jugador</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-player">
+                                  <SelectValue placeholder="Seleccionar jugador..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {availableUsers.map((user) => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    {user.name} ({user.email})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowRegisterDialog(false)}
+                          data-testid="button-cancel-register"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={registerMutation.isPending}
+                          data-testid="button-confirm-register"
+                        >
+                          {registerMutation.isPending ? "Registrando..." : "Registrar"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                )}
               </DialogContent>
             </Dialog>
           )}

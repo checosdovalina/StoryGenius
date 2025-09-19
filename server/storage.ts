@@ -1,9 +1,9 @@
 import { 
-  users, tournaments, courts, matches, tournamentRegistrations, playerStats,
+  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs,
   type User, type InsertUser, type Tournament, type InsertTournament,
   type Court, type InsertCourt, type Match, type InsertMatch,
   type TournamentRegistration, type InsertTournamentRegistration,
-  type PlayerStats, type InsertPlayerStats
+  type PlayerStats, type InsertPlayerStats, type PadelPair, type InsertPadelPair
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, or, count, avg, sum, isNull } from "drizzle-orm";
@@ -40,6 +40,13 @@ export interface IStorage {
   
   // Bracket generation
   generateTournamentBrackets(tournamentId: string, forceRegenerate?: boolean): Promise<void>;
+
+  // Padel pairs management
+  createPadelPair(pair: InsertPadelPair): Promise<PadelPair>;
+  getPadelPair(id: string): Promise<PadelPair | undefined>;
+  getPadelPairsByPlayer(playerId: string): Promise<PadelPair[]>;
+  updatePadelPairOnUserRegister(phone: string, userId: string): Promise<void>;
+  findUserByPhone(phone: string): Promise<User | undefined>;
 
   // Court management
   createCourt(court: InsertCourt): Promise<Court>;
@@ -188,6 +195,7 @@ export class DatabaseStorage implements IStorage {
         username: users.username,
         email: users.email,
         name: users.name,
+        phone: users.phone,
         club: users.club,
         role: users.role,
         isActive: users.isActive,
@@ -385,6 +393,64 @@ export class DatabaseStorage implements IStorage {
     }
 
     return groupMatches;
+  }
+
+  // Padel pairs management
+  async createPadelPair(pair: InsertPadelPair): Promise<PadelPair> {
+    const [newPair] = await db
+      .insert(padelPairs)
+      .values(pair)
+      .returning();
+    return newPair;
+  }
+
+  async getPadelPair(id: string): Promise<PadelPair | undefined> {
+    const [pair] = await db
+      .select()
+      .from(padelPairs)
+      .where(eq(padelPairs.id, id))
+      .limit(1);
+    return pair;
+  }
+
+  async getPadelPairsByPlayer(playerId: string): Promise<PadelPair[]> {
+    const pairs = await db
+      .select()
+      .from(padelPairs)
+      .where(
+        and(
+          or(
+            eq(padelPairs.player1Id, playerId),
+            eq(padelPairs.player2Id, playerId)
+          ),
+          eq(padelPairs.isActive, true)
+        )
+      );
+    return pairs;
+  }
+
+  async updatePadelPairOnUserRegister(phone: string, userId: string): Promise<void> {
+    await db
+      .update(padelPairs)
+      .set({ 
+        player2Id: userId,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(padelPairs.player2Phone, phone),
+          isNull(padelPairs.player2Id)
+        )
+      );
+  }
+
+  async findUserByPhone(phone: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.phone, phone))
+      .limit(1);
+    return user;
   }
 
   // Court management

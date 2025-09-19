@@ -17,8 +17,20 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
+  phone: text("phone"),
   club: text("club"),
   role: userRoleEnum("role").notNull().default("jugador"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+});
+
+export const padelPairs = pgTable("padel_pairs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  player1Id: varchar("player1_id").notNull().references(() => users.id),
+  player2Id: varchar("player2_id").references(() => users.id), // Null if partner not registered yet
+  player2Name: text("player2_name"), // Name of unregistered partner
+  player2Phone: text("player2_phone"), // Phone of unregistered partner
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
@@ -59,6 +71,7 @@ export const tournamentRegistrations = pgTable("tournament_registrations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
   playerId: varchar("player_id").notNull().references(() => users.id),
+  pairId: varchar("pair_id").references(() => padelPairs.id), // Only for padel tournaments
   registeredAt: timestamp("registered_at").notNull().defaultNow()
 });
 
@@ -108,7 +121,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   matchesAsPlayer1: many(matches, { relationName: "player1" }),
   matchesAsPlayer2: many(matches, { relationName: "player2" }),
   wonMatches: many(matches, { relationName: "winner" }),
-  stats: many(playerStats)
+  stats: many(playerStats),
+  pairsAsPlayer1: many(padelPairs, { relationName: "player1" }),
+  pairsAsPlayer2: many(padelPairs, { relationName: "player2" })
 }));
 
 export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
@@ -124,6 +139,20 @@ export const courtsRelations = relations(courts, ({ many }) => ({
   matches: many(matches)
 }));
 
+export const padelPairsRelations = relations(padelPairs, ({ one, many }) => ({
+  player1: one(users, {
+    fields: [padelPairs.player1Id],
+    references: [users.id],
+    relationName: "player1"
+  }),
+  player2: one(users, {
+    fields: [padelPairs.player2Id],
+    references: [users.id],
+    relationName: "player2"
+  }),
+  registrations: many(tournamentRegistrations)
+}));
+
 export const tournamentRegistrationsRelations = relations(tournamentRegistrations, ({ one }) => ({
   tournament: one(tournaments, {
     fields: [tournamentRegistrations.tournamentId],
@@ -132,6 +161,10 @@ export const tournamentRegistrationsRelations = relations(tournamentRegistration
   player: one(users, {
     fields: [tournamentRegistrations.playerId],
     references: [users.id]
+  }),
+  pair: one(padelPairs, {
+    fields: [tournamentRegistrations.pairId],
+    references: [padelPairs.id]
   })
 }));
 
@@ -220,6 +253,12 @@ export const insertMatchSchema = createInsertSchema(matches).omit({
   updatedAt: true
 });
 
+export const insertPadelPairSchema = createInsertSchema(padelPairs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 export const insertTournamentRegistrationSchema = createInsertSchema(tournamentRegistrations).omit({
   id: true,
   registeredAt: true
@@ -243,3 +282,5 @@ export type TournamentRegistration = typeof tournamentRegistrations.$inferSelect
 export type InsertTournamentRegistration = z.infer<typeof insertTournamentRegistrationSchema>;
 export type PlayerStats = typeof playerStats.$inferSelect;
 export type InsertPlayerStats = z.infer<typeof insertPlayerStatsSchema>;
+export type PadelPair = typeof padelPairs.$inferSelect;
+export type InsertPadelPair = z.infer<typeof insertPadelPairSchema>;

@@ -79,3 +79,16 @@ The system implements session-based authentication with role-based access contro
 - **TanStack Query**: Server state management with caching and synchronization
 - **React Hook Form**: Form state management with validation
 - **@hookform/resolvers**: Zod integration for form validation
+
+# Recent Changes
+
+- **2025-09-19**: ✅ **IMPLEMENTED PADEL PAIRS SYSTEM** - Complete end-to-end padel partner registration system
+  - **Database Schema**: Added `phone` field to users table, `padelPairs` table for partner management, `pairId` field in tournament registrations
+  - **Backend API**: Secure endpoints for pair creation, phone-based partner search, and pair-based tournament registration with full authorization controls
+  - **Frontend UX**: Automatic padel tournament detection, partner search forms, real-time phone lookup, invitation system for unregistered partners
+  - **Security Features**: Authentication requirements, PII protection, pair ownership verification, minimal data exposure in API responses
+  - **Testing**: End-to-end functionality confirmed with proper form validation, API responses, user feedback, and security controls
+  - **Use Cases**: Supports registered user + unregistered partner (creates invitation), registered user + registered partner (direct linking), automatic future linking when partners register
+- **2025-09-19**: Implemented comprehensive bracket generation system with transaction safety and authorization controls
+- **2025-09-19**: Enhanced security measures including regeneration safeguards and proper admin controls for tournament brackets
+- **2025-09-19**: Fixed critical PII exposure in player data endpoints and strengthened authorization requirements

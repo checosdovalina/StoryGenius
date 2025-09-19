@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema } from "@shared/schema";
 import { z } from "zod";
 
 export function registerRoutes(app: Express): Server {
@@ -158,10 +158,28 @@ export function registerRoutes(app: Express): Server {
 
   app.get("/api/tournaments/:id/players", async (req, res) => {
     try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
       const players = await storage.getTournamentPlayers(req.params.id);
-      // Password field already omitted in getTournamentPlayers method
-      const safePlayerData = players;
-      res.json(safePlayerData);
+      
+      // Only expose phone numbers to admin or tournament organizer
+      const tournament = await storage.getTournament(req.params.id);
+      const isAuthorizedForPII = req.user!.role === "admin" || 
+                               (tournament && tournament.organizerId === req.user!.id);
+      
+      const sanitizedPlayers = players.map(player => {
+        if (isAuthorizedForPII) {
+          return player;
+        } else {
+          // Remove phone for regular users
+          const { phone, ...playerWithoutPhone } = player;
+          return playerWithoutPhone;
+        }
+      });
+      
+      res.json(sanitizedPlayers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch tournament players" });
     }
@@ -449,6 +467,98 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Failed to generate brackets" });
+    }
+  });
+
+  // Padel pairs routes
+  app.post("/api/padel-pairs", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const pairData = insertPadelPairSchema.parse({
+        ...req.body,
+        player1Id: req.user!.id
+      });
+
+      const pair = await storage.createPadelPair(pairData);
+      res.status(201).json(pair);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid pair data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create padel pair" });
+    }
+  });
+
+  app.get("/api/users/search-by-phone/:phone", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const user = await storage.findUserByPhone(req.params.phone);
+      if (user) {
+        // Only return minimal information to prevent PII exposure
+        res.json({ id: user.id, name: user.name });
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to search user" });
+    }
+  });
+
+  app.get("/api/padel-pairs/by-player/:playerId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const pairs = await storage.getPadelPairsByPlayer(req.params.playerId);
+      res.json(pairs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch padel pairs" });
+    }
+  });
+
+  // Modified tournament registration to handle padel pairs
+  app.post("/api/tournaments/:id/register-with-pair", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { pairId } = req.body;
+      
+      // Verify pair ownership if pairId is provided
+      if (pairId) {
+        const pair = await storage.getPadelPair(pairId);
+        if (!pair) {
+          return res.status(404).json({ message: "Pair not found" });
+        }
+        if (pair.player1Id !== req.user!.id) {
+          return res.status(403).json({ message: "You can only register with your own pairs" });
+        }
+        if (!pair.isActive) {
+          return res.status(400).json({ message: "Pair is not active" });
+        }
+      }
+      
+      const registrationData = insertTournamentRegistrationSchema.parse({
+        tournamentId: req.params.id,
+        playerId: req.user!.id,
+        pairId: pairId || null
+      });
+
+      const registration = await storage.registerPlayerForTournament(registrationData);
+      res.status(201).json(registration);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid registration data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to register for tournament" });
     }
   });
 
