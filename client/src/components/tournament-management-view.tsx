@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import type { Tournament } from "@shared/schema";
 
 export function TournamentManagementView() {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [, navigate] = useLocation();
 
   const { data: tournaments = [], isLoading } = useQuery<Tournament[]>({
     queryKey: ["/api/tournaments"]
@@ -134,10 +136,19 @@ export function TournamentManagementView() {
                 </div>
 
                 <div className="flex space-x-2">
-                  <Button variant="secondary" className="flex-1" data-testid={`button-view-bracket-${tournament.id}`}>
+                  <Button 
+                    variant="secondary" 
+                    className="flex-1" 
+                    data-testid={`button-view-bracket-${tournament.id}`}
+                    onClick={() => navigate(`/tournaments/${tournament.id}`)}
+                  >
                     Ver Brackets
                   </Button>
-                  <Button className="flex-1" data-testid={`button-edit-tournament-${tournament.id}`}>
+                  <Button 
+                    className="flex-1" 
+                    data-testid={`button-edit-tournament-${tournament.id}`}
+                    onClick={() => navigate(`/tournaments/${tournament.id}`)}
+                  >
                     <Edit className="mr-2 h-4 w-4" />
                     Editar
                   </Button>
