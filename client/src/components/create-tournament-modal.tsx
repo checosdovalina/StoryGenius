@@ -74,9 +74,10 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
       name: formData.name,
       sport: formData.sport as "padel" | "racquetball",
       format: formData.format as "elimination" | "round_robin" | "groups",
+      status: "draft" as const,
       venue: formData.venue,
-      startDate: new Date(formData.startDate),
-      endDate: new Date(formData.endDate),
+      startDate: new Date(formData.startDate + 'T00:00:00'),
+      endDate: new Date(formData.endDate + 'T23:59:59'),
       maxPlayers: parseInt(formData.maxPlayers),
       registrationFee: formData.registrationFee ? formData.registrationFee : "0",
       description: formData.description || null

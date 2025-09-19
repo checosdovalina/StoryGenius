@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema } from "@shared/schema";
 import { z } from "zod";
 
 export function registerRoutes(app: Express): Server {
@@ -25,9 +25,15 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      // Only admin or organizador can create tournaments
+      if (!["admin", "organizador"].includes(req.user!.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
       const validatedData = insertTournamentSchema.parse({
         ...req.body,
-        organizerId: req.user!.id
+        organizerId: req.user!.id,
+        status: "draft" // Always set to draft on creation, ignore client status
       });
 
       const tournament = await storage.createTournament(validatedData);
@@ -58,9 +64,26 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      const tournament = await storage.updateTournament(req.params.id, req.body);
+      // Get tournament to check ownership
+      const existingTournament = await storage.getTournament(req.params.id);
+      if (!existingTournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Only admin or tournament organizer can update
+      if (req.user!.role !== "admin" && existingTournament.organizerId !== req.user!.id) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      // Validate update data
+      const validatedData = updateTournamentSchema.parse(req.body);
+      
+      const tournament = await storage.updateTournament(req.params.id, validatedData);
       res.json(tournament);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid update data", errors: error.errors });
+      }
       res.status(500).json({ message: "Failed to update tournament" });
     }
   });
@@ -69,6 +92,17 @@ export function registerRoutes(app: Express): Server {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get tournament to check ownership  
+      const existingTournament = await storage.getTournament(req.params.id);
+      if (!existingTournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Only admin or tournament organizer can delete
+      if (req.user!.role !== "admin" && existingTournament.organizerId !== req.user!.id) {
+        return res.status(403).json({ message: "Insufficient permissions" });
       }
 
       await storage.deleteTournament(req.params.id);

@@ -183,7 +183,30 @@ export const insertTournamentSchema = createInsertSchema(tournaments).omit({
   id: true,
   createdAt: true,
   updatedAt: true
-});
+}).extend({
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  maxPlayers: z.number().min(4).max(128),
+  registrationFee: z.string().refine(val => parseFloat(val) >= 0, "Registration fee must be non-negative")
+}).refine(
+  data => data.endDate >= data.startDate,
+  { message: "End date must be after start date", path: ["endDate"] }
+);
+
+export const updateTournamentSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().nullable().optional(),
+  sport: z.enum(["padel", "racquetball"]).optional(),
+  format: z.enum(["elimination", "round_robin", "groups"]).optional(),
+  venue: z.string().optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  maxPlayers: z.number().min(4).max(128).optional(),
+  registrationFee: z.string().refine(val => parseFloat(val) >= 0, "Registration fee must be non-negative").optional()
+}).refine(
+  data => !data.startDate || !data.endDate || data.endDate >= data.startDate,
+  { message: "End date must be after start date", path: ["endDate"] }
+);
 
 export const insertCourtSchema = createInsertSchema(courts).omit({
   id: true,
