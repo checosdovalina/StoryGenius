@@ -562,6 +562,35 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Ruta especial para crear admin en producción - solo funciona si no hay usuarios
+  app.post("/api/setup-admin", async (req, res) => {
+    try {
+      // Solo permitir si no hay usuarios (primera vez)
+      const allUsers = await storage.getAllUsers();
+      if (allUsers.length > 0) {
+        return res.status(400).json({ error: "Setup already completed" });
+      }
+      
+      // Crear usuario admin
+      const adminUser = await storage.createUser({
+        username: 'admin',
+        email: 'admin@gbsport.com',
+        password: 'admin123',
+        name: 'Administrador GBSport',
+        club: 'GBSport',
+        role: 'admin'
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Admin user created successfully',
+        user: { email: adminUser.email, role: adminUser.role }
+      });
+    } catch (error) {
+      console.error('Error creating admin:', error);
+      res.status(500).json({ error: 'Failed to create admin user' });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
