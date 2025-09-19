@@ -31,7 +31,7 @@ export default function AuthPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     loginMutation.mutate({
-      username: loginData.email, // Using email as username
+      email: loginData.email,
       password: loginData.password
     });
   };
