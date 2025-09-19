@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
 import TournamentDetailPage from "@/pages/tournament-detail-page";
+import CreateAdmin from "@/pages/CreateAdmin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/tournaments/:id" component={TournamentDetailPage} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/create-admin" component={CreateAdmin} />
       <Route component={NotFound} />
     </Switch>
   );
