@@ -111,7 +111,7 @@ export function setupAuth(app: Express) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    passport.authenticate("local", (err, user) => {
+    passport.authenticate("local", (err: any, user: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json({ error: "Invalid credentials" });
       
