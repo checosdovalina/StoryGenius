@@ -6,6 +6,8 @@ import { z } from "zod";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "jugador", "organizador", "arbitro", "escrutador"]);
 export const sportEnum = pgEnum("sport", ["padel", "racquetball"]);
+export const padelCategoryEnum = pgEnum("padel_category", ["1a", "2a", "3a", "4a", "veteranos", "juvenil"]);
+export const racquetballLevelEnum = pgEnum("racquetball_level", ["principiante", "intermedio", "avanzado", "profesional"]);
 export const tournamentFormatEnum = pgEnum("tournament_format", ["elimination", "round_robin", "groups"]);
 export const tournamentStatusEnum = pgEnum("tournament_status", ["draft", "registration", "active", "completed", "cancelled"]);
 export const matchStatusEnum = pgEnum("match_status", ["scheduled", "in_progress", "completed", "cancelled"]);
@@ -20,6 +22,9 @@ export const users = pgTable("users", {
   phone: text("phone"),
   club: text("club"),
   role: userRoleEnum("role").notNull().default("jugador"),
+  preferredSport: sportEnum("preferred_sport"),
+  padelCategory: padelCategoryEnum("padel_category"),
+  racquetballLevel: racquetballLevelEnum("racquetball_level"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
