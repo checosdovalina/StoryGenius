@@ -1,0 +1,324 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { setupAuth } from "./auth";
+import { storage } from "./storage";
+import { insertTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema } from "@shared/schema";
+import { z } from "zod";
+
+export function registerRoutes(app: Express): Server {
+  // Setup authentication routes
+  setupAuth(app);
+
+  // Tournament routes
+  app.get("/api/tournaments", async (req, res) => {
+    try {
+      const tournaments = await storage.getAllTournaments();
+      res.json(tournaments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tournaments" });
+    }
+  });
+
+  app.post("/api/tournaments", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const validatedData = insertTournamentSchema.parse({
+        ...req.body,
+        organizerId: req.user!.id
+      });
+
+      const tournament = await storage.createTournament(validatedData);
+      res.status(201).json(tournament);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid tournament data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create tournament" });
+    }
+  });
+
+  app.get("/api/tournaments/:id", async (req, res) => {
+    try {
+      const tournament = await storage.getTournament(req.params.id);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+      res.json(tournament);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tournament" });
+    }
+  });
+
+  app.put("/api/tournaments/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const tournament = await storage.updateTournament(req.params.id, req.body);
+      res.json(tournament);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update tournament" });
+    }
+  });
+
+  app.delete("/api/tournaments/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      await storage.deleteTournament(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete tournament" });
+    }
+  });
+
+  // Tournament registration routes
+  app.post("/api/tournaments/:id/register", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const registrationData = insertTournamentRegistrationSchema.parse({
+        tournamentId: req.params.id,
+        playerId: req.user!.id
+      });
+
+      const registration = await storage.registerPlayerForTournament(registrationData);
+      res.status(201).json(registration);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid registration data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to register for tournament" });
+    }
+  });
+
+  app.delete("/api/tournaments/:id/register", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      await storage.unregisterPlayerFromTournament(req.params.id, req.user!.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unregister from tournament" });
+    }
+  });
+
+  app.get("/api/tournaments/:id/registrations", async (req, res) => {
+    try {
+      const registrations = await storage.getTournamentRegistrations(req.params.id);
+      res.json(registrations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch registrations" });
+    }
+  });
+
+  // Court routes
+  app.get("/api/courts", async (req, res) => {
+    try {
+      const courts = await storage.getAllCourts();
+      res.json(courts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch courts" });
+    }
+  });
+
+  app.post("/api/courts", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const validatedData = insertCourtSchema.parse(req.body);
+      const court = await storage.createCourt(validatedData);
+      res.status(201).json(court);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid court data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create court" });
+    }
+  });
+
+  app.put("/api/courts/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const court = await storage.updateCourt(req.params.id, req.body);
+      res.json(court);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update court" });
+    }
+  });
+
+  app.delete("/api/courts/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      await storage.deleteCourt(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete court" });
+    }
+  });
+
+  // Match routes
+  app.get("/api/tournaments/:id/matches", async (req, res) => {
+    try {
+      const matches = await storage.getTournamentMatches(req.params.id);
+      res.json(matches);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch matches" });
+    }
+  });
+
+  app.post("/api/matches", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const validatedData = insertMatchSchema.parse(req.body);
+      const match = await storage.createMatch(validatedData);
+      res.status(201).json(match);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid match data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create match" });
+    }
+  });
+
+  app.put("/api/matches/:id/result", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const resultSchema = z.object({
+        winnerId: z.string(),
+        player1Sets: z.number().min(0),
+        player2Sets: z.number().min(0),
+        player1Games: z.string(),
+        player2Games: z.string(),
+        duration: z.number().optional()
+      });
+
+      const validatedResult = resultSchema.parse(req.body);
+      const match = await storage.recordMatchResult(req.params.id, validatedResult);
+      res.json(match);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid result data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to record match result" });
+    }
+  });
+
+  app.get("/api/players/:id/matches", async (req, res) => {
+    try {
+      const matches = await storage.getPlayerMatches(req.params.id);
+      res.json(matches);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch player matches" });
+    }
+  });
+
+  // User management routes (Admin only)
+  app.get("/api/users", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.put("/api/users/:id/role", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { role } = req.body;
+      const user = await storage.updateUserRole(req.params.id, role);
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.deleteUser(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Player tournaments
+  app.get("/api/players/:id/tournaments", async (req, res) => {
+    try {
+      const tournaments = await storage.getPlayerTournaments(req.params.id);
+      res.json(tournaments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch player tournaments" });
+    }
+  });
+
+  // Statistics and rankings
+  app.get("/api/players/:id/stats", async (req, res) => {
+    try {
+      const { tournamentId } = req.query;
+      const stats = await storage.getPlayerStats(req.params.id, tournamentId as string);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch player stats" });
+    }
+  });
+
+  app.get("/api/rankings/global", async (req, res) => {
+    try {
+      const { limit = 50 } = req.query;
+      const rankings = await storage.getGlobalRankings(Number(limit));
+      res.json(rankings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch global rankings" });
+    }
+  });
+
+  app.get("/api/tournaments/:id/rankings", async (req, res) => {
+    try {
+      const { limit = 50 } = req.query;
+      const rankings = await storage.getTournamentRankings(req.params.id, Number(limit));
+      res.json(rankings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tournament rankings" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
