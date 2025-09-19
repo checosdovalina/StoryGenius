@@ -37,6 +37,9 @@ export interface IStorage {
   getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date }>>;
   getPlayerTournaments(playerId: string): Promise<Tournament[]>;
   unregisterPlayerFromTournament(tournamentId: string, playerId: string): Promise<void>;
+  
+  // Bracket generation
+  generateTournamentBrackets(tournamentId: string, forceRegenerate?: boolean): Promise<void>;
 
   // Court management
   createCourt(court: InsertCourt): Promise<Court>;
@@ -236,6 +239,152 @@ export class DatabaseStorage implements IStorage {
           eq(tournamentRegistrations.playerId, playerId)
         )
       );
+  }
+
+  // Bracket generation with safeguards
+  async generateTournamentBrackets(tournamentId: string, forceRegenerate: boolean = false): Promise<void> {
+    const tournament = await this.getTournament(tournamentId);
+    if (!tournament) throw new Error("Tournament not found");
+
+    const players = await this.getTournamentPlayers(tournamentId);
+    if (players.length < 2) throw new Error("At least 2 players required for brackets");
+
+    // Check for existing matches and tournament status
+    const existingMatches = await db.select().from(matches).where(eq(matches.tournamentId, tournamentId));
+    
+    if (existingMatches.length > 0 && !forceRegenerate) {
+      // Check if any matches are in progress or completed
+      const nonScheduledMatches = existingMatches.filter(match => 
+        match.status === "in_progress" || match.status === "completed"
+      );
+      
+      if (nonScheduledMatches.length > 0) {
+        throw new Error(
+          "Cannot regenerate brackets: some matches are already in progress or completed. " +
+          "Use force regeneration if you're sure you want to reset all matches."
+        );
+      }
+
+      // Check tournament status
+      if (tournament.status === "active") {
+        throw new Error(
+          "Cannot regenerate brackets for active tournament without force flag. " +
+          "This will reset all match data."
+        );
+      }
+    }
+
+    // Use transaction for atomic bracket regeneration
+    await db.transaction(async (tx) => {
+      // Clear existing matches
+      await tx.delete(matches).where(eq(matches.tournamentId, tournamentId));
+
+      // Generate new matches based on format
+      let newMatches: any[] = [];
+      if (tournament.format === "elimination") {
+        newMatches = await this.generateEliminationBrackets(tournamentId, players);
+      } else if (tournament.format === "round_robin") {
+        newMatches = await this.generateRoundRobinMatches(tournamentId, players);
+      } else if (tournament.format === "groups") {
+        newMatches = await this.generateGroupMatches(tournamentId, players);
+      }
+
+      // Insert all matches in one operation
+      if (newMatches.length > 0) {
+        await tx.insert(matches).values(newMatches);
+      }
+    });
+  }
+
+  private async generateEliminationBrackets(tournamentId: string, players: Array<Omit<User, 'password'> & { registeredAt: Date }>): Promise<any[]> {
+    // Shuffle players for random seeding
+    const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+    
+    // Generate first round matches, handling odd number of players with bye
+    const firstRoundMatches = [];
+    let bracketPosition = 1;
+    
+    for (let i = 0; i < shuffledPlayers.length; i += 2) {
+      if (i + 1 < shuffledPlayers.length) {
+        // Regular match between two players
+        firstRoundMatches.push({
+          tournamentId,
+          player1Id: shuffledPlayers[i].id,
+          player2Id: shuffledPlayers[i + 1].id,
+          round: "Round 1",
+          bracketPosition: bracketPosition++,
+          status: "scheduled" as const
+        });
+      } else {
+        // Odd player gets a bye - automatically advances
+        firstRoundMatches.push({
+          tournamentId,
+          player1Id: shuffledPlayers[i].id,
+          player2Id: shuffledPlayers[i].id, // Self-match indicates bye
+          round: "Round 1",
+          bracketPosition: bracketPosition++,
+          status: "completed" as const,
+          winnerId: shuffledPlayers[i].id,
+          player1Sets: 1,
+          player2Sets: 0
+        });
+      }
+    }
+
+    return firstRoundMatches;
+  }
+
+  private async generateRoundRobinMatches(tournamentId: string, players: Array<Omit<User, 'password'> & { registeredAt: Date }>): Promise<any[]> {
+    const roundRobinMatches = [];
+    let matchNumber = 1;
+
+    // Generate all possible combinations (each player plays every other player once)
+    for (let i = 0; i < players.length; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        roundRobinMatches.push({
+          tournamentId,
+          player1Id: players[i].id,
+          player2Id: players[j].id,
+          round: "Round Robin",
+          bracketPosition: matchNumber++,
+          status: "scheduled" as const
+        });
+      }
+    }
+
+    return roundRobinMatches;
+  }
+
+  private async generateGroupMatches(tournamentId: string, players: Array<Omit<User, 'password'> & { registeredAt: Date }>): Promise<any[]> {
+    // For groups format, divide players into groups of 4
+    const groupSize = 4;
+    const numberOfGroups = Math.ceil(players.length / groupSize);
+    
+    const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+    const groupMatches = [];
+    let matchNumber = 1;
+
+    for (let group = 0; group < numberOfGroups; group++) {
+      const groupStart = group * groupSize;
+      const groupEnd = Math.min(groupStart + groupSize, shuffledPlayers.length);
+      const groupPlayers = shuffledPlayers.slice(groupStart, groupEnd);
+
+      // Generate round robin within each group
+      for (let i = 0; i < groupPlayers.length; i++) {
+        for (let j = i + 1; j < groupPlayers.length; j++) {
+          groupMatches.push({
+            tournamentId,
+            player1Id: groupPlayers[i].id,
+            player2Id: groupPlayers[j].id,
+            round: `Group ${String.fromCharCode(65 + group)}`, // Group A, Group B, etc.
+            bracketPosition: matchNumber++,
+            status: "scheduled" as const
+          });
+        }
+      }
+    }
+
+    return groupMatches;
   }
 
   // Court management

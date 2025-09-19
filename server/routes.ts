@@ -159,8 +159,8 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/tournaments/:id/players", async (req, res) => {
     try {
       const players = await storage.getTournamentPlayers(req.params.id);
-      // Remove password from response for security
-      const safePlayerData = players.map(({ password, ...player }) => player);
+      // Password field already omitted in getTournamentPlayers method
+      const safePlayerData = players;
       res.json(safePlayerData);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch tournament players" });
@@ -419,6 +419,36 @@ export function registerRoutes(app: Express): Server {
       res.json(rankings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch tournament rankings" });
+    }
+  });
+
+  // Bracket generation
+  app.post("/api/tournaments/:id/generate-brackets", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const tournament = await storage.getTournament(req.params.id);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Check if user can manage this tournament - admin or tournament organizer only
+      const user = req.user as any;
+      if (user.role !== "admin" && tournament.organizerId !== user.id) {
+        return res.status(403).json({ message: "Only tournament organizers and admins can generate brackets" });
+      }
+
+      const { force } = req.body;
+      await storage.generateTournamentBrackets(req.params.id, force === true);
+      
+      res.json({ message: "Brackets generated successfully" });
+    } catch (error) {
+      if (error instanceof Error) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to generate brackets" });
     }
   });
 

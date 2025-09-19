@@ -3,7 +3,7 @@ import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { Tournament, User } from "@shared/schema";
+import { Tournament, User, Match } from "@shared/schema";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -341,14 +341,60 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
 }
 
 function MatchesTab({ tournament, canManage }: { tournament: Tournament; canManage?: boolean }) {
+  const { data: matches = [], isLoading: matchesLoading } = useQuery<Match[]>({
+    queryKey: [`/api/tournaments/${tournament.id}/matches`]
+  });
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"]
+  });
+
+  const getUserById = (id: string) => {
+    return users.find(u => u.id === id);
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "completed": return "default";
+      case "in_progress": return "secondary";
+      case "scheduled": return "outline";
+      default: return "outline";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "completed": return "Completado";
+      case "in_progress": return "En Progreso";
+      case "scheduled": return "Programado";
+      default: return status;
+    }
+  };
+
+  if (matchesLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Partidos</CardTitle>
+          <CardDescription>Cargando partidos...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8" data-testid="loading-matches">
+            <p>Cargando partidos...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Partidos</span>
+          <span>Partidos ({matches.length})</span>
           {canManage && (
             <Button data-testid="button-create-match">
-              Crear Partido
+              Crear Partido Manual
             </Button>
           )}
         </CardTitle>
@@ -357,25 +403,146 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400" data-testid="text-no-matches">
-          <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No hay partidos programados aún</p>
-          <p className="text-sm">Los partidos aparecerán cuando se generen los brackets</p>
-        </div>
+        {matches.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400" data-testid="text-no-matches">
+            <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No hay partidos programados aún</p>
+            <p className="text-sm">Los partidos aparecerán cuando se generen los brackets</p>
+          </div>
+        ) : (
+          <div className="space-y-4" data-testid="matches-list">
+            {matches.map((match) => {
+              const player1 = getUserById(match.player1Id);
+              const player2 = getUserById(match.player2Id);
+              
+              return (
+                <Card key={match.id} className="p-4" data-testid={`match-item-${match.id}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium" data-testid={`match-round-${match.id}`}>
+                          {match.round}
+                        </span>
+                        <Badge variant="outline">Partido {match.bracketPosition}</Badge>
+                      </div>
+                      {match.scheduledAt && (
+                        <p className="text-sm text-muted-foreground">
+                          📅 {format(new Date(match.scheduledAt), 'dd/MM/yyyy HH:mm')}
+                        </p>
+                      )}
+                    </div>
+                    <Badge variant={getStatusBadgeVariant(match.status)} data-testid={`match-status-badge-${match.id}`}>
+                      {getStatusLabel(match.status)}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div className={`p-3 rounded-lg border text-center ${match.winnerId === match.player1Id ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/50"}`}>
+                      <div className="font-medium" data-testid={`match-player1-${match.id}`}>
+                        {player1?.name || "TBD"}
+                      </div>
+                      {match.status === "completed" && (
+                        <div className="text-lg font-bold mt-1">
+                          {match.player1Sets || 0}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-muted-foreground">VS</div>
+                    </div>
+                    
+                    <div className={`p-3 rounded-lg border text-center ${match.winnerId === match.player2Id ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/50"}`}>
+                      <div className="font-medium" data-testid={`match-player2-${match.id}`}>
+                        {player2?.name || "TBD"}
+                      </div>
+                      {match.status === "completed" && (
+                        <div className="text-lg font-bold mt-1">
+                          {match.player2Sets || 0}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {match.duration && (
+                    <div className="mt-3 pt-3 border-t text-center text-sm text-muted-foreground">
+                      ⏱️ Duración: {match.duration} minutos
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 }
 
 function BracketsTab({ tournament, canManage }: { tournament: Tournament; canManage?: boolean }) {
+  const { toast } = useToast();
+
+  const { data: matches = [], isLoading: matchesLoading, error: matchesError } = useQuery<Match[]>({
+    queryKey: [`/api/tournaments/${tournament.id}/matches`]
+  });
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"]
+  });
+
+  const generateBracketsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/tournaments/${tournament.id}/generate-brackets`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/matches`] });
+      toast({ title: "Brackets generados exitosamente", variant: "default" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error al generar brackets", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const getUserById = (id: string) => {
+    return users.find(u => u.id === id);
+  };
+
+  const organizedMatches = matches.reduce<Record<string, Match[]>>((acc, match) => {
+    const round = match.round || "Round 1";
+    if (!acc[round]) acc[round] = [];
+    acc[round].push(match);
+    return acc;
+  }, {});
+
+  if (matchesLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Brackets</CardTitle>
+          <CardDescription>Cargando brackets...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8" data-testid="loading-brackets">
+            <p>Cargando brackets...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Brackets</span>
-          {canManage && (
-            <Button data-testid="button-generate-brackets">
-              Generar Brackets
+          {canManage && matches.length === 0 && (
+            <Button 
+              onClick={() => generateBracketsMutation.mutate()}
+              disabled={generateBracketsMutation.isPending}
+              data-testid="button-generate-brackets"
+            >
+              {generateBracketsMutation.isPending ? "Generando..." : "Generar Brackets"}
             </Button>
           )}
         </CardTitle>
@@ -384,11 +551,80 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400" data-testid="text-no-brackets">
-          <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Los brackets no han sido generados aún</p>
-          <p className="text-sm">Se generarán automáticamente cuando haya suficientes jugadores</p>
-        </div>
+        {matches.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400" data-testid="text-no-brackets">
+            <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>Los brackets no han sido generados aún</p>
+            <p className="text-sm">Se generarán automáticamente cuando haya suficientes jugadores</p>
+          </div>
+        ) : (
+          <div className="space-y-6" data-testid="brackets-display">
+            {Object.entries(organizedMatches).map(([round, roundMatches]) => (
+              <div key={round} className="space-y-4">
+                <h4 className="text-lg font-semibold text-card-foreground" data-testid={`round-title-${round}`}>
+                  {round}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {roundMatches.map((match: Match, index: number) => {
+                    const player1 = getUserById(match.player1Id);
+                    const player2 = getUserById(match.player2Id);
+                    
+                    return (
+                      <Card key={match.id} className="border-2" data-testid={`match-card-${match.id}`}>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-muted-foreground">
+                              Partido {match.bracketPosition}
+                            </span>
+                            <Badge 
+                              variant={match.status === "completed" ? "default" : match.status === "in_progress" ? "secondary" : "outline"}
+                              data-testid={`match-status-${match.id}`}
+                            >
+                              {match.status === "completed" ? "Completado" : 
+                               match.status === "in_progress" ? "En Progreso" : "Programado"}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className={`flex justify-between items-center p-2 rounded ${match.winnerId === match.player1Id ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : ""}`}>
+                              <span className="font-medium" data-testid={`player1-name-${match.id}`}>
+                                {player1?.name || "TBD"}
+                              </span>
+                              {match.status === "completed" && (
+                                <span className="font-bold">
+                                  {match.player1Sets || 0}
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="text-center text-xs text-muted-foreground">VS</div>
+                            
+                            <div className={`flex justify-between items-center p-2 rounded ${match.winnerId === match.player2Id ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : ""}`}>
+                              <span className="font-medium" data-testid={`player2-name-${match.id}`}>
+                                {player2?.name || "TBD"}
+                              </span>
+                              {match.status === "completed" && (
+                                <span className="font-bold">
+                                  {match.player2Sets || 0}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {match.scheduledAt && (
+                            <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+                              📅 {format(new Date(match.scheduledAt), 'dd/MM/yyyy HH:mm')}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
