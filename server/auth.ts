@@ -22,10 +22,18 @@ async function hashPassword(password: string) {
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  try {
+    const [hashed, salt] = stored.split(".");
+    if (!hashed || !salt) {
+      return false; // Invalid format
+    }
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    console.error('Password comparison error:', error);
+    return false;
+  }
 }
 
 export function setupAuth(app: Express) {
@@ -51,15 +59,23 @@ export function setupAuth(app: Express) {
     new LocalStrategy(
       { usernameField: 'email' },
       async (email, password, done) => {
-        // Try to find user by email first, then by username for backward compatibility
-        let user = await storage.getUserByEmail(email);
-        if (!user) {
-          user = await storage.getUserByUsername(email);
-        }
-        if (!user || !(await comparePasswords(password, user.password))) {
+        try {
+          // Normalize email (trim and lowercase)
+          const normalizedEmail = email.trim().toLowerCase();
+          
+          // Try to find user by email first, then by username for backward compatibility
+          let user = await storage.getUserByEmail(normalizedEmail);
+          if (!user) {
+            user = await storage.getUserByUsername(normalizedEmail);
+          }
+          if (!user || !(await comparePasswords(password, user.password))) {
+            return done(null, false);
+          } else {
+            return done(null, user);
+          }
+        } catch (error) {
+          console.error('LocalStrategy error:', error);
           return done(null, false);
-        } else {
-          return done(null, user);
         }
       }
     ),
@@ -83,7 +99,7 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ error: "Username already exists" });
       }
 
-      const existingEmail = await storage.getUserByEmail(req.body.email);
+      const existingEmail = await storage.getUserByEmail(req.body.email.trim().toLowerCase());
       if (existingEmail) {
         return res.status(400).json({ error: "Email already exists" });
       }
@@ -97,7 +113,8 @@ export function setupAuth(app: Express) {
         if (err) return next(err);
         req.login(user, (loginErr) => {
           if (loginErr) return next(loginErr);
-          res.status(201).json(user);
+          const { password, ...safeUser } = user;
+          res.status(201).json(safeUser);
         });
       });
     } catch (error) {
@@ -119,7 +136,8 @@ export function setupAuth(app: Express) {
         if (sessionErr) return next(sessionErr);
         req.login(user, (loginErr) => {
           if (loginErr) return next(loginErr);
-          res.status(200).json(user);
+          const { password, ...safeUser } = user;
+          res.status(200).json(safeUser);
         });
       });
     })(req, res, next);
@@ -134,6 +152,7 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
+    const { password, ...safeUser } = req.user!;
+    res.json(safeUser);
   });
 }

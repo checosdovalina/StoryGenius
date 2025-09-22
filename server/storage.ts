@@ -112,6 +112,8 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values({
         ...insertUser,
+        email: insertUser.email.trim().toLowerCase(),
+        username: insertUser.username.trim(),
         password: hashedPassword
       })
       .returning();
