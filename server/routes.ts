@@ -586,6 +586,31 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Endpoint público para verificar qué usuarios existen en la base de datos
+  app.get("/api/debug-users", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      res.json({
+        debug: true,
+        environment: process.env.NODE_ENV,
+        userCount: users.length,
+        users: users.map(u => ({ 
+          id: u.id, 
+          email: u.email, 
+          username: u.username, 
+          role: u.role,
+          hasPassword: !!u.password,
+          passwordFormat: u.password?.includes('.') ? 'hashed' : 'plaintext'
+        })),
+        hasSessionSecret: !!process.env.SESSION_SECRET,
+        databaseUrl: process.env.DATABASE_URL ? "configured" : "missing"
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, debug: true });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
