@@ -611,6 +611,35 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Endpoint temporal para arreglar el usuario admin corrupto
+  app.post("/api/fix-admin-production", async (req, res) => {
+    try {
+      // Eliminar usuario admin corrupto con contraseña plaintext
+      const corruptedAdmin = await storage.getUserByEmail('admin@gbsport.com');
+      if (corruptedAdmin) {
+        await storage.deleteUser(corruptedAdmin.id);
+      }
+      
+      // Crear nuevo usuario admin con contraseña correctamente hasheada
+      const newAdmin = await storage.createUser({
+        username: 'admin',
+        email: 'admin@gbsport.com',
+        password: 'admin123',
+        name: 'Administrador GBSport',
+        club: 'GBSport',
+        role: 'admin'
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Admin user fixed successfully',
+        user: { id: newAdmin.id, email: newAdmin.email, role: newAdmin.role }
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, debug: true });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
