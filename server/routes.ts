@@ -563,6 +563,29 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+  // Endpoint temporal para debuggear login en producción
+  app.post("/api/debug-login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      // Verificar que el usuario existe
+      const user = await storage.getUserByEmail(email?.trim()?.toLowerCase());
+      
+      res.json({
+        debug: true,
+        userExists: !!user,
+        email: email,
+        normalizedEmail: email?.trim()?.toLowerCase(),
+        userFound: user ? { id: user.id, email: user.email, role: user.role } : null,
+        environment: process.env.NODE_ENV,
+        hasSessionSecret: !!process.env.SESSION_SECRET,
+        databaseUrl: process.env.DATABASE_URL ? "configured" : "missing"
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, debug: true });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
