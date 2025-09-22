@@ -90,7 +90,7 @@ export function setupAuth(app: Express) {
 
       const user = await storage.createUser({
         ...req.body,
-        password: await hashPassword(req.body.password),
+        // Password will be hashed by storage.createUser
       });
 
       req.session.regenerate((err) => {
