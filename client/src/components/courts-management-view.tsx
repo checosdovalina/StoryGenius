@@ -1,13 +1,33 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Clock, Wrench, Calendar, Edit } from "lucide-react";
 import type { Court } from "@shared/schema";
+
+const createCourtSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido"),
+  sport: z.enum(["padel", "racquetball"], { required_error: "Selecciona un deporte" }),
+  venue: z.string().min(1, "El lugar es requerido"),
+  startTime: z.string().min(1, "La hora de inicio es requerida"),
+  endTime: z.string().min(1, "La hora de cierre es requerida"),
+  description: z.string().optional(),
+  status: z.enum(["available", "maintenance", "blocked"]).default("available")
+});
+
+type CreateCourtForm = z.infer<typeof createCourtSchema>;
 
 export function CourtsManagementView() {
   const { toast } = useToast();
@@ -16,6 +36,46 @@ export function CourtsManagementView() {
   const { data: courts = [], isLoading } = useQuery<Court[]>({
     queryKey: ["/api/courts"]
   });
+
+  const form = useForm<CreateCourtForm>({
+    resolver: zodResolver(createCourtSchema),
+    defaultValues: {
+      name: "",
+      sport: undefined,
+      venue: "",
+      startTime: "06:00",
+      endTime: "22:00",
+      description: "",
+      status: "available"
+    }
+  });
+
+  const createCourtMutation = useMutation({
+    mutationFn: async (data: CreateCourtForm) => {
+      const res = await apiRequest("POST", "/api/courts", data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courts"] });
+      setShowCreateModal(false);
+      form.reset();
+      toast({
+        title: "Cancha creada",
+        description: "La cancha se ha creado exitosamente",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Error al crear la cancha",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const onSubmit = (data: CreateCourtForm) => {
+    createCourtMutation.mutate(data);
+  };
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -144,6 +204,133 @@ export function CourtsManagementView() {
           ))}
         </div>
       )}
+
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Crear Nueva Cancha</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre de la Cancha</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Ej: Cancha 1, Cancha Principal" data-testid="input-court-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sport"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deporte</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-court-sport">
+                          <SelectValue placeholder="Selecciona un deporte" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="padel">Pádel</SelectItem>
+                        <SelectItem value="racquetball">Racquetball</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="venue"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lugar/Ubicación</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Ej: Complejo Deportivo Central" data-testid="input-court-venue" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora de Apertura</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="time" data-testid="input-court-start-time" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora de Cierre</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="time" data-testid="input-court-end-time" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descripción (Opcional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder="Descripción adicional de la cancha..."
+                        data-testid="textarea-court-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreateModal(false)}
+                  data-testid="button-cancel-court"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createCourtMutation.isPending}
+                  data-testid="button-create-court"
+                >
+                  {createCourtMutation.isPending ? "Creando..." : "Crear Cancha"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
