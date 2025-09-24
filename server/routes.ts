@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema } from "@shared/schema";
 import { z } from "zod";
 
 export function registerRoutes(app: Express): Server {
@@ -240,6 +240,86 @@ export function registerRoutes(app: Express): Server {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to unregister player" });
+    }
+  });
+
+  // Club routes
+  app.get("/api/clubs", async (req, res) => {
+    try {
+      const clubs = await storage.getAllClubs();
+      res.json(clubs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch clubs" });
+    }
+  });
+
+  app.post("/api/clubs", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin or organizador can create clubs
+      if (!["admin", "organizador"].includes(req.user!.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const validatedData = insertClubSchema.parse(req.body);
+      const club = await storage.createClub(validatedData);
+      res.status(201).json(club);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid club data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create club" });
+    }
+  });
+
+  app.get("/api/clubs/:id", async (req, res) => {
+    try {
+      const club = await storage.getClub(req.params.id);
+      if (!club) {
+        return res.status(404).json({ message: "Club not found" });
+      }
+      res.json(club);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch club" });
+    }
+  });
+
+  app.patch("/api/clubs/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin or organizador can update clubs
+      if (!["admin", "organizador"].includes(req.user!.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const club = await storage.updateClub(req.params.id, req.body);
+      res.json(club);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update club" });
+    }
+  });
+
+  app.delete("/api/clubs/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin can delete clubs
+      if (req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      await storage.deleteClub(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete club" });
     }
   });
 

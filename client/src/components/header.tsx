@@ -12,6 +12,7 @@ const viewTitles: Record<ViewType, { title: string; subtitle: string }> = {
   userManagement: { title: "Gestión de Usuarios", subtitle: "Administra usuarios y roles" },
   tournaments: { title: "Gestión de Torneos", subtitle: "Crea y administra torneos" },
   calendar: { title: "Calendario", subtitle: "Programación de partidos" },
+  club: { title: "Gestión de Club", subtitle: "Administra información del club y canchas" },
   courts: { title: "Gestión de Canchas", subtitle: "Administra canchas y horarios" },
   statistics: { title: "Estadísticas", subtitle: "Tu rendimiento deportivo" },
   rankings: { title: "Rankings", subtitle: "Clasificaciones y posiciones" },

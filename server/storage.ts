@@ -1,10 +1,10 @@
 import { 
-  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches,
+  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs,
   type User, type InsertUser, type Tournament, type InsertTournament,
   type Court, type InsertCourt, type Match, type InsertMatch,
   type TournamentRegistration, type InsertTournamentRegistration,
   type PlayerStats, type InsertPlayerStats, type PadelPair, type InsertPadelPair,
-  type ScheduledMatch, type InsertScheduledMatch
+  type ScheduledMatch, type InsertScheduledMatch, type Club, type InsertClub
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, or, count, avg, sum, isNull, gte, lte, between } from "drizzle-orm";
@@ -48,6 +48,13 @@ export interface IStorage {
   getPadelPairsByPlayer(playerId: string): Promise<PadelPair[]>;
   updatePadelPairOnUserRegister(phone: string, userId: string): Promise<void>;
   findUserByPhone(phone: string): Promise<User | undefined>;
+
+  // Club management
+  createClub(club: InsertClub): Promise<Club>;
+  getClub(id: string): Promise<Club | undefined>;
+  getAllClubs(): Promise<Club[]>;
+  updateClub(id: string, updates: Partial<InsertClub>): Promise<Club>;
+  deleteClub(id: string): Promise<void>;
 
   // Court management
   createCourt(court: InsertCourt): Promise<Court>;
@@ -483,6 +490,37 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.phone, phone))
       .limit(1);
     return user;
+  }
+
+  // Club management
+  async createClub(club: InsertClub): Promise<Club> {
+    const [newClub] = await db
+      .insert(clubs)
+      .values(club)
+      .returning();
+    return newClub;
+  }
+
+  async getClub(id: string): Promise<Club | undefined> {
+    const [club] = await db.select().from(clubs).where(eq(clubs.id, id));
+    return club || undefined;
+  }
+
+  async getAllClubs(): Promise<Club[]> {
+    return await db.select().from(clubs).orderBy(asc(clubs.name));
+  }
+
+  async updateClub(id: string, updates: Partial<InsertClub>): Promise<Club> {
+    const [club] = await db
+      .update(clubs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(clubs.id, id))
+      .returning();
+    return club;
+  }
+
+  async deleteClub(id: string): Promise<void> {
+    await db.delete(clubs).where(eq(clubs.id, id));
   }
 
   // Court management
