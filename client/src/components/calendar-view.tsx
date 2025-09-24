@@ -1,13 +1,58 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { FileText, Plus, Clock, Users } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
 import type { ScheduledMatch, Court } from "@shared/schema";
+
+// Form validation schema for schedule match modal
+const scheduleMatchSchema = z.object({
+  title: z.string().min(1, "El título es requerido"),
+  date: z.string().min(1, "La fecha es requerida"),
+  time: z.string().min(1, "La hora es requerida"),
+  sport: z.enum(["padel", "racquetball"], {
+    required_error: "El deporte es requerido"
+  }),
+  courtId: z.string().min(1, "La cancha es requerida"),
+  duration: z.coerce.number().min(60).max(180),
+  player1Name: z.string().min(1, "El nombre del jugador 1 es requerido"),
+  player2Name: z.string().min(1, "El nombre del jugador 2 es requerido"),
+  player3Name: z.string().optional(),
+  player4Name: z.string().optional()
+}).superRefine((data, ctx) => {
+  if (data.sport === "padel") {
+    if (!data.player3Name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El jugador 3 es requerido para padel",
+        path: ["player3Name"]
+      });
+    }
+    if (!data.player4Name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El jugador 4 es requerido para padel",
+        path: ["player4Name"]
+      });
+    }
+  }
+});
+
+type ScheduleMatchFormData = z.infer<typeof scheduleMatchSchema>;
 
 export function CalendarView() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -25,6 +70,74 @@ export function CalendarView() {
       return response.json();
     }
   });
+
+  const { toast } = useToast();
+
+  const form = useForm<ScheduleMatchFormData>({
+    resolver: zodResolver(scheduleMatchSchema),
+    defaultValues: {
+      title: "",
+      date: format(selectedDate, "yyyy-MM-dd"),
+      time: "09:00",
+      sport: "padel",
+      duration: 90,
+      player1Name: "",
+      player2Name: "",
+      player3Name: "",
+      player4Name: ""
+    }
+  });
+
+  // Update form date when selectedDate changes
+  useEffect(() => {
+    form.setValue("date", format(selectedDate, "yyyy-MM-dd"));
+  }, [selectedDate, form]);
+
+  const createMatchMutation = useMutation({
+    mutationFn: async (data: ScheduleMatchFormData) => {
+      const scheduledDate = new Date(`${data.date}T${data.time}:00`);
+      
+      const matchData = {
+        title: data.title,
+        scheduledDate: scheduledDate.toISOString(),
+        sport: data.sport,
+        courtId: data.courtId,
+        duration: data.duration,
+        player1Name: data.player1Name,
+        player2Name: data.player2Name,
+        player3Name: data.player3Name || null,
+        player4Name: data.player4Name || null,
+        status: "programado" as const
+      };
+
+      return apiRequest(`/api/scheduled-matches`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(matchData)
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Partido programado",
+        description: "El partido ha sido programado exitosamente"
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/scheduled-matches", "date", format(selectedDate, "yyyy-MM-dd")] 
+      });
+      form.reset();
+      setShowScheduleModal(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo programar el partido",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const watchedSport = form.watch("sport");
+  const availableCourts = courts.filter(court => court.sport === watchedSport);
 
   const timeSlots = [
     "09:00", "10:30", "12:00", "13:30", "15:00", "16:30", "18:00", "19:30"
@@ -215,6 +328,265 @@ export function CalendarView() {
           )}
         </CardContent>
       </Card>
+
+      {/* Schedule Match Modal */}
+      <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Programar Nuevo Partido</DialogTitle>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit((data) => createMatchMutation.mutate(data))} className="space-y-4">
+              {/* Title */}
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Título del Partido</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ej: Partido amistoso, Entrenamiento, etc."
+                        {...field}
+                        data-testid="input-match-title"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Date and Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date" 
+                          {...field}
+                          data-testid="input-match-date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-match-time">
+                            <SelectValue placeholder="Seleccionar hora" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {timeSlots.map((time) => (
+                            <SelectItem key={time} value={time}>
+                              {time}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Sport and Duration */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="sport"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Deporte</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-sport">
+                            <SelectValue placeholder="Seleccionar deporte" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="padel">Padel</SelectItem>
+                          <SelectItem value="racquetball">Racquetball</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duración (min)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={60} 
+                          max={180} 
+                          step={30}
+                          {...field}
+                          data-testid="input-duration"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Court Selection */}
+              <FormField
+                control={form.control}
+                name="courtId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cancha</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-court">
+                          <SelectValue placeholder="Seleccionar cancha" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableCourts.map((court) => (
+                          <SelectItem key={court.id} value={court.id}>
+                            {court.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Players */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium">Jugadores</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {watchedSport === "padel" 
+                      ? "Padel requiere 4 jugadores (2 vs 2)" 
+                      : "Racquetball requiere 2 jugadores (1 vs 1)"}
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="player1Name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Jugador 1</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Nombre del jugador"
+                            {...field}
+                            data-testid="input-player1"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="player2Name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Jugador 2</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Nombre del jugador"
+                            {...field}
+                            data-testid="input-player2"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {watchedSport === "padel" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="player3Name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Jugador 3</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Nombre del jugador"
+                              {...field}
+                              data-testid="input-player3"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="player4Name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Jugador 4</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Nombre del jugador"
+                              {...field}
+                              data-testid="input-player4"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowScheduleModal(false)}
+                  data-testid="button-cancel"
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createMatchMutation.isPending}
+                  data-testid="button-submit-match"
+                >
+                  {createMatchMutation.isPending ? "Programando..." : "Programar Partido"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
