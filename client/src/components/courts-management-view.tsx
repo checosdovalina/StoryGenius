@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Clock, Wrench, Calendar, Edit } from "lucide-react";
-import type { Court } from "@shared/schema";
+import type { Court, Club } from "@shared/schema";
 
 const createCourtSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
@@ -24,7 +24,8 @@ const createCourtSchema = z.object({
   startTime: z.string().min(1, "La hora de inicio es requerida"),
   endTime: z.string().min(1, "La hora de cierre es requerida"),
   description: z.string().optional(),
-  status: z.enum(["available", "maintenance", "blocked"]).default("available")
+  status: z.enum(["available", "maintenance", "blocked"]).default("available"),
+  clubId: z.string().min(1, "Selecciona un club")
 });
 
 type CreateCourtForm = z.infer<typeof createCourtSchema>;
@@ -37,6 +38,10 @@ export function CourtsManagementView() {
     queryKey: ["/api/courts"]
   });
 
+  const { data: clubs = [], isLoading: clubsLoading } = useQuery<Club[]>({
+    queryKey: ["/api/clubs"]
+  });
+
   const form = useForm<CreateCourtForm>({
     resolver: zodResolver(createCourtSchema),
     defaultValues: {
@@ -46,7 +51,8 @@ export function CourtsManagementView() {
       startTime: "06:00",
       endTime: "22:00",
       description: "",
-      status: "available"
+      status: "available",
+      clubId: ""
     }
   });
 
@@ -95,7 +101,7 @@ export function CourtsManagementView() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || clubsLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -241,6 +247,31 @@ export function CourtsManagementView() {
                       <SelectContent>
                         <SelectItem value="padel">Pádel</SelectItem>
                         <SelectItem value="racquetball">Racquetball</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="clubId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Club</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-court-club">
+                          <SelectValue placeholder="Selecciona un club" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {clubs.map((club) => (
+                          <SelectItem key={club.id} value={club.id}>
+                            {club.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
