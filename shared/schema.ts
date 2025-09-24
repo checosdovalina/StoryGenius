@@ -12,6 +12,7 @@ export const tournamentFormatEnum = pgEnum("tournament_format", ["elimination", 
 export const tournamentStatusEnum = pgEnum("tournament_status", ["draft", "registration", "active", "completed", "cancelled"]);
 export const matchStatusEnum = pgEnum("match_status", ["scheduled", "in_progress", "completed", "cancelled"]);
 export const courtStatusEnum = pgEnum("court_status", ["available", "maintenance", "blocked"]);
+export const scheduledMatchStatusEnum = pgEnum("scheduled_match_status", ["programado", "confirmado", "en_curso", "completado", "cancelado"]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -100,6 +101,29 @@ export const matches = pgTable("matches", {
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
 
+export const scheduledMatches = pgTable("scheduled_matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  sport: sportEnum("sport").notNull(),
+  courtId: varchar("court_id").notNull().references(() => courts.id),
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  duration: integer("duration_minutes").notNull().default(60),
+  status: scheduledMatchStatusEnum("status").notNull().default("programado"),
+  organizerId: varchar("organizer_id").notNull().references(() => users.id),
+  player1Id: varchar("player1_id").references(() => users.id),
+  player1Name: text("player1_name"), // For non-registered players
+  player2Id: varchar("player2_id").references(() => users.id),
+  player2Name: text("player2_name"), // For non-registered players
+  player3Id: varchar("player3_id").references(() => users.id), // For doubles (padel)
+  player3Name: text("player3_name"),
+  player4Id: varchar("player4_id").references(() => users.id), // For doubles (padel)
+  player4Name: text("player4_name"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+});
+
 export const playerStats = pgTable("player_stats", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   playerId: varchar("player_id").notNull().references(() => users.id),
@@ -128,7 +152,12 @@ export const usersRelations = relations(users, ({ many }) => ({
   wonMatches: many(matches, { relationName: "winner" }),
   stats: many(playerStats),
   pairsAsPlayer1: many(padelPairs, { relationName: "player1" }),
-  pairsAsPlayer2: many(padelPairs, { relationName: "player2" })
+  pairsAsPlayer2: many(padelPairs, { relationName: "player2" }),
+  organizedScheduledMatches: many(scheduledMatches, { relationName: "organizer" }),
+  scheduledMatchesAsPlayer1: many(scheduledMatches, { relationName: "player1" }),
+  scheduledMatchesAsPlayer2: many(scheduledMatches, { relationName: "player2" }),
+  scheduledMatchesAsPlayer3: many(scheduledMatches, { relationName: "player3" }),
+  scheduledMatchesAsPlayer4: many(scheduledMatches, { relationName: "player4" })
 }));
 
 export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
@@ -141,7 +170,8 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
 }));
 
 export const courtsRelations = relations(courts, ({ many }) => ({
-  matches: many(matches)
+  matches: many(matches),
+  scheduledMatches: many(scheduledMatches)
 }));
 
 export const padelPairsRelations = relations(padelPairs, ({ one, many }) => ({
@@ -196,6 +226,38 @@ export const matchesRelations = relations(matches, ({ one }) => ({
   court: one(courts, {
     fields: [matches.courtId],
     references: [courts.id]
+  })
+}));
+
+export const scheduledMatchesRelations = relations(scheduledMatches, ({ one }) => ({
+  court: one(courts, {
+    fields: [scheduledMatches.courtId],
+    references: [courts.id]
+  }),
+  organizer: one(users, {
+    fields: [scheduledMatches.organizerId],
+    references: [users.id],
+    relationName: "organizer"
+  }),
+  player1: one(users, {
+    fields: [scheduledMatches.player1Id],
+    references: [users.id],
+    relationName: "player1"
+  }),
+  player2: one(users, {
+    fields: [scheduledMatches.player2Id],
+    references: [users.id],
+    relationName: "player2"
+  }),
+  player3: one(users, {
+    fields: [scheduledMatches.player3Id],
+    references: [users.id],
+    relationName: "player3"
+  }),
+  player4: one(users, {
+    fields: [scheduledMatches.player4Id],
+    references: [users.id],
+    relationName: "player4"
   })
 }));
 
@@ -274,6 +336,15 @@ export const insertPlayerStatsSchema = createInsertSchema(playerStats).omit({
   updatedAt: true
 });
 
+export const insertScheduledMatchSchema = createInsertSchema(scheduledMatches).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+}).extend({
+  scheduledDate: z.coerce.date(),
+  duration: z.number().min(30).max(180, "La duración debe estar entre 30 y 180 minutos")
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -289,3 +360,5 @@ export type PlayerStats = typeof playerStats.$inferSelect;
 export type InsertPlayerStats = z.infer<typeof insertPlayerStatsSchema>;
 export type PadelPair = typeof padelPairs.$inferSelect;
 export type InsertPadelPair = z.infer<typeof insertPadelPairSchema>;
+export type ScheduledMatch = typeof scheduledMatches.$inferSelect;
+export type InsertScheduledMatch = z.infer<typeof insertScheduledMatchSchema>;
