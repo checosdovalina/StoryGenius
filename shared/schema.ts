@@ -14,6 +14,23 @@ export const matchStatusEnum = pgEnum("match_status", ["scheduled", "in_progress
 export const courtStatusEnum = pgEnum("court_status", ["available", "maintenance", "blocked"]);
 export const scheduledMatchStatusEnum = pgEnum("scheduled_match_status", ["programado", "confirmado", "en_curso", "completado", "cancelado"]);
 
+export const clubs = pgTable("clubs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  address: text("address").notNull(),
+  city: text("city").notNull(),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  phone: text("phone"),
+  email: text("email"),
+  website: text("website"),
+  managerId: varchar("manager_id").references(() => users.id), // Manager of the club
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -66,6 +83,7 @@ export const courts = pgTable("courts", {
   status: courtStatusEnum("status").notNull().default("available"),
   description: text("description"),
   venue: text("venue").notNull(),
+  clubId: varchar("club_id").notNull().references(() => clubs.id),
   startTime: text("start_time").notNull(),
   endTime: text("end_time").notNull(),
   maintenanceUntil: timestamp("maintenance_until"),
@@ -144,7 +162,16 @@ export const playerStats = pgTable("player_stats", {
 });
 
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const clubsRelations = relations(clubs, ({ one, many }) => ({
+  manager: one(users, {
+    fields: [clubs.managerId],
+    references: [users.id]
+  }),
+  courts: many(courts)
+}));
+
+export const usersRelations = relations(users, ({ many, one }) => ({
+  managedClubs: many(clubs),
   organizedTournaments: many(tournaments),
   registrations: many(tournamentRegistrations),
   matchesAsPlayer1: many(matches, { relationName: "player1" }),
@@ -169,7 +196,11 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   matches: many(matches)
 }));
 
-export const courtsRelations = relations(courts, ({ many }) => ({
+export const courtsRelations = relations(courts, ({ one, many }) => ({
+  club: one(clubs, {
+    fields: [courts.clubId],
+    references: [clubs.id]
+  }),
   matches: many(matches),
   scheduledMatches: many(scheduledMatches)
 }));
@@ -308,6 +339,12 @@ export const updateTournamentSchema = z.object({
   { message: "End date must be after start date", path: ["endDate"] }
 );
 
+export const insertClubSchema = createInsertSchema(clubs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 export const insertCourtSchema = createInsertSchema(courts).omit({
   id: true,
   createdAt: true,
@@ -346,6 +383,8 @@ export const insertScheduledMatchSchema = createInsertSchema(scheduledMatches).o
 });
 
 // Types
+export type Club = typeof clubs.$inferSelect;
+export type InsertClub = z.infer<typeof insertClubSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Tournament = typeof tournaments.$inferSelect;
