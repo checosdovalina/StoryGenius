@@ -122,10 +122,10 @@ export default function TournamentDetailPage() {
 
         {/* Main content tabs */}
         <Tabs defaultValue="players" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="players" data-testid="tab-players">Jugadores</TabsTrigger>
             <TabsTrigger value="matches" data-testid="tab-matches">Partidos</TabsTrigger>
-            <TabsTrigger value="brackets" data-testid="tab-brackets">Brackets</TabsTrigger>
+            {/* <TabsTrigger value="brackets" data-testid="tab-brackets">Brackets</TabsTrigger> */}
           </TabsList>
           
           <TabsContent value="players" className="mt-6">
@@ -136,9 +136,9 @@ export default function TournamentDetailPage() {
             <MatchesTab tournament={tournament} canManage={canManage} />
           </TabsContent>
           
-          <TabsContent value="brackets" className="mt-6">
+          {/* <TabsContent value="brackets" className="mt-6">
             <BracketsTab tournament={tournament} canManage={canManage} />
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </main>
     </div>
