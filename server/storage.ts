@@ -1,12 +1,13 @@
 import { 
-  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs,
+  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches,
   type User, type InsertUser, type Tournament, type InsertTournament,
   type Court, type InsertCourt, type Match, type InsertMatch,
   type TournamentRegistration, type InsertTournamentRegistration,
-  type PlayerStats, type InsertPlayerStats, type PadelPair, type InsertPadelPair
+  type PlayerStats, type InsertPlayerStats, type PadelPair, type InsertPadelPair,
+  type ScheduledMatch, type InsertScheduledMatch
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc, and, or, count, avg, sum, isNull } from "drizzle-orm";
+import { eq, desc, asc, and, or, count, avg, sum, isNull, gte, lte, between } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -69,6 +70,17 @@ export interface IStorage {
     player2Games: string;
     duration?: number;
   }): Promise<Match>;
+
+  // Scheduled matches management (calendar)
+  createScheduledMatch(match: InsertScheduledMatch): Promise<ScheduledMatch>;
+  getScheduledMatch(id: string): Promise<ScheduledMatch | undefined>;
+  getAllScheduledMatches(): Promise<ScheduledMatch[]>;
+  getScheduledMatchesByDate(date: Date): Promise<ScheduledMatch[]>;
+  getScheduledMatchesByDateRange(startDate: Date, endDate: Date): Promise<ScheduledMatch[]>;
+  getScheduledMatchesByCourt(courtId: string, date?: Date): Promise<ScheduledMatch[]>;
+  getScheduledMatchesByOrganizer(organizerId: string): Promise<ScheduledMatch[]>;
+  updateScheduledMatch(id: string, updates: Partial<InsertScheduledMatch>): Promise<ScheduledMatch>;
+  deleteScheduledMatch(id: string): Promise<void>;
 
   // Statistics and rankings
   getPlayerStats(playerId: string, tournamentId?: string): Promise<PlayerStats[]>;
@@ -566,6 +578,103 @@ export class DatabaseStorage implements IStorage {
       .where(eq(matches.id, id))
       .returning();
     return match;
+  }
+
+  // Scheduled matches management (calendar)
+  async createScheduledMatch(match: InsertScheduledMatch): Promise<ScheduledMatch> {
+    const [newMatch] = await db
+      .insert(scheduledMatches)
+      .values(match)
+      .returning();
+    return newMatch;
+  }
+
+  async getScheduledMatch(id: string): Promise<ScheduledMatch | undefined> {
+    const [match] = await db.select().from(scheduledMatches).where(eq(scheduledMatches.id, id));
+    return match || undefined;
+  }
+
+  async getAllScheduledMatches(): Promise<ScheduledMatch[]> {
+    return await db
+      .select()
+      .from(scheduledMatches)
+      .orderBy(asc(scheduledMatches.scheduledDate));
+  }
+
+  async getScheduledMatchesByDate(date: Date): Promise<ScheduledMatch[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return await db
+      .select()
+      .from(scheduledMatches)
+      .where(
+        and(
+          gte(scheduledMatches.scheduledDate, startOfDay),
+          lte(scheduledMatches.scheduledDate, endOfDay)
+        )
+      )
+      .orderBy(asc(scheduledMatches.scheduledDate));
+  }
+
+  async getScheduledMatchesByDateRange(startDate: Date, endDate: Date): Promise<ScheduledMatch[]> {
+    return await db
+      .select()
+      .from(scheduledMatches)
+      .where(
+        and(
+          gte(scheduledMatches.scheduledDate, startDate),
+          lte(scheduledMatches.scheduledDate, endDate)
+        )
+      )
+      .orderBy(asc(scheduledMatches.scheduledDate));
+  }
+
+  async getScheduledMatchesByCourt(courtId: string, date?: Date): Promise<ScheduledMatch[]> {
+    let conditions = [eq(scheduledMatches.courtId, courtId)];
+    
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      conditions.push(
+        gte(scheduledMatches.scheduledDate, startOfDay),
+        lte(scheduledMatches.scheduledDate, endOfDay)
+      );
+    }
+
+    return await db
+      .select()
+      .from(scheduledMatches)
+      .where(and(...conditions))
+      .orderBy(asc(scheduledMatches.scheduledDate));
+  }
+
+  async getScheduledMatchesByOrganizer(organizerId: string): Promise<ScheduledMatch[]> {
+    return await db
+      .select()
+      .from(scheduledMatches)
+      .where(eq(scheduledMatches.organizerId, organizerId))
+      .orderBy(desc(scheduledMatches.scheduledDate));
+  }
+
+  async updateScheduledMatch(id: string, updates: Partial<InsertScheduledMatch>): Promise<ScheduledMatch> {
+    const [match] = await db
+      .update(scheduledMatches)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(scheduledMatches.id, id))
+      .returning();
+    return match;
+  }
+
+  async deleteScheduledMatch(id: string): Promise<void> {
+    await db.delete(scheduledMatches).where(eq(scheduledMatches.id, id));
   }
 
   // Statistics and rankings
