@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema } from "@shared/schema";
 import { z } from "zod";
 
 export function registerRoutes(app: Express): Server {
@@ -355,6 +355,124 @@ export function registerRoutes(app: Express): Server {
       res.json(matches);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch player matches" });
+    }
+  });
+
+  // Scheduled matches routes (calendar)
+  app.get("/api/scheduled-matches", async (req, res) => {
+    try {
+      const { date, startDate, endDate, courtId, organizerId } = req.query;
+      
+      let matches;
+      if (date) {
+        // Get matches for specific date
+        matches = await storage.getScheduledMatchesByDate(new Date(date as string));
+      } else if (startDate && endDate) {
+        // Get matches for date range
+        matches = await storage.getScheduledMatchesByDateRange(
+          new Date(startDate as string), 
+          new Date(endDate as string)
+        );
+      } else if (courtId) {
+        // Get matches for specific court
+        const courtDate = date ? new Date(date as string) : undefined;
+        matches = await storage.getScheduledMatchesByCourt(courtId as string, courtDate);
+      } else if (organizerId) {
+        // Get matches by organizer
+        matches = await storage.getScheduledMatchesByOrganizer(organizerId as string);
+      } else {
+        // Get all matches
+        matches = await storage.getAllScheduledMatches();
+      }
+      
+      res.json(matches);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch scheduled matches" });
+    }
+  });
+
+  app.post("/api/scheduled-matches", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const validatedData = insertScheduledMatchSchema.parse({
+        ...req.body,
+        organizerId: req.user!.id
+      });
+
+      const match = await storage.createScheduledMatch(validatedData);
+      res.status(201).json(match);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid scheduled match data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create scheduled match" });
+    }
+  });
+
+  app.get("/api/scheduled-matches/:id", async (req, res) => {
+    try {
+      const match = await storage.getScheduledMatch(req.params.id);
+      if (!match) {
+        return res.status(404).json({ message: "Scheduled match not found" });
+      }
+      res.json(match);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch scheduled match" });
+    }
+  });
+
+  app.put("/api/scheduled-matches/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get existing match to check permissions
+      const existingMatch = await storage.getScheduledMatch(req.params.id);
+      if (!existingMatch) {
+        return res.status(404).json({ message: "Scheduled match not found" });
+      }
+
+      // Only the organizer or admin can update
+      if (existingMatch.organizerId !== req.user!.id && req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Not authorized to update this match" });
+      }
+
+      const validatedData = insertScheduledMatchSchema.partial().parse(req.body);
+      const match = await storage.updateScheduledMatch(req.params.id, validatedData);
+      res.json(match);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid update data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update scheduled match" });
+    }
+  });
+
+  app.delete("/api/scheduled-matches/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get existing match to check permissions
+      const existingMatch = await storage.getScheduledMatch(req.params.id);
+      if (!existingMatch) {
+        return res.status(404).json({ message: "Scheduled match not found" });
+      }
+
+      // Only the organizer or admin can delete
+      if (existingMatch.organizerId !== req.user!.id && req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Not authorized to delete this match" });
+      }
+
+      await storage.deleteScheduledMatch(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete scheduled match" });
     }
   });
 
