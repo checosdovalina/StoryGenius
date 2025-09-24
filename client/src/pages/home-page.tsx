@@ -6,6 +6,7 @@ import { DashboardView } from "@/components/dashboard-view";
 import { UserManagementView } from "@/components/user-management-view";
 import { TournamentManagementView } from "@/components/tournament-management-view";
 import { CalendarView } from "@/components/calendar-view";
+import { ClubView } from "@/components/club-view";
 import { CourtsManagementView } from "@/components/courts-management-view";
 import { StatisticsView } from "@/components/statistics-view";
 import { RankingsView } from "@/components/rankings-view";
@@ -17,6 +18,7 @@ export type ViewType =
   | "userManagement" 
   | "tournaments" 
   | "calendar" 
+  | "club" 
   | "courts" 
   | "statistics" 
   | "rankings" 
@@ -42,6 +44,8 @@ export default function HomePage() {
         return <TournamentManagementView />;
       case "calendar":
         return <CalendarView />;
+      case "club":
+        return <ClubView />;
       case "courts":
         return <CourtsManagementView />;
       case "statistics":

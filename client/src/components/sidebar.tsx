@@ -7,6 +7,7 @@ import {
   Users, 
   Calendar, 
   MapPin, 
+  Building,
   BarChart3, 
   Medal, 
   ClipboardList, 
@@ -45,6 +46,12 @@ export function Sidebar({ currentView, onViewChange, collapsed }: SidebarProps) 
       id: "tournaments" as ViewType,
       label: "Torneos",
       icon: Trophy,
+      roles: ["admin", "organizador"]
+    },
+    {
+      id: "club" as ViewType,
+      label: "Club",
+      icon: Building,
       roles: ["admin", "organizador"]
     },
     {
