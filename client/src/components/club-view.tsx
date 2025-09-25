@@ -20,7 +20,10 @@ import type { Club, Court } from "@shared/schema";
 const createClubSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   description: z.string().optional(),
-  address: z.string().optional(),
+  address: z.string().min(1, "La dirección es requerida"),
+  city: z.string().min(1, "La ciudad es requerida"),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().refine(val => !val || z.string().email().safeParse(val).success, "Email inválido").optional(),
   website: z.string().refine(val => !val || z.string().url().safeParse(val).success, "URL inválida").optional()
@@ -61,6 +64,9 @@ export function ClubView() {
       name: "",
       description: "",
       address: "",
+      city: "",
+      state: "",
+      zipCode: "",
       phone: "",
       email: "",
       website: ""
@@ -157,6 +163,9 @@ export function ClubView() {
       name: club.name,
       description: club.description || "",
       address: club.address || "",
+      city: club.city || "",
+      state: club.state || "",
+      zipCode: club.zipCode || "",
       phone: club.phone || "",
       email: club.email || "",
       website: club.website || ""
@@ -393,14 +402,58 @@ export function ClubView() {
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Dirección (Opcional)</FormLabel>
+                    <FormLabel>Dirección</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Dirección completa" data-testid="input-club-address" />
+                      <Input {...field} placeholder="Calle y número" data-testid="input-club-address" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              <div className="grid grid-cols-3 gap-4">
+                <FormField
+                  control={clubForm.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ciudad</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Ciudad" data-testid="input-club-city" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={clubForm.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estado/Provincia (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Estado o Provincia" data-testid="input-club-state" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={clubForm.control}
+                  name="zipCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Código Postal (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="00000" data-testid="input-club-zipcode" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -513,14 +566,58 @@ export function ClubView() {
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Dirección (Opcional)</FormLabel>
+                    <FormLabel>Dirección</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Dirección completa" data-testid="input-edit-club-address" />
+                      <Input {...field} placeholder="Calle y número" data-testid="input-edit-club-address" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              <div className="grid grid-cols-3 gap-4">
+                <FormField
+                  control={clubForm.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ciudad</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Ciudad" data-testid="input-edit-club-city" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={clubForm.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estado/Provincia (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Estado o Provincia" data-testid="input-edit-club-state" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={clubForm.control}
+                  name="zipCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Código Postal (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="00000" data-testid="input-edit-club-zipcode" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <FormField
