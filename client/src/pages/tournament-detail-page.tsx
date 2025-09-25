@@ -555,13 +555,80 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
   );
 }
 
+const createMatchSchema = z.object({
+  player1Id: z.string().min(1, "Selecciona el primer jugador"),
+  player2Id: z.string().min(1, "Selecciona el segundo jugador"),
+  round: z.string().optional(),
+  scheduledAt: z.string().optional(),
+  courtId: z.string().optional()
+}).refine(data => data.player1Id !== data.player2Id, {
+  message: "Los jugadores deben ser diferentes",
+  path: ["player2Id"]
+});
+
+type CreateMatchForm = z.infer<typeof createMatchSchema>;
+
 function MatchesTab({ tournament, canManage }: { tournament: Tournament; canManage?: boolean }) {
+  const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
+  const { toast } = useToast();
+
   const { data: matches = [], isLoading: matchesLoading } = useQuery<Match[]>({
     queryKey: [`/api/tournaments/${tournament.id}/matches`]
   });
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"]
+  });
+
+  const { data: players = [] } = useQuery<User[]>({
+    queryKey: [`/api/tournaments/${tournament.id}/players`]
+  });
+
+  const { data: courts = [] } = useQuery<any[]>({
+    queryKey: ["/api/courts"]
+  });
+
+  const matchForm = useForm<CreateMatchForm>({
+    resolver: zodResolver(createMatchSchema),
+    defaultValues: {
+      player1Id: "",
+      player2Id: "",
+      round: "",
+      scheduledAt: "",
+      courtId: ""
+    }
+  });
+
+  const createMatchMutation = useMutation({
+    mutationFn: async (data: CreateMatchForm) => {
+      const matchData = {
+        ...data,
+        tournamentId: tournament.id,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : null,
+        round: data.round || "Ronda Manual"
+      };
+      const res = await apiRequest("POST", `/api/tournaments/${tournament.id}/matches`, matchData);
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${await res.text()}`);
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/matches`] });
+      setShowCreateMatchModal(false);
+      matchForm.reset();
+      toast({
+        title: "Partido creado",
+        description: "El partido manual se ha creado exitosamente",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Error al crear el partido",
+        variant: "destructive",
+      });
+    }
   });
 
   const getUserById = (id: string) => {
@@ -608,7 +675,10 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
         <CardTitle className="flex items-center justify-between">
           <span>Partidos ({matches.length})</span>
           {canManage && (
-            <Button data-testid="button-create-match">
+            <Button 
+              onClick={() => setShowCreateMatchModal(true)}
+              data-testid="button-create-match"
+            >
               Crear Partido Manual
             </Button>
           )}
@@ -690,6 +760,149 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
           </div>
         )}
       </CardContent>
+
+      {/* Create Match Modal */}
+      <Dialog open={showCreateMatchModal} onOpenChange={setShowCreateMatchModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle data-testid="title-create-match-modal">Crear Partido Manual</DialogTitle>
+            <DialogDescription>
+              Crea un partido manual para este torneo seleccionando los jugadores.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...matchForm}>
+            <form onSubmit={matchForm.handleSubmit((data) => createMatchMutation.mutate(data))} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={matchForm.control}
+                  name="player1Id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Jugador 1</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-player1">
+                            <SelectValue placeholder="Selecciona jugador 1" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {players.map((player) => (
+                            <SelectItem key={player.id} value={player.id} data-testid={`player1-option-${player.id}`}>
+                              {player.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={matchForm.control}
+                  name="player2Id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Jugador 2</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-player2">
+                            <SelectValue placeholder="Selecciona jugador 2" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {players.map((player) => (
+                            <SelectItem key={player.id} value={player.id} data-testid={`player2-option-${player.id}`}>
+                              {player.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={matchForm.control}
+                name="round"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ronda (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Ej: Ronda 1, Semifinal, Final" data-testid="input-match-round" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={matchForm.control}
+                name="courtId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cancha (Opcional)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-court">
+                          <SelectValue placeholder="Selecciona una cancha" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">Sin cancha asignada</SelectItem>
+                        {courts.map((court) => (
+                          <SelectItem key={court.id} value={court.id} data-testid={`court-option-${court.id}`}>
+                            {court.name} - {court.sport}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={matchForm.control}
+                name="scheduledAt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha y Hora (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="datetime-local" 
+                        data-testid="input-match-datetime"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreateMatchModal(false)}
+                  data-testid="button-cancel-match"
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createMatchMutation.isPending}
+                  data-testid="button-submit-match"
+                >
+                  {createMatchMutation.isPending ? "Creando..." : "Crear Partido"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
