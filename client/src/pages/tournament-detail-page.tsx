@@ -605,9 +605,10 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
         ...data,
         tournamentId: tournament.id,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : null,
-        round: data.round || "Ronda Manual"
+        round: data.round || "Ronda Manual",
+        courtId: data.courtId === "none" ? null : data.courtId
       };
-      const res = await apiRequest("POST", `/api/tournaments/${tournament.id}/matches`, matchData);
+      const res = await apiRequest("POST", "/api/matches", matchData);
       if (!res.ok) {
         throw new Error(`Error ${res.status}: ${await res.text()}`);
       }
@@ -851,7 +852,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Sin cancha asignada</SelectItem>
+                        <SelectItem value="none">Sin cancha asignada</SelectItem>
                         {courts.map((court) => (
                           <SelectItem key={court.id} value={court.id} data-testid={`court-option-${court.id}`}>
                             {court.name} - {court.sport}
