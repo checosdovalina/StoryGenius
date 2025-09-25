@@ -22,8 +22,8 @@ const createClubSchema = z.object({
   description: z.string().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email("Email inválido").optional(),
-  website: z.string().url("URL inválida").optional()
+  email: z.string().refine(val => !val || z.string().email().safeParse(val).success, "Email inválido").optional(),
+  website: z.string().refine(val => !val || z.string().url().safeParse(val).success, "URL inválida").optional()
 });
 
 const createCourtSchema = z.object({
