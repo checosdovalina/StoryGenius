@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { Tournament, User, Match } from "@shared/schema";
+import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,12 +21,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import type { ViewType } from "@/pages/home-page";
 
 export default function TournamentDetailPage() {
   const { id: tournamentId } = useParams();
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [currentView, setCurrentView] = useState<ViewType>("tournaments");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const { data: tournament, isLoading } = useQuery<Tournament>({
     queryKey: [`/api/tournaments/${tournamentId}`],
@@ -59,12 +63,23 @@ export default function TournamentDetailPage() {
   const canManage = !!(user && (user.role === 'admin' || tournament.organizerId === user.id));
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header currentView="tournaments" onToggleSidebar={() => {}} />
+    <div className="flex h-screen bg-background">
+      <Sidebar
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
       
-      <main className="container mx-auto px-4 py-6">
-        {/* Header with tournament info */}
-        <div className="mb-6">
+      <main className="flex-1 overflow-auto">
+        <Header 
+          currentView="tournaments"
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        
+        <div className="p-6">
+          {/* Header with tournament info */}
+          <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
             <Link to="/" className="flex items-center text-blue-600 hover:text-blue-800" data-testid="link-back-tournaments">
               <ArrowLeft className="h-5 w-5 mr-2" />
