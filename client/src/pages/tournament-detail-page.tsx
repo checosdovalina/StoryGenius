@@ -214,9 +214,9 @@ export default function TournamentDetailPage() {
               <BracketsTab tournament={tournament} canManage={canManage} />
             </TabsContent> */}
           </Tabs>
-        </div> {/* 3.3 cierre del div "p-6" */}
-      </main> {/* 3.2 cierre de main */}
-    </div> {/* 3.1 cierre del contenedor principal */}
+        </div>
+      </main>
+    </div>
   );
 }
 
