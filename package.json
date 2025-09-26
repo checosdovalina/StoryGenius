@@ -38,7 +38,6 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "connect-pg-simple": "^10.0.0"
-    // Agrega aquí cualquier otra dependencia que necesites en producción
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.3.1",
