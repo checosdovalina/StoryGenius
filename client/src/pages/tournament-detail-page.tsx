@@ -70,13 +70,13 @@ export default function TournamentDetailPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
-      
+
       <main className="flex-1 overflow-auto">
         <Header 
           currentView="tournaments"
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
-        
+
         <div className="p-6">
           {/* Header with tournament info */}
           <div className="mb-6">
@@ -86,7 +86,7 @@ export default function TournamentDetailPage() {
               Volver a Torneos
             </Link>
           </div>
-          
+
           <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2" data-testid={`text-tournament-name-${tournament.id}`}>
@@ -113,7 +113,7 @@ export default function TournamentDetailPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Badge variant={tournament.status === 'active' ? 'default' : 'secondary'} data-testid={`badge-status-${tournament.id}`}>
                 {tournament.status === 'draft' ? 'Borrador' : 
@@ -127,7 +127,7 @@ export default function TournamentDetailPage() {
               )}
             </div>
           </div>
-          
+
           {tournament.description && (
             <p className="mt-4 text-gray-700 dark:text-gray-300" data-testid={`text-description-${tournament.id}`}>
               {tournament.description}
@@ -142,15 +142,15 @@ export default function TournamentDetailPage() {
             <TabsTrigger value="matches" data-testid="tab-matches">Partidos</TabsTrigger>
             {/* <TabsTrigger value="brackets" data-testid="tab-brackets">Brackets</TabsTrigger> */}
           </TabsList>
-          
+
           <TabsContent value="players" className="mt-6">
             <PlayersTab tournament={tournament} canManage={canManage} />
           </TabsContent>
-          
+
           <TabsContent value="matches" className="mt-6">
             <MatchesTab tournament={tournament} canManage={canManage} />
           </TabsContent>
-          
+
           {/* <TabsContent value="brackets" className="mt-6">
             <BracketsTab tournament={tournament} canManage={canManage} />
           </TabsContent> */}
@@ -238,12 +238,12 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     mutationFn: async (pairData: { player2Id?: string; player2Name?: string; player2Phone?: string }) => {
       console.log("Creating pair with data:", pairData);
       const response = await apiRequest("POST", "/api/padel-pairs", pairData);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to create pair: ${response.status} ${errorText}`);
       }
-      
+
       const result = await response.json();
       console.log("Pair created successfully:", result);
       return result;
@@ -263,12 +263,12 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     mutationFn: async (pairId?: string) => {
       console.log("Registering with pair ID:", pairId);
       const response = await apiRequest("POST", `/api/tournaments/${tournament.id}/register-with-pair`, { pairId });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to register with pair: ${response.status} ${errorText}`);
       }
-      
+
       console.log("Registration successful");
       return response;
     },
@@ -310,10 +310,10 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
   const onPadelSubmit = async (values: z.infer<typeof padelRegistrationSchema>) => {
     console.log("onPadelSubmit called with values:", values);
     console.log("foundPartner:", foundPartner);
-    
+
     try {
       let pairData;
-      
+
       if (foundPartner) {
         // Partner is already registered - use their ID
         pairData = { player2Id: foundPartner.id };
@@ -331,7 +331,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
       // Create the pair first
       const pair = await createPairMutation.mutateAsync(pairData);
       console.log("Pair created, about to register...");
-      
+
       // Then register with the pair
       await registerWithPairMutation.mutateAsync(pair.id);
       console.log("Registration completed successfully");
@@ -381,7 +381,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                     }
                   </DialogDescription>
                 </DialogHeader>
-                
+
                 {tournament.sport === "padel" ? (
                   <Form {...padelForm}>
                     <form onSubmit={padelForm.handleSubmit(onPadelSubmit)} className="space-y-4">
@@ -402,7 +402,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={padelForm.control}
                         name="partnerPhone"
@@ -587,7 +587,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
   const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
   const { toast } = useToast();
 
-  const { data: matches = [], isLoading: matchesLoading } = useQuery<Match[]>({
+  const { data: matches = [], isLoading: matchesLoading, error: matchesError } = useQuery<Match[]>({
     queryKey: [`/api/tournaments/${tournament.id}/matches`]
   });
 
@@ -715,7 +715,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
             {matches.map((match) => {
               const player1 = getUserById(match.player1Id);
               const player2 = getUserById(match.player2Id);
-              
+
               return (
                 <Card key={match.id} className="p-4" data-testid={`match-item-${match.id}`}>
                   <div className="flex justify-between items-start mb-4">
@@ -736,7 +736,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                       {getStatusLabel(match.status)}
                     </Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                     <div className={`p-3 rounded-lg border text-center ${match.winnerId === match.player1Id ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/50"}`}>
                       <div className="font-medium" data-testid={`match-player1-${match.id}`}>
@@ -748,11 +748,11 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="text-center">
                       <div className="text-xl font-bold text-muted-foreground">VS</div>
                     </div>
-                    
+
                     <div className={`p-3 rounded-lg border text-center ${match.winnerId === match.player2Id ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/50"}`}>
                       <div className="font-medium" data-testid={`match-player2-${match.id}`}>
                         {player2?.name || "TBD"}
@@ -764,7 +764,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                       )}
                     </div>
                   </div>
-                  
+
                   {match.duration && (
                     <div className="mt-3 pt-3 border-t text-center text-sm text-muted-foreground">
                       ⏱️ Duración: {match.duration} minutos
@@ -813,7 +813,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={matchForm.control}
                   name="player2Id"
@@ -839,7 +839,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   )}
                 />
               </div>
-              
+
               <FormField
                 control={matchForm.control}
                 name="round"
@@ -853,7 +853,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={matchForm.control}
                 name="courtId"
@@ -879,7 +879,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={matchForm.control}
                 name="scheduledAt"
@@ -897,7 +897,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   </FormItem>
                 )}
               />
-              
+
               <div className="flex justify-end space-x-2 pt-4">
                 <Button
                   type="button"
@@ -1012,7 +1012,7 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
                   {roundMatches.map((match: Match, index: number) => {
                     const player1 = getUserById(match.player1Id);
                     const player2 = getUserById(match.player2Id);
-                    
+
                     return (
                       <Card key={match.id} className="border-2" data-testid={`match-card-${match.id}`}>
                         <CardContent className="p-4">
@@ -1028,7 +1028,7 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
                                match.status === "in_progress" ? "En Progreso" : "Programado"}
                             </Badge>
                           </div>
-                          
+
                           <div className="space-y-2">
                             <div className={`flex justify-between items-center p-2 rounded ${match.winnerId === match.player1Id ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : ""}`}>
                               <span className="font-medium" data-testid={`player1-name-${match.id}`}>
@@ -1040,9 +1040,9 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
                                 </span>
                               )}
                             </div>
-                            
+
                             <div className="text-center text-xs text-muted-foreground">VS</div>
-                            
+
                             <div className={`flex justify-between items-center p-2 rounded ${match.winnerId === match.player2Id ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : ""}`}>
                               <span className="font-medium" data-testid={`player2-name-${match.id}`}>
                                 {player2?.name || "TBD"}
@@ -1054,7 +1054,7 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
                               )}
                             </div>
                           </div>
-                          
+
                           {match.scheduledAt && (
                             <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
                               📅 {format(new Date(match.scheduledAt), 'dd/MM/yyyy HH:mm')}
