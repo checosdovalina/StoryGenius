@@ -10,10 +10,47 @@ import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users, Trophy, ArrowLeft } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, ArrowLeft, X, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import type { ViewType } from "@/pages/home-page";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTrigger,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useMutation } from "@tanstack/react-query";
+import { Match } from "@shared/schema";
 
 export default function TournamentDetailPage() {
   const { id: tournamentId } = useParams();
@@ -200,7 +237,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
   const { toast } = useToast();
 
   // Get tournament players
-  const { data: players = [], isLoading: loadingPlayers } = useQuery<Array<User & { registeredAt: string }>>({
+  const { data: players = [], isLoading: loadingPlayers } = useQuery<User & { registeredAt: string }[]>({
     queryKey: [`/api/tournaments/${tournament.id}/players`]
   });
 
