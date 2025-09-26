@@ -20,7 +20,7 @@ app.use(
     resave: false,
     saveUninitialized: true,
     cookie: {
-      secure: process.env.NODE_ENV === "production", // cookies seguras en prod
+      secure: process.env.NODE_ENV === "production",
       maxAge: 1000 * 60 * 60 * 24, // 1 día
     },
   })
@@ -63,38 +63,39 @@ app.use((req, res, next) => {
 // Inicialización de rutas y servidor
 // ----------------------
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    const server = await registerRoutes(app);
 
-  // Middleware de manejo de errores
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Middleware de manejo de errores
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
-  });
+      res.status(status).json({ message });
+      throw err;
+    });
 
-  // Configuración de Vite o archivos estáticos
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  // Puerto de escucha
-  const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
+    // Configuración de Vite o archivos estáticos
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
     }
-  );
-})();
 
-    log(`serving on port ${port}`);
-  });
+    // Puerto de escucha
+    const port = parseInt(process.env.PORT || "5000", 10);
+    server.listen(
+      {
+        port,
+        host: "0.0.0.0",
+        reusePort: true,
+      },
+      () => {
+        log(`serving on port ${port}`);
+      }
+    );
+  } catch (err) {
+    console.error("Error al iniciar el servidor:", err);
+    process.exit(1);
+  }
 })();
