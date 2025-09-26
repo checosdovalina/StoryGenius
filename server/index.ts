@@ -2,10 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import dotenv from "dotenv";
-
-// Cargar variables de entorno
-dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -20,7 +16,7 @@ app.use(
     resave: false,
     saveUninitialized: true,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production", // cookies seguras en producción
       maxAge: 1000 * 60 * 60 * 24, // 1 día
     },
   })
@@ -76,7 +72,7 @@ app.use((req, res, next) => {
     });
 
     // Configuración de Vite o archivos estáticos
-    if (app.get("env") === "development") {
+    if (process.env.NODE_ENV === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
@@ -91,7 +87,7 @@ app.use((req, res, next) => {
         reusePort: true,
       },
       () => {
-        log(`serving on port ${port}`);
+        log(`Serving on port ${port}`);
       }
     );
   } catch (err) {
