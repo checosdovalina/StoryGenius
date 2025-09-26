@@ -133,7 +133,7 @@ export default function TournamentDetailPage() {
               {tournament.description}
             </p>
           )}
-        </div>
+          </div>
 
         {/* Main content tabs */}
         <Tabs defaultValue="players" className="w-full">
