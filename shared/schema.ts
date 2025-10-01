@@ -355,6 +355,8 @@ export const insertMatchSchema = createInsertSchema(matches).omit({
   id: true,
   createdAt: true,
   updatedAt: true
+}).extend({
+  scheduledAt: z.coerce.date().optional().nullable()
 });
 
 export const insertPadelPairSchema = createInsertSchema(padelPairs).omit({
