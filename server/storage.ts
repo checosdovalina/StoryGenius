@@ -1,10 +1,11 @@
 import { 
-  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs,
+  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents,
   type User, type InsertUser, type Tournament, type InsertTournament,
   type Court, type InsertCourt, type Match, type InsertMatch,
   type TournamentRegistration, type InsertTournamentRegistration,
   type PlayerStats, type InsertPlayerStats, type PadelPair, type InsertPadelPair,
-  type ScheduledMatch, type InsertScheduledMatch, type Club, type InsertClub
+  type ScheduledMatch, type InsertScheduledMatch, type Club, type InsertClub,
+  type MatchStatsSession, type InsertMatchStatsSession, type MatchEvent, type InsertMatchEvent
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, or, count, avg, sum, isNull, gte, lte, between } from "drizzle-orm";
@@ -95,6 +96,18 @@ export interface IStorage {
   updatePlayerStats(playerId: string, tournamentId: string | null, stats: Partial<InsertPlayerStats>): Promise<PlayerStats>;
   getGlobalRankings(limit?: number): Promise<PlayerStats[]>;
   getTournamentRankings(tournamentId: string, limit?: number): Promise<PlayerStats[]>;
+
+  // Match stats sessions
+  createStatsSession(session: InsertMatchStatsSession): Promise<MatchStatsSession>;
+  getStatsSession(id: string): Promise<MatchStatsSession | undefined>;
+  getActiveStatsSession(matchId: string): Promise<MatchStatsSession | undefined>;
+  updateStatsSession(id: string, updates: Partial<InsertMatchStatsSession>): Promise<MatchStatsSession>;
+  completeStatsSession(id: string): Promise<MatchStatsSession>;
+
+  // Match events
+  createMatchEvent(event: InsertMatchEvent): Promise<MatchEvent>;
+  getSessionEvents(sessionId: string): Promise<MatchEvent[]>;
+  getLatestMatchEvents(sessionId: string, limit: number): Promise<MatchEvent[]>;
 
   sessionStore: session.Store;
 }
@@ -786,6 +799,71 @@ export class DatabaseStorage implements IStorage {
       .from(playerStats)
       .where(eq(playerStats.tournamentId, tournamentId))
       .orderBy(desc(playerStats.matchesWon))
+      .limit(limit);
+  }
+
+  // Match stats sessions
+  async createStatsSession(session: InsertMatchStatsSession): Promise<MatchStatsSession> {
+    const [created] = await db.insert(matchStatsSessions).values(session).returning();
+    return created;
+  }
+
+  async getStatsSession(id: string): Promise<MatchStatsSession | undefined> {
+    const [session] = await db.select().from(matchStatsSessions).where(eq(matchStatsSessions.id, id));
+    return session || undefined;
+  }
+
+  async getActiveStatsSession(matchId: string): Promise<MatchStatsSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(matchStatsSessions)
+      .where(
+        and(
+          eq(matchStatsSessions.matchId, matchId),
+          eq(matchStatsSessions.status, 'active')
+        )
+      );
+    return session || undefined;
+  }
+
+  async updateStatsSession(id: string, updates: Partial<InsertMatchStatsSession>): Promise<MatchStatsSession> {
+    const [updated] = await db
+      .update(matchStatsSessions)
+      .set(updates)
+      .where(eq(matchStatsSessions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async completeStatsSession(id: string): Promise<MatchStatsSession> {
+    const [completed] = await db
+      .update(matchStatsSessions)
+      .set({ status: 'completed', completedAt: new Date() })
+      .where(eq(matchStatsSessions.id, id))
+      .returning();
+    return completed;
+  }
+
+  // Match events
+  async createMatchEvent(event: InsertMatchEvent): Promise<MatchEvent> {
+    const [created] = await db.insert(matchEvents).values(event).returning();
+    return created;
+  }
+
+  async getSessionEvents(sessionId: string): Promise<MatchEvent[]> {
+    return await db
+      .select()
+      .from(matchEvents)
+      .where(eq(matchEvents.sessionId, sessionId))
+      .orderBy(asc(matchEvents.createdAt));
+  }
+
+  async getLatestMatchEvents(sessionId: string, limit: number): Promise<MatchEvent[]> {
+    return await db
+      .select()
+      .from(matchEvents)
+      .where(eq(matchEvents.sessionId, sessionId))
+      .orderBy(desc(matchEvents.createdAt))
       .limit(limit);
   }
 }
