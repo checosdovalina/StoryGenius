@@ -4,7 +4,7 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "jugador", "organizador", "arbitro", "escrutador"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]);
 export const sportEnum = pgEnum("sport", ["padel", "racquetball"]);
 export const padelCategoryEnum = pgEnum("padel_category", ["1a", "2a", "3a", "4a", "veteranos", "juvenil"]);
 export const racquetballLevelEnum = pgEnum("racquetball_level", ["principiante", "intermedio", "avanzado", "profesional"]);
@@ -13,6 +13,8 @@ export const tournamentStatusEnum = pgEnum("tournament_status", ["draft", "regis
 export const matchStatusEnum = pgEnum("match_status", ["scheduled", "in_progress", "completed", "cancelled"]);
 export const courtStatusEnum = pgEnum("court_status", ["available", "maintenance", "blocked"]);
 export const scheduledMatchStatusEnum = pgEnum("scheduled_match_status", ["programado", "confirmado", "en_curso", "completado", "cancelado"]);
+export const statsSessionStatusEnum = pgEnum("stats_session_status", ["active", "paused", "completed", "cancelled"]);
+export const matchEventTypeEnum = pgEnum("match_event_type", ["point_won", "fault", "ace", "double_fault", "winner", "error", "set_won", "game_won"]);
 
 export const clubs = pgTable("clubs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -161,6 +163,36 @@ export const playerStats = pgTable("player_stats", {
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
 
+export const matchStatsSessions = pgTable("match_stats_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: varchar("match_id").notNull().references(() => matches.id, { onDelete: 'cascade' }),
+  startedBy: varchar("started_by").notNull().references(() => users.id),
+  status: statsSessionStatusEnum("status").notNull().default("active"),
+  sport: sportEnum("sport").notNull(),
+  currentSet: integer("current_set").notNull().default(1),
+  player1CurrentScore: text("player1_current_score").default("0"),
+  player2CurrentScore: text("player2_current_score").default("0"),
+  player1Sets: integer("player1_sets").default(0),
+  player2Sets: integer("player2_sets").default(0),
+  player1Games: text("player1_games"),
+  player2Games: text("player2_games"),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at")
+});
+
+export const matchEvents = pgTable("match_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => matchStatsSessions.id, { onDelete: 'cascade' }),
+  eventType: matchEventTypeEnum("event_type").notNull(),
+  playerId: varchar("player_id").references(() => users.id),
+  setNumber: integer("set_number").notNull(),
+  gameNumber: integer("game_number"),
+  player1Score: text("player1_score"),
+  player2Score: text("player2_score"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
+
 // Relations
 export const clubsRelations = relations(clubs, ({ one, many }) => ({
   manager: one(users, {
@@ -303,6 +335,29 @@ export const playerStatsRelations = relations(playerStats, ({ one }) => ({
   })
 }));
 
+export const matchStatsSessionsRelations = relations(matchStatsSessions, ({ one, many }) => ({
+  match: one(matches, {
+    fields: [matchStatsSessions.matchId],
+    references: [matches.id]
+  }),
+  startedByUser: one(users, {
+    fields: [matchStatsSessions.startedBy],
+    references: [users.id]
+  }),
+  events: many(matchEvents)
+}));
+
+export const matchEventsRelations = relations(matchEvents, ({ one }) => ({
+  session: one(matchStatsSessions, {
+    fields: [matchEvents.sessionId],
+    references: [matchStatsSessions.id]
+  }),
+  player: one(users, {
+    fields: [matchEvents.playerId],
+    references: [users.id]
+  })
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -384,6 +439,17 @@ export const insertScheduledMatchSchema = createInsertSchema(scheduledMatches).o
   duration: z.number().min(30).max(180, "La duración debe estar entre 30 y 180 minutos")
 });
 
+export const insertMatchStatsSessionSchema = createInsertSchema(matchStatsSessions).omit({
+  id: true,
+  startedAt: true,
+  completedAt: true
+});
+
+export const insertMatchEventSchema = createInsertSchema(matchEvents).omit({
+  id: true,
+  createdAt: true
+});
+
 // Types
 export type Club = typeof clubs.$inferSelect;
 export type InsertClub = z.infer<typeof insertClubSchema>;
@@ -403,3 +469,7 @@ export type PadelPair = typeof padelPairs.$inferSelect;
 export type InsertPadelPair = z.infer<typeof insertPadelPairSchema>;
 export type ScheduledMatch = typeof scheduledMatches.$inferSelect;
 export type InsertScheduledMatch = z.infer<typeof insertScheduledMatchSchema>;
+export type MatchStatsSession = typeof matchStatsSessions.$inferSelect;
+export type InsertMatchStatsSession = z.infer<typeof insertMatchStatsSessionSchema>;
+export type MatchEvent = typeof matchEvents.$inferSelect;
+export type InsertMatchEvent = z.infer<typeof insertMatchEventSchema>;
