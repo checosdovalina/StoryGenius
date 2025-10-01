@@ -2,10 +2,12 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
 import type { IncomingMessage } from "http";
 import url from "url";
+import { storage } from "./storage";
 
 interface WebSocketClient extends WebSocket {
   isAlive: boolean;
   matchId?: string;
+  userId?: string;
 }
 
 export class MatchStatsWebSocketServer {
@@ -18,7 +20,7 @@ export class MatchStatsWebSocketServer {
       path: "/ws/match-stats"
     });
 
-    this.wss.on("connection", (ws: WebSocketClient, req: IncomingMessage) => {
+    this.wss.on("connection", async (ws: WebSocketClient, req: IncomingMessage) => {
       ws.isAlive = true;
 
       // Parse matchId from query params
@@ -29,6 +31,19 @@ export class MatchStatsWebSocketServer {
         ws.close(1008, "matchId is required");
         return;
       }
+
+      // Authentication check - verify session cookie exists
+      // Note: This provides basic protection; full session validation would require
+      // session store access. The stats capture page itself is protected with
+      // frontend authentication checks (admin/escribano only).
+      const cookieHeader = req.headers.cookie;
+      if (!cookieHeader || !cookieHeader.includes('connect.sid')) {
+        console.log('[WebSocket] No session cookie found, rejecting connection');
+        ws.close(1008, "Authentication required");
+        return;
+      }
+
+      console.log('[WebSocket] Session cookie present, allowing connection');
 
       ws.matchId = matchId;
 

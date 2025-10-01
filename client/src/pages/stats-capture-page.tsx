@@ -80,9 +80,9 @@ export default function StatsCapturePageComponent() {
     checkActiveSession();
   }, [matchId]);
 
-  // WebSocket connection
+  // WebSocket connection - only connect when session is active
   useEffect(() => {
-    if (!matchId) return;
+    if (!matchId || !session?.id) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/match-stats?matchId=${matchId}`;
@@ -97,9 +97,9 @@ export default function StatsCapturePageComponent() {
         const data = JSON.parse(event.data);
         console.log('[WebSocket] Received:', data);
 
-        if (data.type === 'session_update') {
+        if (data.type === 'session_update' && data.session) {
           setSession(data.session);
-        } else if (data.type === 'match_event') {
+        } else if (data.type === 'match_event' && data.session) {
           setSession(data.session);
           queryClient.invalidateQueries({ queryKey: [`/api/stats/sessions/${session?.id}/events`] });
         }
@@ -231,12 +231,24 @@ export default function StatsCapturePageComponent() {
               <div className="grid grid-cols-2 gap-4">
                 <Button
                   size="lg"
-                  onClick={() => {
+                  onClick={async () => {
+                    // Get current games from JSON array
+                    let currentGames1 = 0, currentGames2 = 0;
+                    try {
+                      const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                      const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                      currentGames1 = games1[session.currentSet - 1] || 0;
+                      currentGames2 = games2[session.currentSet - 1] || 0;
+                    } catch (e) {
+                      currentGames1 = 0;
+                      currentGames2 = 0;
+                    }
+
                     const currentState: ScoreState = {
                       player1Score: session.player1CurrentScore || "0",
                       player2Score: session.player2CurrentScore || "0",
-                      player1Games: parseInt(session.player1Games || "0") || 0,
-                      player2Games: parseInt(session.player2Games || "0") || 0,
+                      player1Games: currentGames1,
+                      player2Games: currentGames2,
                       player1Sets: session.player1Sets || 0,
                       player2Sets: session.player2Sets || 0,
                       currentSet: session.currentSet || 1
@@ -244,18 +256,24 @@ export default function StatsCapturePageComponent() {
                     
                     const newState = calculateScore(tournament.sport, currentState, "player1");
                     
+                    // Build games arrays
+                    const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                    const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                    games1Array[newState.currentSet - 1] = newState.player1Games;
+                    games2Array[newState.currentSet - 1] = newState.player2Games;
+                    
                     // Update session with new scores
-                    updateScoreMutation.mutate({
+                    await updateScoreMutation.mutateAsync({
                       player1CurrentScore: newState.player1Score,
                       player2CurrentScore: newState.player2Score,
                       player1Sets: newState.player1Sets,
                       player2Sets: newState.player2Sets,
                       currentSet: newState.currentSet,
-                      player1Games: JSON.stringify([newState.player1Games]),
-                      player2Games: JSON.stringify([newState.player2Games])
+                      player1Games: JSON.stringify(games1Array),
+                      player2Games: JSON.stringify(games2Array)
                     });
                     
-                    // Record event
+                    // Record event after update
                     recordPointMutation.mutate({
                       playerId: match.player1Id,
                       player1Score: newState.player1Score,
@@ -264,18 +282,31 @@ export default function StatsCapturePageComponent() {
                   }}
                   data-testid="button-point-player1"
                   className="min-h-[60px]"
+                  disabled={updateScoreMutation.isPending || recordPointMutation.isPending}
                 >
                   Punto {player1?.name}
                 </Button>
 
                 <Button
                   size="lg"
-                  onClick={() => {
+                  onClick={async () => {
+                    // Get current games from JSON array
+                    let currentGames1 = 0, currentGames2 = 0;
+                    try {
+                      const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                      const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                      currentGames1 = games1[session.currentSet - 1] || 0;
+                      currentGames2 = games2[session.currentSet - 1] || 0;
+                    } catch (e) {
+                      currentGames1 = 0;
+                      currentGames2 = 0;
+                    }
+
                     const currentState: ScoreState = {
                       player1Score: session.player1CurrentScore || "0",
                       player2Score: session.player2CurrentScore || "0",
-                      player1Games: parseInt(session.player1Games || "0") || 0,
-                      player2Games: parseInt(session.player2Games || "0") || 0,
+                      player1Games: currentGames1,
+                      player2Games: currentGames2,
                       player1Sets: session.player1Sets || 0,
                       player2Sets: session.player2Sets || 0,
                       currentSet: session.currentSet || 1
@@ -283,18 +314,24 @@ export default function StatsCapturePageComponent() {
                     
                     const newState = calculateScore(tournament.sport, currentState, "player2");
                     
+                    // Build games arrays
+                    const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                    const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                    games1Array[newState.currentSet - 1] = newState.player1Games;
+                    games2Array[newState.currentSet - 1] = newState.player2Games;
+                    
                     // Update session with new scores
-                    updateScoreMutation.mutate({
+                    await updateScoreMutation.mutateAsync({
                       player1CurrentScore: newState.player1Score,
                       player2CurrentScore: newState.player2Score,
                       player1Sets: newState.player1Sets,
                       player2Sets: newState.player2Sets,
                       currentSet: newState.currentSet,
-                      player1Games: JSON.stringify([newState.player1Games]),
-                      player2Games: JSON.stringify([newState.player2Games])
+                      player1Games: JSON.stringify(games1Array),
+                      player2Games: JSON.stringify(games2Array)
                     });
                     
-                    // Record event
+                    // Record event after update
                     recordPointMutation.mutate({
                       playerId: match.player2Id,
                       player1Score: newState.player1Score,
@@ -303,6 +340,7 @@ export default function StatsCapturePageComponent() {
                   }}
                   data-testid="button-point-player2"
                   className="min-h-[60px]"
+                  disabled={updateScoreMutation.isPending || recordPointMutation.isPending}
                 >
                   Punto {player2?.name}
                 </Button>

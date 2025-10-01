@@ -1221,16 +1221,17 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   {/* Capture stats button for admin and escribano */}
                   {(user?.role === "admin" || user?.role === "escribano") && match.status !== "completed" && (
                     <div className="mt-4 pt-4 border-t">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => window.location.href = `/stats/capture/${match.id}`}
-                        data-testid={`button-capture-stats-${match.id}`}
-                        className="w-full min-h-[44px]"
-                      >
-                        <Trophy className="h-4 w-4 mr-2" />
-                        Capturar estadísticas
-                      </Button>
+                      <Link href={`/stats/capture/${match.id}`}>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          data-testid={`button-capture-stats-${match.id}`}
+                          className="w-full min-h-[44px]"
+                        >
+                          <Trophy className="h-4 w-4 mr-2" />
+                          Capturar estadísticas
+                        </Button>
+                      </Link>
                     </div>
                   )}
 

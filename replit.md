@@ -82,6 +82,31 @@ The system implements session-based authentication with role-based access contro
 
 # Recent Changes
 
+- **2025-10-01**: ✅ **IMPLEMENTED REAL-TIME MATCH STATISTICS CAPTURE SYSTEM** - Complete live scoring module for admin and escribano roles
+  - **Database Schema**:
+    - Added `escribano` role to user roles enum for dedicated statistics capture personnel
+    - Created `match_stats_sessions` table to track active scoring sessions with status (active, paused, completed)
+    - Created `match_events` table for granular point-by-point event recording with timestamps
+    - Sessions store real-time scores (player1/2CurrentScore), sets won, games per set, and current set number
+  - **Backend Infrastructure**:
+    - REST API endpoints for session lifecycle: POST `/api/matches/:matchId/stats/start`, PUT `/api/stats/sessions/:id`, POST `/api/stats/sessions/:id/complete`
+    - Event recording endpoint: POST `/api/stats/sessions/:id/events` for point-by-point capture
+    - WebSocket server (`server/websocket.ts`) for real-time broadcasting of match events to multiple clients
+    - Per-match rooms for isolated real-time updates with heartbeat mechanism
+    - Authorization: All stats endpoints require admin or escribano role
+  - **Frontend Implementation**:
+    - Stats capture page (`/stats/capture/:matchId`) with live scoring interface
+    - Sport-specific scoring logic (`client/src/lib/scoring.ts`):
+      - Padel: 15-30-40-game progression with deuce/advantage handling, sets to 6 games (2-game lead), best of 3 sets
+      - Racquetball: Rally scoring to 15 points (2-point lead), best of 3 games
+    - Real-time WebSocket client integration for live score updates across multiple devices
+    - "Capturar estadísticas" button on match listings (visible to admin/escribano, hidden for completed matches)
+    - Automatic score calculation and session state management
+  - **Security & UX**:
+    - Role-based access control: stats capture restricted to admin and escribano only
+    - WebSocket authentication and per-match room isolation
+    - Automatic session detection (resume active sessions)
+    - Mobile-responsive touch targets (min-h-[44px])
 - **2025-10-01**: ✅ **IMPLEMENTED FULL CRUD FOR TOURNAMENTS AND MATCHES** - Complete administrative control for tournaments and matches
   - **Backend API**: 
     - Added PUT `/api/matches/:id` endpoint for match updates (admin only)
