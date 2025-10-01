@@ -27,13 +27,13 @@ export default function StatsCapturePageComponent() {
   }, [user, setLocation]);
 
   // Fetch match data
-  const { data: match } = useQuery<Match>({
+  const { data: match, isLoading: matchLoading } = useQuery<Match>({
     queryKey: [`/api/matches/${matchId}`],
     enabled: !!matchId
   });
 
   // Fetch tournament data
-  const { data: tournament } = useQuery<Tournament>({
+  const { data: tournament, isLoading: tournamentLoading } = useQuery<Tournament>({
     queryKey: [`/api/tournaments/${match?.tournamentId}`],
     enabled: !!match?.tournamentId
   });
@@ -169,10 +169,21 @@ export default function StatsCapturePageComponent() {
     }
   });
 
-  if (!match || !tournament) {
+  if (matchLoading || tournamentLoading) {
     return (
       <div className="container mx-auto p-4">
         <p>Cargando...</p>
+      </div>
+    );
+  }
+
+  if (!match || !tournament) {
+    return (
+      <div className="container mx-auto p-4">
+        <p>Error: No se pudo cargar la información del partido</p>
+        <Button onClick={() => setLocation("/")} className="mt-4">
+          Volver al inicio
+        </Button>
       </div>
     );
   }
