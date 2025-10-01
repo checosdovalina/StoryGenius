@@ -669,9 +669,12 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     queryKey: [`/api/tournaments/${tournament.id}/players`]
   });
 
-  const { data: courts = [] } = useQuery<any[]>({
+  const { data: allCourts = [] } = useQuery<any[]>({
     queryKey: ["/api/courts"]
   });
+
+  // Filter courts to show only those from the same venue as the tournament
+  const courts = allCourts.filter(court => court.venue === tournament.venue && court.sport === tournament.sport);
 
   const matchForm = useForm<CreateMatchForm>({
     resolver: zodResolver(createMatchSchema),
