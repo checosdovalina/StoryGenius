@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema } from "@shared/schema";
 import { z } from "zod";
 
 export function registerRoutes(app: Express): Server {
@@ -797,6 +797,167 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "Invalid registration data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to register for tournament" });
+    }
+  });
+
+  // Match stats sessions endpoints
+  app.post("/api/matches/:matchId/stats/start", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin and escribano can start stats sessions
+      if (!["admin", "escribano"].includes(req.user!.role)) {
+        return res.status(403).json({ message: "Only admin and escribano can capture statistics" });
+      }
+
+      // Check if there's already an active session
+      const activeSession = await storage.getActiveStatsSession(req.params.matchId);
+      if (activeSession) {
+        return res.status(400).json({ message: "There is already an active stats session for this match" });
+      }
+
+      // Get match to determine sport
+      const match = await storage.getMatch(req.params.matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      // Get tournament to get sport info
+      const tournament = await storage.getTournament(match.tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      const validatedData = insertMatchStatsSessionSchema.parse({
+        matchId: req.params.matchId,
+        startedBy: req.user!.id,
+        sport: tournament.sport,
+        status: "active",
+        currentSet: 1,
+        player1CurrentScore: "0",
+        player2CurrentScore: "0",
+        player1Sets: 0,
+        player2Sets: 0
+      });
+
+      const session = await storage.createStatsSession(validatedData);
+      res.status(201).json(session);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid session data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to start stats session" });
+    }
+  });
+
+  app.get("/api/matches/:matchId/stats/active", async (req, res) => {
+    try {
+      const session = await storage.getActiveStatsSession(req.params.matchId);
+      if (!session) {
+        return res.status(404).json({ message: "No active stats session found" });
+      }
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch active session" });
+    }
+  });
+
+  app.get("/api/stats/sessions/:sessionId", async (req, res) => {
+    try {
+      const session = await storage.getStatsSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch session" });
+    }
+  });
+
+  app.put("/api/stats/sessions/:sessionId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin and escribano can update sessions
+      if (!["admin", "escribano"].includes(req.user!.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const session = await storage.updateStatsSession(req.params.sessionId, req.body);
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update session" });
+    }
+  });
+
+  app.post("/api/stats/sessions/:sessionId/complete", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin and escribano can complete sessions
+      if (!["admin", "escribano"].includes(req.user!.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const session = await storage.completeStatsSession(req.params.sessionId);
+      
+      // Update match status to completed
+      const match = await storage.getMatch(session.matchId);
+      if (match) {
+        await storage.updateMatch(session.matchId, {
+          status: "completed",
+          player1Sets: session.player1Sets || 0,
+          player2Sets: session.player2Sets || 0,
+          player1Games: session.player1Games || "[]",
+          player2Games: session.player2Games || "[]"
+        });
+      }
+
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to complete session" });
+    }
+  });
+
+  // Match events endpoints
+  app.post("/api/stats/sessions/:sessionId/events", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin and escribano can create events
+      if (!["admin", "escribano"].includes(req.user!.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const validatedData = insertMatchEventSchema.parse({
+        sessionId: req.params.sessionId,
+        ...req.body
+      });
+
+      const event = await storage.createMatchEvent(validatedData);
+      res.status(201).json(event);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid event data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create event" });
+    }
+  });
+
+  app.get("/api/stats/sessions/:sessionId/events", async (req, res) => {
+    try {
+      const events = await storage.getSessionEvents(req.params.sessionId);
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch events" });
     }
   });
 
