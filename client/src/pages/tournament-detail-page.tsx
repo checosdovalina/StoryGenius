@@ -237,7 +237,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
   const { toast } = useToast();
 
   // Get tournament players
-  const { data: players = [], isLoading: loadingPlayers } = useQuery<User & { registeredAt: string }[]>({
+  const { data: players = [], isLoading: loadingPlayers } = useQuery<(User & { registeredAt: string })[]>({
     queryKey: [`/api/tournaments/${tournament.id}/players`]
   });
 
@@ -680,9 +680,9 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
       const matchData = {
         ...data,
         tournamentId: tournament.id,
-        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : null,
-        round: data.round || "Ronda Manual",
-        courtId: data.courtId === "none" ? null : data.courtId
+        scheduledAt: data.scheduledAt && data.scheduledAt.trim() !== "" ? new Date(data.scheduledAt).toISOString() : null,
+        round: data.round && data.round.trim() !== "" ? data.round : "Ronda Manual",
+        courtId: !data.courtId || data.courtId === "none" || data.courtId.trim() === "" ? null : data.courtId
       };
       const res = await apiRequest("POST", "/api/matches", matchData);
       if (!res.ok) {
