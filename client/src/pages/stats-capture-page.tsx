@@ -189,61 +189,245 @@ export default function StatsCapturePageComponent() {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <Button 
-        variant="ghost" 
-        onClick={() => setLocation(`/tournaments/${match.tournamentId}`)}
-        data-testid="button-back"
-        className="mb-4 min-h-[44px]"
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Volver al torneo
-      </Button>
+    <div className="min-h-screen pb-32 md:pb-8">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="container mx-auto p-4 max-w-4xl">
+          <Button 
+            variant="ghost" 
+            onClick={() => setLocation(`/tournaments/${match.tournamentId}`)}
+            data-testid="button-back"
+            className="min-h-[44px]"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver al torneo
+          </Button>
+        </div>
+      </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Captura de Estadísticas</span>
-            <Badge>{tournament.sport.toUpperCase()}</Badge>
-          </CardTitle>
-          <CardDescription>
-            {match.round} - Partido {match.bracketPosition}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4 items-center mb-6">
-            <div className="text-center">
-              <h3 className="font-bold text-lg">{player1?.name || "TBD"}</h3>
-              <div className="text-3xl font-bold mt-2">{session?.player1CurrentScore || "0"}</div>
-              <div className="text-sm text-muted-foreground mt-1">Sets: {session?.player1Sets || 0}</div>
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl md:text-2xl">Captura de Estadísticas</CardTitle>
+              <Badge className="text-xs">{tournament.sport.toUpperCase()}</Badge>
             </div>
-            
-            <div className="text-center">
-              <div className="text-2xl font-bold text-muted-foreground">VS</div>
-            </div>
-
-            <div className="text-center">
-              <h3 className="font-bold text-lg">{player2?.name || "TBD"}</h3>
-              <div className="text-3xl font-bold mt-2">{session?.player2CurrentScore || "0"}</div>
-              <div className="text-sm text-muted-foreground mt-1">Sets: {session?.player2Sets || 0}</div>
-            </div>
-          </div>
-
-          {session ? (
+            <CardDescription className="text-sm">
+              {match.round} - Partido {match.bracketPosition}
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            {/* Score Display - Mobile First */}
             <div className="space-y-4">
-              <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4" />
-                  Set {session.currentSet}
+              {/* Player 1 */}
+              <div className="flex items-center justify-between py-3 border-b">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base md:text-lg truncate">{player1?.name || "TBD"}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs">Sets: {session?.player1Sets || 0}</Badge>
+                  </div>
                 </div>
-                <Badge variant="outline">{session.status}</Badge>
+                <div className="text-4xl md:text-5xl font-bold tracking-tight ml-4">
+                  {session?.player1CurrentScore || "0"}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* VS Divider */}
+              <div className="flex items-center justify-center py-2">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  {session && (
+                    <>
+                      <Trophy className="h-4 w-4" />
+                      <span className="text-sm font-medium">Set {session.currentSet}</span>
+                      <Badge variant="outline" className="text-xs">{session.status}</Badge>
+                    </>
+                  )}
+                  {!session && <span className="text-lg font-semibold">VS</span>}
+                </div>
+              </div>
+
+              {/* Player 2 */}
+              <div className="flex items-center justify-between py-3 border-b">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base md:text-lg truncate">{player2?.name || "TBD"}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs">Sets: {session?.player2Sets || 0}</Badge>
+                  </div>
+                </div>
+                <div className="text-4xl md:text-5xl font-bold tracking-tight ml-4">
+                  {session?.player2CurrentScore || "0"}
+                </div>
+              </div>
+            </div>
+
+            {/* Start Session (if no session) - Desktop Only */}
+            {!session && (
+              <div className="text-center py-6 md:block hidden">
+                <Button
+                  size="lg"
+                  onClick={() => startSessionMutation.mutate()}
+                  disabled={startSessionMutation.isPending}
+                  data-testid="button-start-session"
+                  className="min-h-[56px]"
+                >
+                  <Clock className="h-5 w-5 mr-2" />
+                  {startSessionMutation.isPending ? "Iniciando..." : "Iniciar captura"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Fixed Bottom Action Bar - Mobile */}
+      {session ? (
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 space-y-3 md:hidden">
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              size="lg"
+              onClick={async () => {
+                let currentGames1 = 0, currentGames2 = 0;
+                try {
+                  const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                  const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                  currentGames1 = games1[session.currentSet - 1] || 0;
+                  currentGames2 = games2[session.currentSet - 1] || 0;
+                } catch (e) {
+                  currentGames1 = 0;
+                  currentGames2 = 0;
+                }
+
+                const currentState: ScoreState = {
+                  player1Score: session.player1CurrentScore || "0",
+                  player2Score: session.player2CurrentScore || "0",
+                  player1Games: currentGames1,
+                  player2Games: currentGames2,
+                  player1Sets: session.player1Sets || 0,
+                  player2Sets: session.player2Sets || 0,
+                  currentSet: session.currentSet || 1
+                };
+                
+                const newState = calculateScore(tournament.sport, currentState, "player1");
+                
+                const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                games1Array[newState.currentSet - 1] = newState.player1Games;
+                games2Array[newState.currentSet - 1] = newState.player2Games;
+                
+                await updateScoreMutation.mutateAsync({
+                  player1CurrentScore: newState.player1Score,
+                  player2CurrentScore: newState.player2Score,
+                  player1Sets: newState.player1Sets,
+                  player2Sets: newState.player2Sets,
+                  currentSet: newState.currentSet,
+                  player1Games: JSON.stringify(games1Array),
+                  player2Games: JSON.stringify(games2Array)
+                });
+                
+                recordPointMutation.mutate({
+                  playerId: match.player1Id,
+                  player1Score: newState.player1Score,
+                  player2Score: newState.player2Score
+                });
+              }}
+              data-testid="button-point-player1"
+              className="min-h-[56px] text-sm md:text-base"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending}
+            >
+              Punto {player1?.name?.split(' ')[0]}
+            </Button>
+
+            <Button
+              size="lg"
+              onClick={async () => {
+                let currentGames1 = 0, currentGames2 = 0;
+                try {
+                  const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                  const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                  currentGames1 = games1[session.currentSet - 1] || 0;
+                  currentGames2 = games2[session.currentSet - 1] || 0;
+                } catch (e) {
+                  currentGames1 = 0;
+                  currentGames2 = 0;
+                }
+
+                const currentState: ScoreState = {
+                  player1Score: session.player1CurrentScore || "0",
+                  player2Score: session.player2CurrentScore || "0",
+                  player1Games: currentGames1,
+                  player2Games: currentGames2,
+                  player1Sets: session.player1Sets || 0,
+                  player2Sets: session.player2Sets || 0,
+                  currentSet: session.currentSet || 1
+                };
+                
+                const newState = calculateScore(tournament.sport, currentState, "player2");
+                
+                const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                games1Array[newState.currentSet - 1] = newState.player1Games;
+                games2Array[newState.currentSet - 1] = newState.player2Games;
+                
+                await updateScoreMutation.mutateAsync({
+                  player1CurrentScore: newState.player1Score,
+                  player2CurrentScore: newState.player2Score,
+                  player1Sets: newState.player1Sets,
+                  player2Sets: newState.player2Sets,
+                  currentSet: newState.currentSet,
+                  player1Games: JSON.stringify(games1Array),
+                  player2Games: JSON.stringify(games2Array)
+                });
+                
+                recordPointMutation.mutate({
+                  playerId: match.player2Id,
+                  player1Score: newState.player1Score,
+                  player2Score: newState.player2Score
+                });
+              }}
+              data-testid="button-point-player2"
+              className="min-h-[56px] text-sm md:text-base"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending}
+            >
+              Punto {player2?.name?.split(' ')[0]}
+            </Button>
+          </div>
+          
+          <Button
+            variant="outline"
+            className="w-full min-h-[48px]"
+            onClick={() => completeSessionMutation.mutate()}
+            disabled={completeSessionMutation.isPending}
+            data-testid="button-complete-session"
+          >
+            Finalizar partido
+          </Button>
+        </div>
+      ) : (
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 md:hidden">
+          <Button
+            size="lg"
+            className="w-full min-h-[56px]"
+            onClick={() => startSessionMutation.mutate()}
+            disabled={startSessionMutation.isPending}
+            data-testid="button-start-session"
+          >
+            <Clock className="h-5 w-5 mr-2" />
+            {startSessionMutation.isPending ? "Iniciando..." : "Iniciar captura"}
+          </Button>
+        </div>
+      )}
+
+      {/* Desktop Action Buttons */}
+      {session && (
+        <div className="hidden md:block container mx-auto px-4 max-w-4xl">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <Button
                   size="lg"
                   onClick={async () => {
-                    // Get current games from JSON array
                     let currentGames1 = 0, currentGames2 = 0;
                     try {
                       const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
@@ -267,13 +451,11 @@ export default function StatsCapturePageComponent() {
                     
                     const newState = calculateScore(tournament.sport, currentState, "player1");
                     
-                    // Build games arrays
                     const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
                     const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
                     games1Array[newState.currentSet - 1] = newState.player1Games;
                     games2Array[newState.currentSet - 1] = newState.player2Games;
                     
-                    // Update session with new scores
                     await updateScoreMutation.mutateAsync({
                       player1CurrentScore: newState.player1Score,
                       player2CurrentScore: newState.player2Score,
@@ -284,7 +466,6 @@ export default function StatsCapturePageComponent() {
                       player2Games: JSON.stringify(games2Array)
                     });
                     
-                    // Record event after update
                     recordPointMutation.mutate({
                       playerId: match.player1Id,
                       player1Score: newState.player1Score,
@@ -301,7 +482,6 @@ export default function StatsCapturePageComponent() {
                 <Button
                   size="lg"
                   onClick={async () => {
-                    // Get current games from JSON array
                     let currentGames1 = 0, currentGames2 = 0;
                     try {
                       const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
@@ -325,13 +505,11 @@ export default function StatsCapturePageComponent() {
                     
                     const newState = calculateScore(tournament.sport, currentState, "player2");
                     
-                    // Build games arrays
                     const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
                     const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
                     games1Array[newState.currentSet - 1] = newState.player1Games;
                     games2Array[newState.currentSet - 1] = newState.player2Games;
                     
-                    // Update session with new scores
                     await updateScoreMutation.mutateAsync({
                       player1CurrentScore: newState.player1Score,
                       player2CurrentScore: newState.player2Score,
@@ -342,7 +520,6 @@ export default function StatsCapturePageComponent() {
                       player2Games: JSON.stringify(games2Array)
                     });
                     
-                    // Record event after update
                     recordPointMutation.mutate({
                       playerId: match.player2Id,
                       player1Score: newState.player1Score,
@@ -357,7 +534,7 @@ export default function StatsCapturePageComponent() {
                 </Button>
               </div>
 
-              <div className="flex gap-2 justify-center pt-4">
+              <div className="flex justify-center">
                 <Button
                   variant="outline"
                   onClick={() => completeSessionMutation.mutate()}
@@ -368,22 +545,10 @@ export default function StatsCapturePageComponent() {
                   Finalizar partido
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div className="text-center">
-              <Button
-                onClick={() => startSessionMutation.mutate()}
-                disabled={startSessionMutation.isPending}
-                data-testid="button-start-session"
-                className="min-h-[44px]"
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                {startSessionMutation.isPending ? "Iniciando..." : "Iniciar captura"}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
