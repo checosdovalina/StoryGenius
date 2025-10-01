@@ -403,6 +403,46 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.put("/api/matches/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin can update matches
+      if (req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const validatedData = insertMatchSchema.partial().parse(req.body);
+      const match = await storage.updateMatch(req.params.id, validatedData);
+      res.json(match);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid match data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update match" });
+    }
+  });
+
+  app.delete("/api/matches/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only admin can delete matches
+      if (req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      await storage.deleteMatch(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete match" });
+    }
+  });
+
   app.put("/api/matches/:id/result", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {

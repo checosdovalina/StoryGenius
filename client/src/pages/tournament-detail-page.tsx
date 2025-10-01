@@ -1,16 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { useAuth } from "@/hooks/use-auth";
-import { Tournament, User } from "@shared/schema";
+import { Tournament, User, updateTournamentSchema } from "@shared/schema";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users, Trophy, ArrowLeft, X, UserPlus } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, ArrowLeft, X, UserPlus, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import type { ViewType } from "@/pages/home-page";
@@ -32,6 +32,18 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -59,10 +71,90 @@ export default function TournamentDetailPage() {
   const { toast } = useToast();
   const [currentView, setCurrentView] = useState<ViewType>("tournaments");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const { data: tournament, isLoading } = useQuery<Tournament>({
     queryKey: [`/api/tournaments/${tournamentId}`],
     enabled: !!tournamentId
+  });
+
+  // Edit tournament form
+  type UpdateTournamentForm = z.infer<typeof updateTournamentSchema>;
+  const editForm = useForm<UpdateTournamentForm>({
+    resolver: zodResolver(updateTournamentSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      sport: "padel",
+      format: "elimination",
+      venue: "",
+      startDate: undefined,
+      endDate: undefined,
+      maxPlayers: 8,
+      registrationFee: "0",
+    },
+  });
+
+  // Reset form when tournament data loads
+  useEffect(() => {
+    if (tournament) {
+      editForm.reset({
+        name: tournament.name,
+        description: tournament.description || "",
+        sport: tournament.sport,
+        format: tournament.format,
+        venue: tournament.venue,
+        startDate: tournament.startDate as any,
+        endDate: tournament.endDate as any,
+        maxPlayers: tournament.maxPlayers,
+        registrationFee: tournament.registrationFee || "0",
+      });
+    }
+  }, [tournament, editForm]);
+
+  // Update tournament mutation
+  const updateTournamentMutation = useMutation({
+    mutationFn: async (data: UpdateTournamentForm) => {
+      const res = await apiRequest("PUT", `/api/tournaments/${tournamentId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournamentId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments"] });
+      setEditDialogOpen(false);
+      toast({
+        title: "Torneo actualizado",
+        description: "Los cambios han sido guardados correctamente.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el torneo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete tournament mutation
+  const deleteTournamentMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/tournaments/${tournamentId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Torneo eliminado",
+        description: "El torneo ha sido eliminado correctamente.",
+      });
+      setLocation("/");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el torneo.",
+        variant: "destructive",
+      });
+    },
   });
 
   // ------------------ 1. Loading state ------------------
@@ -171,13 +263,233 @@ export default function TournamentDetailPage() {
                     : tournament.status}
                 </Badge>
                 {canManage && (
-                  <Button
-                    variant="outline"
-                    data-testid={`button-edit-tournament-${tournament.id}`}
-                    className="min-h-[44px]"
-                  >
-                    Editar Torneo
-                  </Button>
+                  <>
+                    <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          data-testid={`button-edit-tournament-${tournament.id}`}
+                          className="min-h-[44px]"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Editar Torneo</DialogTitle>
+                          <DialogDescription>
+                            Modifica los detalles del torneo
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Form {...editForm}>
+                          <form onSubmit={editForm.handleSubmit((data) => updateTournamentMutation.mutate(data))} className="space-y-4">
+                            <FormField
+                              control={editForm.control}
+                              name="name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Nombre del Torneo</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-edit-name" className="min-h-[44px]" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={editForm.control}
+                              name="description"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Descripción</FormLabel>
+                                  <FormControl>
+                                    <Textarea {...field} value={field.value || ""} data-testid="input-edit-description" className="min-h-[44px]" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <div className="grid grid-cols-2 gap-4">
+                              <FormField
+                                control={editForm.control}
+                                name="sport"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Deporte</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid="select-edit-sport" className="min-h-[44px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="padel">Padel</SelectItem>
+                                        <SelectItem value="racquetball">Racquetball</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={editForm.control}
+                                name="format"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Formato</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid="select-edit-format" className="min-h-[44px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="elimination">Eliminación</SelectItem>
+                                        <SelectItem value="round_robin">Round Robin</SelectItem>
+                                        <SelectItem value="groups">Grupos</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <FormField
+                              control={editForm.control}
+                              name="venue"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Sede</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-edit-venue" className="min-h-[44px]" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <div className="grid grid-cols-2 gap-4">
+                              <FormField
+                                control={editForm.control}
+                                name="startDate"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Fecha de Inicio</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="date"
+                                        {...field}
+                                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                                        data-testid="input-edit-start-date"
+                                        className="min-h-[44px]"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={editForm.control}
+                                name="endDate"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Fecha de Fin</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="date"
+                                        {...field}
+                                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                                        data-testid="input-edit-end-date"
+                                        className="min-h-[44px]"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <FormField
+                                control={editForm.control}
+                                name="maxPlayers"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Máximo de Jugadores</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        {...field}
+                                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                        data-testid="input-edit-max-players"
+                                        className="min-h-[44px]"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={editForm.control}
+                                name="registrationFee"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Cuota de Inscripción</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} type="number" step="0.01" data-testid="input-edit-registration-fee" className="min-h-[44px]" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit" className="min-h-[44px]">
+                                Cancelar
+                              </Button>
+                              <Button type="submit" disabled={updateTournamentMutation.isPending} data-testid="button-save-edit" className="min-h-[44px]">
+                                {updateTournamentMutation.isPending ? "Guardando..." : "Guardar Cambios"}
+                              </Button>
+                            </div>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          data-testid={`button-delete-tournament-${tournament.id}`}
+                          className="min-h-[44px]"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente el torneo
+                            y todos sus datos asociados.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel data-testid="button-cancel-delete" className="min-h-[44px]">Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteTournamentMutation.mutate()}
+                            disabled={deleteTournamentMutation.isPending}
+                            data-testid="button-confirm-delete"
+                            className="min-h-[44px] bg-destructive hover:bg-destructive/90"
+                          >
+                            {deleteTournamentMutation.isPending ? "Eliminando..." : "Eliminar"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
                 )}
               </div>
             </div>
@@ -655,7 +967,9 @@ type CreateMatchForm = z.infer<typeof createMatchSchema>;
 
 function MatchesTab({ tournament, canManage }: { tournament: Tournament; canManage?: boolean }) {
   const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: matches = [], isLoading: matchesLoading, error: matchesError } = useQuery<Match[]>({
     queryKey: [`/api/tournaments/${tournament.id}/matches`]
@@ -715,6 +1029,64 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
       toast({
         title: "Error",
         description: error.message || "Error al crear el partido",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Edit match mutation
+  const editMatchMutation = useMutation({
+    mutationFn: async (data: CreateMatchForm & { matchId: string }) => {
+      const matchData = {
+        player1Id: data.player1Id,
+        player2Id: data.player2Id,
+        round: data.round && data.round.trim() !== "" ? data.round : null,
+        scheduledAt: data.scheduledAt && data.scheduledAt.trim() !== "" ? new Date(data.scheduledAt).toISOString() : null,
+        courtId: !data.courtId || data.courtId === "none" || data.courtId.trim() === "" ? null : data.courtId
+      };
+      const res = await apiRequest("PUT", `/api/matches/${data.matchId}`, matchData);
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${await res.text()}`);
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/matches`] });
+      setEditingMatch(null);
+      matchForm.reset();
+      toast({
+        title: "Partido actualizado",
+        description: "El partido se ha actualizado exitosamente",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Error al actualizar el partido",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Delete match mutation
+  const deleteMatchMutation = useMutation({
+    mutationFn: async (matchId: string) => {
+      const res = await apiRequest("DELETE", `/api/matches/${matchId}`);
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${await res.text()}`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/matches`] });
+      toast({
+        title: "Partido eliminado",
+        description: "El partido se ha eliminado correctamente",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Error al eliminar el partido",
         variant: "destructive",
       });
     }
@@ -843,6 +1215,65 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   {match.duration && (
                     <div className="mt-3 pt-3 border-t text-center text-sm text-muted-foreground">
                       ⏱️ Duración: {match.duration} minutos
+                    </div>
+                  )}
+
+                  {/* Admin actions */}
+                  {user?.role === "admin" && (
+                    <div className="mt-4 pt-4 border-t flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingMatch(match);
+                          matchForm.reset({
+                            player1Id: match.player1Id,
+                            player2Id: match.player2Id,
+                            round: match.round || "",
+                            scheduledAt: match.scheduledAt ? new Date(match.scheduledAt).toISOString().slice(0, 16) : "",
+                            courtId: match.courtId || ""
+                          });
+                        }}
+                        data-testid={`button-edit-match-${match.id}`}
+                        className="min-h-[44px]"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            data-testid={`button-delete-match-${match.id}`}
+                            className="min-h-[44px]"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar partido?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción no se puede deshacer. El partido será eliminado permanentemente.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel data-testid={`button-cancel-delete-match-${match.id}`} className="min-h-[44px]">
+                              Cancelar
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteMatchMutation.mutate(match.id)}
+                              disabled={deleteMatchMutation.isPending}
+                              data-testid={`button-confirm-delete-match-${match.id}`}
+                              className="min-h-[44px] bg-destructive hover:bg-destructive/90"
+                            >
+                              {deleteMatchMutation.isPending ? "Eliminando..." : "Eliminar"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   )}
                 </Card>
@@ -991,6 +1422,152 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   className="min-h-[44px]"
                 >
                   {createMatchMutation.isPending ? "Creando..." : "Crear Partido"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Match Modal */}
+      <Dialog open={!!editingMatch} onOpenChange={(open) => !open && setEditingMatch(null)}>
+        <DialogContent className="sm:max-w-[500px] mx-4 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle data-testid="title-edit-match-modal" className="text-lg sm:text-xl">Editar Partido</DialogTitle>
+            <DialogDescription className="text-sm">
+              Modifica los detalles del partido
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...matchForm}>
+            <form onSubmit={matchForm.handleSubmit((data) => editingMatch && editMatchMutation.mutate({ ...data, matchId: editingMatch.id }))} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={matchForm.control}
+                  name="player1Id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Jugador 1</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-player1" className="min-h-[44px]">
+                            <SelectValue placeholder="Selecciona jugador 1" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {players.map((player) => (
+                            <SelectItem key={player.id} value={player.id} data-testid={`edit-player1-option-${player.id}`}>
+                              {player.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={matchForm.control}
+                  name="player2Id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Jugador 2</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-player2" className="min-h-[44px]">
+                            <SelectValue placeholder="Selecciona jugador 2" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {players.map((player) => (
+                            <SelectItem key={player.id} value={player.id} data-testid={`edit-player2-option-${player.id}`}>
+                              {player.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={matchForm.control}
+                name="round"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ronda (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Ej: Ronda 1, Semifinal, Final" data-testid="input-edit-match-round" className="min-h-[44px]" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={matchForm.control}
+                name="courtId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cancha (Opcional)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-court" className="min-h-[44px]">
+                          <SelectValue placeholder="Selecciona una cancha" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Sin cancha asignada</SelectItem>
+                        {courts.map((court) => (
+                          <SelectItem key={court.id} value={court.id} data-testid={`edit-court-option-${court.id}`}>
+                            {court.name} - {court.sport}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={matchForm.control}
+                name="scheduledAt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha y Hora (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="datetime-local" 
+                        data-testid="input-edit-match-datetime"
+                        className="min-h-[44px]"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingMatch(null)}
+                  data-testid="button-cancel-edit-match"
+                  className="min-h-[44px]"
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={editMatchMutation.isPending}
+                  data-testid="button-save-edit-match"
+                  className="min-h-[44px]"
+                >
+                  {editMatchMutation.isPending ? "Guardando..." : "Guardar Cambios"}
                 </Button>
               </div>
             </form>

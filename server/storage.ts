@@ -69,6 +69,7 @@ export interface IStorage {
   getTournamentMatches(tournamentId: string): Promise<Match[]>;
   getPlayerMatches(playerId: string): Promise<Match[]>;
   updateMatch(id: string, updates: Partial<InsertMatch>): Promise<Match>;
+  deleteMatch(id: string): Promise<void>;
   recordMatchResult(id: string, result: {
     winnerId: string;
     player1Sets: number;
@@ -596,6 +597,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(matches.id, id))
       .returning();
     return match;
+  }
+
+  async deleteMatch(id: string): Promise<void> {
+    await db.delete(matches).where(eq(matches.id, id));
   }
 
   async recordMatchResult(id: string, result: {
