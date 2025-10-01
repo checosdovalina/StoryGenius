@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Match, MatchStatsSession, MatchEvent, Tournament, User } from "@shared/schema";
 import { ArrowLeft, Trophy, Clock } from "lucide-react";
+import { calculateScore, type ScoreState } from "@/lib/scoring";
 
 export default function StatsCapturePageComponent() {
   const { matchId } = useParams();
@@ -231,12 +232,34 @@ export default function StatsCapturePageComponent() {
                 <Button
                   size="lg"
                   onClick={() => {
-                    // TODO: Implement scoring logic
-                    const newScore = "15"; // Placeholder
+                    const currentState: ScoreState = {
+                      player1Score: session.player1CurrentScore || "0",
+                      player2Score: session.player2CurrentScore || "0",
+                      player1Games: parseInt(session.player1Games || "0") || 0,
+                      player2Games: parseInt(session.player2Games || "0") || 0,
+                      player1Sets: session.player1Sets || 0,
+                      player2Sets: session.player2Sets || 0,
+                      currentSet: session.currentSet || 1
+                    };
+                    
+                    const newState = calculateScore(tournament.sport, currentState, "player1");
+                    
+                    // Update session with new scores
+                    updateScoreMutation.mutate({
+                      player1CurrentScore: newState.player1Score,
+                      player2CurrentScore: newState.player2Score,
+                      player1Sets: newState.player1Sets,
+                      player2Sets: newState.player2Sets,
+                      currentSet: newState.currentSet,
+                      player1Games: JSON.stringify([newState.player1Games]),
+                      player2Games: JSON.stringify([newState.player2Games])
+                    });
+                    
+                    // Record event
                     recordPointMutation.mutate({
                       playerId: match.player1Id,
-                      player1Score: newScore,
-                      player2Score: session.player2CurrentScore || "0"
+                      player1Score: newState.player1Score,
+                      player2Score: newState.player2Score
                     });
                   }}
                   data-testid="button-point-player1"
@@ -248,12 +271,34 @@ export default function StatsCapturePageComponent() {
                 <Button
                   size="lg"
                   onClick={() => {
-                    // TODO: Implement scoring logic
-                    const newScore = "15"; // Placeholder
+                    const currentState: ScoreState = {
+                      player1Score: session.player1CurrentScore || "0",
+                      player2Score: session.player2CurrentScore || "0",
+                      player1Games: parseInt(session.player1Games || "0") || 0,
+                      player2Games: parseInt(session.player2Games || "0") || 0,
+                      player1Sets: session.player1Sets || 0,
+                      player2Sets: session.player2Sets || 0,
+                      currentSet: session.currentSet || 1
+                    };
+                    
+                    const newState = calculateScore(tournament.sport, currentState, "player2");
+                    
+                    // Update session with new scores
+                    updateScoreMutation.mutate({
+                      player1CurrentScore: newState.player1Score,
+                      player2CurrentScore: newState.player2Score,
+                      player1Sets: newState.player1Sets,
+                      player2Sets: newState.player2Sets,
+                      currentSet: newState.currentSet,
+                      player1Games: JSON.stringify([newState.player1Games]),
+                      player2Games: JSON.stringify([newState.player2Games])
+                    });
+                    
+                    // Record event
                     recordPointMutation.mutate({
                       playerId: match.player2Id,
-                      player1Score: session.player1CurrentScore || "0",
-                      player2Score: newScore
+                      player1Score: newState.player1Score,
+                      player2Score: newState.player2Score
                     });
                   }}
                   data-testid="button-point-player2"
