@@ -109,13 +109,13 @@ export default function TournamentDetailPage() {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
 
-        <div className="p-6"> {/* 3.3 Page padding */}
+        <div className="p-4 sm:p-6"> {/* 3.3 Page padding */}
           {/* Header with tournament info */}
-          <div className="mb-6">
-            <div className="flex items-center gap-4 mb-4">
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
               <Link
                 to="/"
-                className="flex items-center text-blue-600 hover:text-blue-800"
+                className="flex items-center text-blue-600 hover:text-blue-800 min-h-[44px] py-2"
                 data-testid="link-back-tournaments"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
@@ -123,15 +123,15 @@ export default function TournamentDetailPage() {
               </Link>
             </div>
 
-            <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start gap-3 sm:gap-4">
               <div>
                 <h1
-                  className="text-3xl font-bold text-gray-900 dark:text-white mb-2"
+                  className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2"
                   data-testid={`text-tournament-name-${tournament.id}`}
                 >
                   {tournament.name}
                 </h1>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex items-center gap-1">
                     <Trophy className="h-4 w-4" />
                     <span className="capitalize">
@@ -156,10 +156,11 @@ export default function TournamentDetailPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge
                   variant={tournament.status === "active" ? "default" : "secondary"}
                   data-testid={`badge-status-${tournament.id}`}
+                  className="text-sm"
                 >
                   {tournament.status === "draft"
                     ? "Borrador"
@@ -173,6 +174,7 @@ export default function TournamentDetailPage() {
                   <Button
                     variant="outline"
                     data-testid={`button-edit-tournament-${tournament.id}`}
+                    className="min-h-[44px]"
                   >
                     Editar Torneo
                   </Button>
@@ -182,7 +184,7 @@ export default function TournamentDetailPage() {
 
             {tournament.description && (
               <p
-                className="mt-4 text-gray-700 dark:text-gray-300"
+                className="mt-3 sm:mt-4 text-sm sm:text-base text-gray-700 dark:text-gray-300"
                 data-testid={`text-description-${tournament.id}`}
               >
                 {tournament.description}
@@ -193,20 +195,20 @@ export default function TournamentDetailPage() {
           {/* Main content tabs */}
           <Tabs defaultValue="players" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="players" data-testid="tab-players">
+              <TabsTrigger value="players" data-testid="tab-players" className="min-h-[44px]">
                 Jugadores
               </TabsTrigger>
-              <TabsTrigger value="matches" data-testid="tab-matches">
+              <TabsTrigger value="matches" data-testid="tab-matches" className="min-h-[44px]">
                 Partidos
               </TabsTrigger>
               {/* <TabsTrigger value="brackets" data-testid="tab-brackets">Brackets</TabsTrigger> */}
             </TabsList>
 
-            <TabsContent value="players" className="mt-6">
+            <TabsContent value="players" className="mt-4 sm:mt-6">
               <PlayersTab tournament={tournament} canManage={canManage} />
             </TabsContent>
 
-            <TabsContent value="matches" className="mt-6">
+            <TabsContent value="matches" className="mt-4 sm:mt-6">
               <MatchesTab tournament={tournament} canManage={canManage} />
             </TabsContent>
 
@@ -425,17 +427,18 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
           {canManage && (
             <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
               <DialogTrigger asChild>
-                <Button data-testid="button-add-player">
+                <Button data-testid="button-add-player" className="min-h-[44px] text-sm">
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Agregar Jugador
+                  <span className="hidden sm:inline">Agregar Jugador</span>
+                  <span className="sm:hidden">Agregar</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md mx-4 max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>
+                  <DialogTitle className="text-lg sm:text-xl">
                     {tournament.sport === "padel" ? "Registrar Pareja" : "Registrar Jugador"}
                   </DialogTitle>
-                  <DialogDescription>
+                  <DialogDescription className="text-sm">
                     {tournament.sport === "padel" 
                       ? "Proporciona la información de tu pareja para el torneo de padel."
                       : "Selecciona un jugador para registrar en este torneo."
@@ -457,6 +460,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                                 placeholder="Nombre completo de tu pareja"
                                 {...field}
                                 data-testid="input-partner-name"
+                                className="min-h-[44px]"
                               />
                             </FormControl>
                             <FormMessage />
@@ -479,6 +483,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                                   searchPartner(e.target.value);
                                 }}
                                 data-testid="input-partner-phone"
+                                className="min-h-[44px]"
                               />
                             </FormControl>
                             <FormDescription>
@@ -503,6 +508,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                             padelForm.reset();
                           }}
                           data-testid="button-cancel-padel-register"
+                          className="min-h-[44px]"
                         >
                           Cancelar
                         </Button>
@@ -510,6 +516,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                           type="submit"
                           disabled={createPairMutation.isPending || registerWithPairMutation.isPending}
                           data-testid="button-confirm-padel-register"
+                          className="min-h-[44px]"
                         >
                           {createPairMutation.isPending || registerWithPairMutation.isPending ? "Registrando..." : "Registrar Pareja"}
                         </Button>
@@ -527,7 +534,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                             <FormLabel>Jugador</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger data-testid="select-player">
+                                <SelectTrigger data-testid="select-player" className="min-h-[44px]">
                                   <SelectValue placeholder="Seleccionar jugador..." />
                                 </SelectTrigger>
                               </FormControl>
@@ -549,6 +556,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                           variant="outline"
                           onClick={() => setShowRegisterDialog(false)}
                           data-testid="button-cancel-register"
+                          className="min-h-[44px]"
                         >
                           Cancelar
                         </Button>
@@ -556,6 +564,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                           type="submit"
                           disabled={registerMutation.isPending}
                           data-testid="button-confirm-register"
+                          className="min-h-[44px]"
                         >
                           {registerMutation.isPending ? "Registrando..." : "Registrar"}
                         </Button>
@@ -613,10 +622,10 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                   {canManage && (
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={() => unregisterMutation.mutate(player.id)}
                       disabled={unregisterMutation.isPending}
                       data-testid={`button-unregister-${player.id}`}
+                      className="min-h-[44px] min-w-[44px] p-2"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -755,8 +764,10 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
             <Button 
               onClick={() => setShowCreateMatchModal(true)}
               data-testid="button-create-match"
+              className="min-h-[44px] text-sm"
             >
-              Crear Partido Manual
+              <span className="hidden sm:inline">Crear Partido Manual</span>
+              <span className="sm:hidden">Crear Partido</span>
             </Button>
           )}
         </CardTitle>
@@ -840,16 +851,16 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
 
       {/* Create Match Modal */}
       <Dialog open={showCreateMatchModal} onOpenChange={setShowCreateMatchModal}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="title-create-match-modal">Crear Partido Manual</DialogTitle>
-            <DialogDescription>
+            <DialogTitle data-testid="title-create-match-modal" className="text-lg sm:text-xl">Crear Partido Manual</DialogTitle>
+            <DialogDescription className="text-sm">
               Crea un partido manual para este torneo seleccionando los jugadores.
             </DialogDescription>
           </DialogHeader>
           <Form {...matchForm}>
             <form onSubmit={matchForm.handleSubmit((data) => createMatchMutation.mutate(data))} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={matchForm.control}
                   name="player1Id"
@@ -858,7 +869,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                       <FormLabel>Jugador 1</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-player1">
+                          <SelectTrigger data-testid="select-player1" className="min-h-[44px]">
                             <SelectValue placeholder="Selecciona jugador 1" />
                           </SelectTrigger>
                         </FormControl>
@@ -883,7 +894,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                       <FormLabel>Jugador 2</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-player2">
+                          <SelectTrigger data-testid="select-player2" className="min-h-[44px]">
                             <SelectValue placeholder="Selecciona jugador 2" />
                           </SelectTrigger>
                         </FormControl>
@@ -908,7 +919,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   <FormItem>
                     <FormLabel>Ronda (Opcional)</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Ej: Ronda 1, Semifinal, Final" data-testid="input-match-round" />
+                      <Input {...field} placeholder="Ej: Ronda 1, Semifinal, Final" data-testid="input-match-round" className="min-h-[44px]" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -923,7 +934,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                     <FormLabel>Cancha (Opcional)</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-court">
+                        <SelectTrigger data-testid="select-court" className="min-h-[44px]">
                           <SelectValue placeholder="Selecciona una cancha" />
                         </SelectTrigger>
                       </FormControl>
@@ -952,6 +963,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                         {...field} 
                         type="datetime-local" 
                         data-testid="input-match-datetime"
+                        className="min-h-[44px]"
                       />
                     </FormControl>
                     <FormMessage />
@@ -965,6 +977,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   variant="outline"
                   onClick={() => setShowCreateMatchModal(false)}
                   data-testid="button-cancel-match"
+                  className="min-h-[44px]"
                 >
                   Cancelar
                 </Button>
@@ -972,6 +985,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   type="submit" 
                   disabled={createMatchMutation.isPending}
                   data-testid="button-submit-match"
+                  className="min-h-[44px]"
                 >
                   {createMatchMutation.isPending ? "Creando..." : "Crear Partido"}
                 </Button>
