@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { 
   Trophy, 
@@ -22,9 +23,21 @@ interface SidebarProps {
   onViewChange: (view: ViewType) => void;
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export function Sidebar({ currentView, onViewChange, collapsed }: SidebarProps) {
+function SidebarContent({ 
+  currentView, 
+  onViewChange, 
+  collapsed,
+  onItemClick
+}: { 
+  currentView: ViewType; 
+  onViewChange: (view: ViewType) => void; 
+  collapsed: boolean;
+  onItemClick?: () => void;
+}) {
   const { user, logoutMutation } = useAuth();
 
   if (!user) return null;
@@ -34,7 +47,7 @@ export function Sidebar({ currentView, onViewChange, collapsed }: SidebarProps) 
       id: "dashboard" as ViewType,
       label: "Dashboard",
       icon: Home,
-      roles: ["admin", "jugador", "organizador", "arbitro", "escrutador"]
+      roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
     },
     {
       id: "userManagement" as ViewType,
@@ -82,13 +95,13 @@ export function Sidebar({ currentView, onViewChange, collapsed }: SidebarProps) 
       id: "matchResults" as ViewType,
       label: "Registro de Resultados",
       icon: ClipboardList,
-      roles: ["arbitro", "escrutador"]
+      roles: ["arbitro", "escrutador", "escribano"]
     },
     {
       id: "rankings" as ViewType,
       label: "Rankings",
       icon: Medal,
-      roles: ["admin", "jugador", "organizador", "arbitro", "escrutador"]
+      roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
     }
   ];
 
@@ -96,11 +109,13 @@ export function Sidebar({ currentView, onViewChange, collapsed }: SidebarProps) 
     item.roles.includes(user.role)
   );
 
+  const handleNavClick = (viewId: ViewType) => {
+    onViewChange(viewId);
+    onItemClick?.();
+  };
+
   return (
-    <aside className={cn(
-      "bg-card border-r border-border shadow-sm transition-all duration-300",
-      collapsed ? "w-16" : "w-64"
-    )}>
+    <>
       <div className="p-6 border-b border-border">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
@@ -115,7 +130,7 @@ export function Sidebar({ currentView, onViewChange, collapsed }: SidebarProps) 
         </div>
       </div>
 
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-2">
           {visibleItems.map((item) => {
             const Icon = item.icon;
@@ -129,7 +144,7 @@ export function Sidebar({ currentView, onViewChange, collapsed }: SidebarProps) 
                   "w-full justify-start",
                   collapsed && "px-2"
                 )}
-                onClick={() => onViewChange(item.id)}
+                onClick={() => handleNavClick(item.id)}
                 data-testid={`nav-${item.id}`}
               >
                 <Icon className={cn("h-4 w-4", !collapsed && "mr-3")} />
@@ -173,6 +188,39 @@ export function Sidebar({ currentView, onViewChange, collapsed }: SidebarProps) 
           {!collapsed && <span>Cerrar Sesión</span>}
         </Button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar({ currentView, onViewChange, collapsed, mobileOpen = false, onMobileClose }: SidebarProps) {
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className={cn(
+        "bg-card border-r border-border shadow-sm transition-all duration-300 hidden md:flex md:flex-col",
+        collapsed ? "w-16" : "w-64"
+      )}>
+        <SidebarContent 
+          currentView={currentView} 
+          onViewChange={onViewChange} 
+          collapsed={collapsed}
+        />
+      </aside>
+
+      {/* Mobile Drawer */}
+      <Sheet open={mobileOpen} onOpenChange={onMobileClose}>
+        <SheetContent side="left" className="w-64 p-0 bg-card">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Menú de navegación</SheetTitle>
+          </SheetHeader>
+          <SidebarContent 
+            currentView={currentView} 
+            onViewChange={onViewChange} 
+            collapsed={false}
+            onItemClick={onMobileClose}
+          />
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

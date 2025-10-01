@@ -27,7 +27,7 @@ export function DashboardView() {
   const stats: DashboardStats = {
     activeTournaments: tournaments.filter((t) => t.status === 'active').length,
     totalPlayers: users.filter((u) => u.role === 'jugador').length,
-    todayMatches: 0, // This would need a specific endpoint
+    todayMatches: 0,
     availableCourts: courts.filter((c) => c.status === 'available').length
   };
 
@@ -63,26 +63,26 @@ export function DashboardView() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <Card key={index} data-testid={`stat-card-${index}`}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{stat.title}</p>
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs md:text-sm text-muted-foreground truncate">{stat.title}</p>
                     {stat.loading ? (
-                      <Skeleton className="h-8 w-16 mt-2" />
+                      <Skeleton className="h-6 md:h-8 w-12 md:w-16 mt-1 md:mt-2" />
                     ) : (
-                      <p className="text-2xl font-bold text-card-foreground" data-testid={`stat-value-${index}`}>
+                      <p className="text-xl md:text-2xl font-bold text-card-foreground" data-testid={`stat-value-${index}`}>
                         {stat.value}
                       </p>
                     )}
                   </div>
-                  <Icon className={`h-8 w-8 ${stat.color}`} />
+                  <Icon className={`h-6 w-6 md:h-8 md:w-8 ${stat.color} shrink-0`} />
                 </div>
               </CardContent>
             </Card>
@@ -91,19 +91,19 @@ export function DashboardView() {
       </div>
 
       {/* Recent Activity and Upcoming Matches */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <Card data-testid="recent-activity-card">
-          <CardHeader>
-            <CardTitle>Actividad Reciente</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base md:text-lg">Actividad Reciente</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {tournamentsLoading ? (
                 <div className="space-y-3">
                   {[...Array(3)].map((_, i) => (
                     <div key={i} className="flex items-center space-x-3">
-                      <Skeleton className="w-8 h-8 rounded-full" />
-                      <div className="flex-1">
+                      <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                      <div className="flex-1 min-w-0">
                         <Skeleton className="h-4 w-3/4 mb-1" />
                         <Skeleton className="h-3 w-1/2" />
                       </div>
@@ -111,17 +111,17 @@ export function DashboardView() {
                   ))}
                 </div>
               ) : tournaments.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
+                <p className="text-sm text-muted-foreground text-center py-4">
                   No hay actividad reciente
                 </p>
               ) : (
                 tournaments.slice(0, 3).map((tournament, index: number) => (
                   <div key={tournament.id} className="flex items-center space-x-3" data-testid={`activity-item-${index}`}>
-                    <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center shrink-0">
                       <Trophy className="text-primary-foreground text-xs" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-card-foreground">Torneo "{tournament.name}" creado</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-card-foreground truncate">Torneo "{tournament.name}" creado</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(tournament.createdAt).toLocaleDateString('es-ES')}
                       </p>
@@ -134,12 +134,12 @@ export function DashboardView() {
         </Card>
 
         <Card data-testid="upcoming-matches-card">
-          <CardHeader>
-            <CardTitle>Próximos Partidos</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base md:text-lg">Próximos Partidos</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <p className="text-muted-foreground text-center py-4">
+              <p className="text-sm text-muted-foreground text-center py-4">
                 No hay partidos programados
               </p>
             </div>

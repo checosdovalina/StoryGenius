@@ -29,6 +29,7 @@ export default function HomePage() {
   const { user } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   if (!user) {
     return <div>Loading...</div>; // ProtectedRoute will handle redirection
@@ -68,15 +69,22 @@ export default function HomePage() {
         onViewChange={setCurrentView}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
       
       <main className="flex-1 overflow-auto">
         <Header 
           currentView={currentView}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggleSidebar={() => {
+            // Desktop: toggle collapse
+            setSidebarCollapsed(!sidebarCollapsed);
+            // Mobile: open drawer
+            setMobileSidebarOpen(true);
+          }}
         />
         
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {renderView()}
         </div>
       </main>
