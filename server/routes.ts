@@ -4,6 +4,9 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema } from "@shared/schema";
 import { z } from "zod";
+import { MatchStatsWebSocketServer } from "./websocket";
+
+let wsServer: MatchStatsWebSocketServer;
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
@@ -888,6 +891,15 @@ export function registerRoutes(app: Express): Server {
       }
 
       const session = await storage.updateStatsSession(req.params.sessionId, req.body);
+      
+      // Broadcast session update
+      if (session && wsServer) {
+        wsServer.broadcastToMatch(session.matchId, {
+          type: "session_update",
+          session
+        });
+      }
+      
       res.json(session);
     } catch (error) {
       res.status(500).json({ message: "Failed to update session" });
@@ -943,6 +955,17 @@ export function registerRoutes(app: Express): Server {
       });
 
       const event = await storage.createMatchEvent(validatedData);
+      
+      // Get session to find matchId for broadcast
+      const session = await storage.getStatsSession(req.params.sessionId);
+      if (session && wsServer) {
+        wsServer.broadcastToMatch(session.matchId, {
+          type: "match_event",
+          event,
+          session
+        });
+      }
+      
       res.status(201).json(event);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -964,5 +987,9 @@ export function registerRoutes(app: Express): Server {
 
 
   const httpServer = createServer(app);
+  
+  // Initialize WebSocket server
+  wsServer = new MatchStatsWebSocketServer(httpServer);
+  
   return httpServer;
 }
