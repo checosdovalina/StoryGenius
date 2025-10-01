@@ -82,6 +82,28 @@ The system implements session-based authentication with role-based access contro
 
 # Recent Changes
 
+- **2025-10-01**: ✅ **IMPLEMENTED FULL CRUD FOR TOURNAMENTS AND MATCHES** - Complete administrative control for tournaments and matches
+  - **Backend API**: 
+    - Added PUT `/api/matches/:id` endpoint for match updates (admin only)
+    - Added DELETE `/api/matches/:id` endpoint for match deletion (admin only)
+    - Added `updateMatch` and `deleteMatch` methods to storage interface
+    - Existing PUT/DELETE tournament endpoints verified with proper authorization (admin or organizer)
+  - **Frontend UI - Tournaments**:
+    - Edit tournament dialog with complete form (name, description, sport, format, venue, dates, max players, registration fee)
+    - Delete tournament confirmation dialog with AlertDialog
+    - Buttons visible only to admin and organizers
+    - Form resets correctly when tournament data loads using useEffect
+  - **Frontend UI - Matches**:
+    - Edit match dialog with complete form (players, round, court, scheduled date/time)
+    - Delete match confirmation dialog with AlertDialog
+    - Admin-only visibility for edit/delete buttons
+    - Court filtering by venue and sport maintained in match forms
+  - **Security & Authorization**:
+    - Match CRUD restricted to admin role only
+    - Tournament CRUD restricted to admin or organizer (owner)
+    - All mutations invalidate cache correctly
+    - Success/error toasts for user feedback
+  - **Mobile Support**: All interactive elements use min-h-[44px] for proper touch targets
 - **2025-09-19**: ✅ **IMPLEMENTED PADEL PAIRS SYSTEM** - Complete end-to-end padel partner registration system
   - **Database Schema**: Added `phone` field to users table, `padelPairs` table for partner management, `pairId` field in tournament registrations
   - **Backend API**: Secure endpoints for pair creation, phone-based partner search, and pair-based tournament registration with full authorization controls
