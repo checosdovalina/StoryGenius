@@ -1,0 +1,27 @@
+Failed to load resource: the server responded with a status of 401 ()Understand this error
+/api/courts:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/courts:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/clubs:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/clubs:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/courts:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/courts:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/clubs:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+index-BzPioT6r.js:297 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-BzPioT6r.js:297Understand this warning
+/api/clubs:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/clubs:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/clubs:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/courts:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/courts:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+/api/courts:1  Failed to load resource: the server responded with a status of 500 ()Understand this error
+(index):1  Failed to load resource: the server responded with a status of 404 ()Understand this error
+index-BzPioT6r.js:297 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-BzPioT6r.js:297
+qu @ index-BzPioT6r.js:40
+hi @ index-BzPioT6r.js:40
+Dk @ index-BzPioT6r.js:40
+ia @ index-BzPioT6r.js:40
+sy @ index-BzPioT6r.js:40
+ea @ index-BzPioT6r.js:38
+(anonymous) @ index-BzPioT6r.js:40Understand this warning
+index-BzPioT6r.js:48  POST https://story-genius-checodovalina.replit.app/api/courts 500 (Internal Server Error)
