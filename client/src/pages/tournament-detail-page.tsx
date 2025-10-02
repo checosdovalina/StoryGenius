@@ -64,6 +64,9 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { Match } from "@shared/schema";
 
+// =======================
+// 1️⃣ Página principal
+// =======================
 export default function TournamentDetailPage() {
   const { id: tournamentId } = useParams();
   const [location, setLocation] = useLocation();
@@ -73,6 +76,9 @@ export default function TournamentDetailPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
+  // =======================
+  // 2️⃣ Obtener torneo
+  // =======================
   const { data: tournament, isLoading } = useQuery<Tournament>({
     queryKey: [`/api/tournaments/${tournamentId}`],
     enabled: !!tournamentId
