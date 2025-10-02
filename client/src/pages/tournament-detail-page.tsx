@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -270,6 +270,7 @@ export default function TournamentDetailPage() {
                           variant="outline"
                           data-testid={`button-edit-tournament-${tournament.id}`}
                           className="min-h-[44px]"
+                          aria-label="Editar torneo"
                         >
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
@@ -463,6 +464,7 @@ export default function TournamentDetailPage() {
                           variant="destructive"
                           data-testid={`button-delete-tournament-${tournament.id}`}
                           className="min-h-[44px]"
+                          aria-label="Eliminar torneo"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Eliminar
@@ -555,10 +557,9 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     queryKey: [`/api/tournaments/${tournament.id}/players`]
   });
 
-  // Get all users for registration dropdown
+  // Get all users for registration dropdown (needed for viewing player names too)
   const { data: allUsers = [] } = useQuery<User[]>({
-    queryKey: ["/api/users"],
-    enabled: canManage
+    queryKey: ["/api/users"]
   });
 
   // Register player mutation
@@ -727,9 +728,11 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     }
   };
 
-  // Filter available users (not already registered)
-  const registeredPlayerIds = players.map(p => p.id);
-  const availableUsers = allUsers.filter(user => !registeredPlayerIds.includes(user.id));
+  // Filter available users (not already registered) - memoized
+  const availableUsers = useMemo(() => {
+    const registeredPlayerIds = players.map(p => p.id);
+    return allUsers.filter(user => !registeredPlayerIds.includes(user.id));
+  }, [players, allUsers]);
 
   return (
     <Card>
@@ -739,7 +742,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
           {canManage && (
             <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
               <DialogTrigger asChild>
-                <Button data-testid="button-add-player" className="min-h-[44px] text-sm">
+                <Button data-testid="button-add-player" className="min-h-[44px] text-sm" aria-label="Agregar jugador al torneo">
                   <UserPlus className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">Agregar Jugador</span>
                   <span className="sm:hidden">Agregar</span>
@@ -904,24 +907,24 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
             <p className="text-sm">Los jugadores aparecerán aquí cuando se registren</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {players.map((player, index) => (
-              <div key={player.id} className="flex items-center justify-between p-4 border rounded-lg" data-testid={`player-card-${player.id}`}>
-                <div className="flex items-center space-x-4">
-                  <div className="h-10 w-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+              <div key={player.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg gap-3" data-testid={`player-card-${player.id}`}>
+                <div className="flex items-center space-x-3 sm:space-x-4 w-full sm:w-auto">
+                  <div className="h-10 w-10 flex-shrink-0 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                     <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
                       {player.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white" data-testid={`player-name-${player.id}`}>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 dark:text-white truncate" data-testid={`player-name-${player.id}`}>
                       {player.name}
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400" data-testid={`player-email-${player.id}`}>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate" data-testid={`player-email-${player.id}`}>
                       {player.email}
                     </p>
                     {player.club && (
-                      <p className="text-xs text-gray-400" data-testid={`player-club-${player.id}`}>
+                      <p className="text-xs text-gray-400 truncate" data-testid={`player-club-${player.id}`}>
                         {player.club}
                       </p>
                     )}
@@ -938,6 +941,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                       disabled={unregisterMutation.isPending}
                       data-testid={`button-unregister-${player.id}`}
                       className="min-h-[44px] min-w-[44px] p-2"
+                      aria-label={`Eliminar a ${player.name} del torneo`}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -965,6 +969,29 @@ const createMatchSchema = z.object({
 
 type CreateMatchForm = z.infer<typeof createMatchSchema>;
 
+// Helper functions moved outside component for performance
+const getUserById = (users: User[], id: string) => {
+  return users.find(u => u.id === id);
+};
+
+const getStatusBadgeVariant = (status: string) => {
+  switch (status) {
+    case "completed": return "default";
+    case "in_progress": return "secondary";
+    case "scheduled": return "outline";
+    default: return "outline";
+  }
+};
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case "completed": return "Completado";
+    case "in_progress": return "En Progreso";
+    case "scheduled": return "Programado";
+    default: return status;
+  }
+};
+
 function MatchesTab({ tournament, canManage }: { tournament: Tournament; canManage?: boolean }) {
   const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
@@ -975,6 +1002,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     queryKey: [`/api/tournaments/${tournament.id}/matches`]
   });
 
+  // Fetch users for displaying player names (needed by all viewers)
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"]
   });
@@ -983,12 +1011,17 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     queryKey: [`/api/tournaments/${tournament.id}/players`]
   });
 
+  // Only fetch courts if user canManage (optimization)
   const { data: allCourts = [] } = useQuery<any[]>({
-    queryKey: ["/api/courts"]
+    queryKey: ["/api/courts"],
+    enabled: canManage
   });
 
-  // Filter courts to show only those from the same venue as the tournament
-  const courts = allCourts.filter(court => court.venue === tournament.venue && court.sport === tournament.sport);
+  // Filter courts to show only those from the same venue as the tournament - memoized
+  const courts = useMemo(() => 
+    allCourts.filter(court => court.venue === tournament.venue && court.sport === tournament.sport),
+    [allCourts, tournament.venue, tournament.sport]
+  );
 
   const matchForm = useForm<CreateMatchForm>({
     resolver: zodResolver(createMatchSchema),
@@ -1092,27 +1125,6 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     }
   });
 
-  const getUserById = (id: string) => {
-    return users.find(u => u.id === id);
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "completed": return "default";
-      case "in_progress": return "secondary";
-      case "scheduled": return "outline";
-      default: return "outline";
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "completed": return "Completado";
-      case "in_progress": return "En Progreso";
-      case "scheduled": return "Programado";
-      default: return status;
-    }
-  };
 
   if (matchesLoading) {
     return (
@@ -1140,6 +1152,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
               onClick={() => setShowCreateMatchModal(true)}
               data-testid="button-create-match"
               className="min-h-[44px] text-sm"
+              aria-label="Crear partido manual"
             >
               <span className="hidden sm:inline">Crear Partido Manual</span>
               <span className="sm:hidden">Crear Partido</span>
@@ -1158,13 +1171,13 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
             <p className="text-sm">Los partidos aparecerán cuando se generen los brackets</p>
           </div>
         ) : (
-          <div className="space-y-4" data-testid="matches-list">
+          <div className="space-y-4 overflow-x-auto" data-testid="matches-list">
             {matches.map((match) => {
-              const player1 = getUserById(match.player1Id);
-              const player2 = getUserById(match.player2Id);
+              const player1 = getUserById(users, match.player1Id);
+              const player2 = getUserById(users, match.player2Id);
 
               return (
-                <Card key={match.id} className="p-4" data-testid={`match-item-${match.id}`}>
+                <Card key={match.id} className="p-3 sm:p-4" data-testid={`match-item-${match.id}`}>
                   <div className="flex justify-between items-start mb-4">
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
@@ -1227,6 +1240,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                           size="sm"
                           data-testid={`button-capture-stats-${match.id}`}
                           className="w-full min-h-[44px]"
+                          aria-label="Capturar estadísticas del partido"
                         >
                           <Trophy className="h-4 w-4 mr-2" />
                           Capturar estadísticas
@@ -1253,6 +1267,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                         }}
                         data-testid={`button-edit-match-${match.id}`}
                         className="min-h-[44px]"
+                        aria-label="Editar partido"
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
@@ -1264,6 +1279,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                             size="sm"
                             data-testid={`button-delete-match-${match.id}`}
                             className="min-h-[44px]"
+                            aria-label="Eliminar partido"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Eliminar
@@ -1620,10 +1636,6 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
     }
   });
 
-  const getUserById = (id: string) => {
-    return users.find(u => u.id === id);
-  };
-
   const organizedMatches = matches.reduce<Record<string, Match[]>>((acc, match) => {
     const round = match.round || "Round 1";
     if (!acc[round]) acc[round] = [];
@@ -1682,8 +1694,8 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {roundMatches.map((match: Match, index: number) => {
-                    const player1 = getUserById(match.player1Id);
-                    const player2 = getUserById(match.player2Id);
+                    const player1 = getUserById(users, match.player1Id);
+                    const player2 = getUserById(users, match.player2Id);
 
                     return (
                       <Card key={match.id} className="border-2" data-testid={`match-card-${match.id}`}>
