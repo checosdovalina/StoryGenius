@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { 
-  Trophy, 
+  Trophy,
   Home, 
   Users, 
   Calendar, 
@@ -17,6 +17,7 @@ import {
   User
 } from "lucide-react";
 import type { ViewType } from "@/pages/home-page";
+import logoImage from "@assets/ge-sport-logo.png";
 
 interface SidebarProps {
   currentView: ViewType;
@@ -118,12 +119,17 @@ function SidebarContent({
     <>
       <div className="p-6 border-b border-border">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <Trophy className="text-primary-foreground text-lg" />
-          </div>
+          <img 
+            src={logoImage} 
+            alt="GE Sport Logo" 
+            className={cn(
+              "object-contain transition-all duration-200",
+              collapsed ? "w-10 h-10" : "w-16 h-16"
+            )}
+          />
           {!collapsed && (
             <div>
-              <h1 className="text-xl font-bold text-card-foreground">GBSport</h1>
+              <h1 className="text-xl font-bold text-card-foreground">GE Sport</h1>
               <p className="text-sm text-muted-foreground">Gestión de Torneos</p>
             </div>
           )}
