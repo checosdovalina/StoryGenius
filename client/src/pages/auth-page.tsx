@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Trophy, Users, Calendar, BarChart3 } from "lucide-react";
-import logoImage from "@assets/ge-sport-logo.png";
+import logoImage from "@assets/gbsport-logo.png";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
@@ -55,11 +55,11 @@ export default function AuthPage() {
             <div className="flex justify-center mb-4">
               <img 
                 src={logoImage} 
-                alt="GE Sport Logo" 
-                className="w-32 h-32 object-contain"
+                alt="GB Sport Logo" 
+                className="w-40 h-40 object-contain"
               />
             </div>
-            <CardTitle className="text-2xl">Bienvenido a GE Sport</CardTitle>
+            <CardTitle className="text-2xl">Bienvenido a GB Sport</CardTitle>
             <p className="text-muted-foreground">Sistema de Gestión de Torneos</p>
           </CardHeader>
           <CardContent>

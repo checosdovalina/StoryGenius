@@ -17,7 +17,7 @@ import {
   User
 } from "lucide-react";
 import type { ViewType } from "@/pages/home-page";
-import logoImage from "@assets/ge-sport-logo.png";
+import logoImage from "@assets/gbsport-logo.png";
 
 interface SidebarProps {
   currentView: ViewType;
@@ -121,15 +121,15 @@ function SidebarContent({
         <div className="flex items-center space-x-3">
           <img 
             src={logoImage} 
-            alt="GE Sport Logo" 
+            alt="GB Sport Logo" 
             className={cn(
               "object-contain transition-all duration-200",
-              collapsed ? "w-10 h-10" : "w-16 h-16"
+              collapsed ? "w-10 h-10" : "w-20 h-20"
             )}
           />
           {!collapsed && (
             <div>
-              <h1 className="text-xl font-bold text-card-foreground">GE Sport</h1>
+              <h1 className="text-xl font-bold text-card-foreground">GB Sport</h1>
               <p className="text-sm text-muted-foreground">Gestión de Torneos</p>
             </div>
           )}
