@@ -48,7 +48,7 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Authentication forms */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+      <div className="w-full lg:flex-1 flex items-center justify-center p-4 md:p-8 bg-background">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
@@ -181,7 +181,7 @@ export default function AuthPage() {
       </div>
 
       {/* Right side - Hero section */}
-      <div className="flex-1 bg-primary relative overflow-hidden">
+      <div className="hidden lg:flex lg:flex-1 bg-primary relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80" />
         <div className="relative z-10 flex flex-col justify-center h-full p-8 text-primary-foreground">
           <div className="max-w-lg">
