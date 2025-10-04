@@ -1014,6 +1014,20 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get aggregated player statistics from match events
+  app.get("/api/stats/players", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const stats = await storage.getPlayersEventStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch player stats" });
+    }
+  });
+
 
 
   const httpServer = createServer(app);

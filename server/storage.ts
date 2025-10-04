@@ -110,6 +110,9 @@ export interface IStorage {
   getSessionEvents(sessionId: string): Promise<MatchEvent[]>;
   getLatestMatchEvents(sessionId: string, limit: number): Promise<MatchEvent[]>;
 
+  // Player statistics from match events
+  getPlayersEventStats(): Promise<any[]>;
+
   sessionStore: session.Store;
 }
 
@@ -901,6 +904,68 @@ export class DatabaseStorage implements IStorage {
       .where(eq(matchEvents.sessionId, sessionId))
       .orderBy(desc(matchEvents.createdAt))
       .limit(limit);
+  }
+
+  async getPlayersEventStats(): Promise<any[]> {
+    // Get all match events with player info
+    const events = await db
+      .select({
+        playerId: matchEvents.playerId,
+        eventType: matchEvents.eventType,
+        playerName: users.name,
+        playerEmail: users.email
+      })
+      .from(matchEvents)
+      .leftJoin(users, eq(matchEvents.playerId, users.id))
+      .where(eq(users.isActive, true));
+
+    // Group by player and aggregate stats
+    const playerStatsMap = new Map<string, any>();
+
+    events.forEach(event => {
+      if (!event.playerId) return;
+
+      if (!playerStatsMap.has(event.playerId)) {
+        playerStatsMap.set(event.playerId, {
+          playerId: event.playerId,
+          playerName: event.playerName,
+          playerEmail: event.playerEmail,
+          totalPoints: 0,
+          aces: 0,
+          doubleFaults: 0,
+          errors: 0,
+          winners: 0,
+          faults: 0
+        });
+      }
+
+      const stats = playerStatsMap.get(event.playerId);
+      
+      switch (event.eventType) {
+        case 'point_won':
+          stats.totalPoints++;
+          break;
+        case 'ace':
+          stats.aces++;
+          break;
+        case 'double_fault':
+          stats.doubleFaults++;
+          break;
+        case 'error':
+          stats.errors++;
+          break;
+        case 'winner':
+          stats.winners++;
+          break;
+        case 'fault':
+          stats.faults++;
+          break;
+      }
+    });
+
+    // Convert map to array and sort by total points
+    return Array.from(playerStatsMap.values())
+      .sort((a, b) => b.totalPoints - a.totalPoints);
   }
 }
 

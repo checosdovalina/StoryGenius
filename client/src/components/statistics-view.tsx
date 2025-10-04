@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, Clock, Flame, BarChart3, Calendar, Users } from "lucide-react";
+import { Trophy, Clock, Flame, BarChart3, Calendar, Users, Target, Zap, AlertTriangle, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, differenceInMinutes } from "date-fns";
 import type { PlayerStats, Match, MatchStatsSession, MatchEvent, User, Tournament } from "@shared/schema";
 
@@ -26,6 +27,12 @@ export function StatisticsView() {
   const { data: allSessions = [], isLoading: sessionsLoading } = useQuery<(MatchStatsSession & { match?: Match; tournament?: Tournament; player1?: User; player2?: User })[]>({
     queryKey: ["/api/stats/sessions"],
     enabled: !!isAdminOrEscribano
+  });
+
+  // Fetch aggregated player statistics from match events
+  const { data: playersStats = [], isLoading: playersStatsLoading } = useQuery<any[]>({
+    queryKey: ["/api/stats/players"],
+    enabled: !!user
   });
 
   // Get global stats (non-tournament specific)
@@ -57,7 +64,7 @@ export function StatisticsView() {
     return formatDuration(duration);
   };
 
-  if (statsLoading || matchesLoading || (isAdminOrEscribano && sessionsLoading)) {
+  if (statsLoading || matchesLoading || playersStatsLoading || (isAdminOrEscribano && sessionsLoading)) {
     return (
       <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -85,8 +92,9 @@ export function StatisticsView() {
       </div>
 
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className={`grid w-full ${isAdminOrEscribano ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <TabsTrigger value="personal" data-testid="tab-personal">Estadísticas Personales</TabsTrigger>
+          <TabsTrigger value="players" data-testid="tab-players">Tabla de Jugadores</TabsTrigger>
           {isAdminOrEscribano && (
             <TabsTrigger value="captures" data-testid="tab-captures">Capturas Realizadas</TabsTrigger>
           )}
@@ -216,6 +224,140 @@ export function StatisticsView() {
                       {globalStats.currentWinStreak} victorias
                     </span>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Players Stats Table Tab */}
+        <TabsContent value="players" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Estadísticas de Jugadores
+                  </CardTitle>
+                  <CardDescription>
+                    Rendimiento de todos los jugadores basado en eventos capturados
+                  </CardDescription>
+                </div>
+                <Badge variant="outline">{playersStats.length} jugadores</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {playersStats.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No hay estadísticas de jugadores disponibles
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50px]">#</TableHead>
+                        <TableHead>Jugador</TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Target className="h-4 w-4" />
+                            <span>Puntos</span>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Zap className="h-4 w-4" />
+                            <span>Aces</span>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <AlertTriangle className="h-4 w-4" />
+                            <span>D.F.</span>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <X className="h-4 w-4" />
+                            <span>Errores</span>
+                          </div>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {playersStats.map((player, index) => (
+                        <TableRow key={player.playerId} data-testid={`player-row-${index}`}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{player.playerName}</div>
+                              <div className="text-xs text-muted-foreground">{player.playerEmail}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="default" className="font-mono">
+                              {player.totalPoints}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="secondary" className="font-mono">
+                              {player.aces}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="destructive" className="font-mono">
+                              {player.doubleFaults}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="font-mono">
+                              {player.errors}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <Users className="h-12 w-12 text-primary mx-auto mb-4" />
+                  <h4 className="text-2xl font-bold text-card-foreground">
+                    {playersStats.length}
+                  </h4>
+                  <p className="text-muted-foreground">Jugadores Activos</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <Target className="h-12 w-12 text-accent mx-auto mb-4" />
+                  <h4 className="text-2xl font-bold text-card-foreground">
+                    {playersStats.reduce((sum, p) => sum + p.totalPoints, 0)}
+                  </h4>
+                  <p className="text-muted-foreground">Total Puntos</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <Zap className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                  <h4 className="text-2xl font-bold text-card-foreground">
+                    {playersStats.reduce((sum, p) => sum + p.aces, 0)}
+                  </h4>
+                  <p className="text-muted-foreground">Total Aces</p>
                 </div>
               </CardContent>
             </Card>
