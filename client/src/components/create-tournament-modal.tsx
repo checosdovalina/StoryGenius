@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
-import type { InsertTournament } from "@shared/schema";
+import type { InsertTournament, Club } from "@shared/schema";
 
 interface CreateTournamentModalProps {
   open: boolean;
@@ -22,12 +22,17 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
     name: "",
     sport: "",
     format: "",
-    venue: "",
+    clubId: "",
     startDate: "",
     endDate: "",
     maxPlayers: "",
     registrationFee: "",
     description: ""
+  });
+
+  const { data: clubs, isLoading: clubsLoading } = useQuery<Club[]>({
+    queryKey: ["/api/clubs"],
+    enabled: open
   });
 
   const createTournamentMutation = useMutation({
@@ -58,7 +63,7 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
       name: "",
       sport: "",
       format: "",
-      venue: "",
+      clubId: "",
       startDate: "",
       endDate: "",
       maxPlayers: "",
@@ -70,12 +75,14 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const selectedClub = clubs?.find(c => c.id === formData.clubId);
     const tournamentData = {
       name: formData.name,
       sport: formData.sport as "padel" | "racquetball",
       format: formData.format as "elimination" | "round_robin" | "groups",
       status: "draft" as const,
-      venue: formData.venue,
+      venue: selectedClub?.name || "",
+      clubId: formData.clubId || undefined,
       startDate: new Date(formData.startDate + 'T00:00:00'),
       endDate: new Date(formData.endDate + 'T23:59:59'),
       maxPlayers: parseInt(formData.maxPlayers),
@@ -149,14 +156,19 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="venue">Sede/Club</Label>
-            <Input
-              id="venue"
-              value={formData.venue}
-              onChange={(e) => handleInputChange("venue", e.target.value)}
-              required
-              data-testid="input-venue"
-            />
+            <Label htmlFor="clubId">Sede/Club</Label>
+            <Select value={formData.clubId} onValueChange={(value) => handleInputChange("clubId", value)} required>
+              <SelectTrigger data-testid="select-club">
+                <SelectValue placeholder={clubsLoading ? "Cargando clubes..." : "Seleccionar club"} />
+              </SelectTrigger>
+              <SelectContent>
+                {clubs?.map((club) => (
+                  <SelectItem key={club.id} value={club.id}>
+                    {club.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

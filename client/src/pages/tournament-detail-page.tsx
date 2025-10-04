@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { useAuth } from "@/hooks/use-auth";
-import { Tournament, User, updateTournamentSchema } from "@shared/schema";
+import { Tournament, User, Club, updateTournamentSchema } from "@shared/schema";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -77,11 +77,15 @@ export default function TournamentDetailPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   // =======================
-  // 2️⃣ Obtener torneo
+  // 2️⃣ Obtener torneo y clubes
   // =======================
   const { data: tournament, isLoading } = useQuery<Tournament>({
     queryKey: [`/api/tournaments/${tournamentId}`],
     enabled: !!tournamentId
+  });
+
+  const { data: clubs } = useQuery<Club[]>({
+    queryKey: ["/api/clubs"]
   });
 
   // Edit tournament form
@@ -103,25 +107,32 @@ export default function TournamentDetailPage() {
 
   // Reset form when tournament data loads
   useEffect(() => {
-    if (tournament) {
+    if (tournament && clubs) {
+      const clubId = tournament.clubId || clubs.find(c => c.name === tournament.venue)?.id || "";
       editForm.reset({
         name: tournament.name,
         description: tournament.description || "",
         sport: tournament.sport,
         format: tournament.format,
-        venue: tournament.venue,
+        venue: clubId,
         startDate: tournament.startDate as any,
         endDate: tournament.endDate as any,
         maxPlayers: tournament.maxPlayers,
         registrationFee: tournament.registrationFee || "0",
       });
     }
-  }, [tournament, editForm]);
+  }, [tournament, clubs, editForm]);
 
   // Update tournament mutation
   const updateTournamentMutation = useMutation({
     mutationFn: async (data: UpdateTournamentForm) => {
-      const res = await apiRequest("PUT", `/api/tournaments/${tournamentId}`, data);
+      const selectedClub = clubs?.find(c => c.id === data.venue);
+      const updateData = {
+        ...data,
+        clubId: data.venue || undefined,
+        venue: selectedClub?.name || data.venue,
+      };
+      const res = await apiRequest("PUT", `/api/tournaments/${tournamentId}`, updateData);
       return res.json();
     },
     onSuccess: () => {
@@ -367,10 +378,21 @@ export default function TournamentDetailPage() {
                               name="venue"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Sede</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} data-testid="input-edit-venue" className="min-h-[44px]" />
-                                  </FormControl>
+                                  <FormLabel>Sede/Club</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger data-testid="select-edit-club" className="min-h-[44px]">
+                                        <SelectValue placeholder="Seleccionar club" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {clubs?.map((club) => (
+                                        <SelectItem key={club.id} value={club.id}>
+                                          {club.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                   <FormMessage />
                                 </FormItem>
                               )}

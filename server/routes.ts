@@ -996,6 +996,24 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get all completed stats sessions (admin/escribano only)
+  app.get("/api/stats/sessions", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      if (!["admin", "escribano"].includes(req.user!.role)) {
+        return res.status(403).json({ message: "Unauthorized - Admin or Escribano role required" });
+      }
+
+      const sessions = await storage.getAllStatsSessions();
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
 
 
   const httpServer = createServer(app);

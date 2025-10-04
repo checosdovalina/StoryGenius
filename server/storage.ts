@@ -103,6 +103,7 @@ export interface IStorage {
   getActiveStatsSession(matchId: string): Promise<MatchStatsSession | undefined>;
   updateStatsSession(id: string, updates: Partial<InsertMatchStatsSession>): Promise<MatchStatsSession>;
   completeStatsSession(id: string): Promise<MatchStatsSession>;
+  getAllStatsSessions(): Promise<any[]>;
 
   // Match events
   createMatchEvent(event: InsertMatchEvent): Promise<MatchEvent>;
@@ -275,6 +276,7 @@ export class DatabaseStorage implements IStorage {
         format: tournaments.format,
         status: tournaments.status,
         venue: tournaments.venue,
+        clubId: tournaments.clubId,
         startDate: tournaments.startDate,
         endDate: tournaments.endDate,
         maxPlayers: tournaments.maxPlayers,
@@ -842,6 +844,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(matchStatsSessions.id, id))
       .returning();
     return completed;
+  }
+
+  async getAllStatsSessions(): Promise<any[]> {
+    const results = await db
+      .select({
+        session: matchStatsSessions,
+        match: matches,
+        tournament: tournaments,
+        player1: { id: users.id, name: users.name, email: users.email },
+      })
+      .from(matchStatsSessions)
+      .leftJoin(matches, eq(matchStatsSessions.matchId, matches.id))
+      .leftJoin(tournaments, eq(matches.tournamentId, tournaments.id))
+      .leftJoin(users, eq(matches.player1Id, users.id))
+      .orderBy(desc(matchStatsSessions.startedAt));
+
+    // Transform results to include player2
+    const sessionsWithPlayers = await Promise.all(
+      results.map(async (result) => {
+        const player2 = result.match?.player2Id
+          ? await this.getUser(result.match.player2Id)
+          : undefined;
+
+        return {
+          ...result.session,
+          match: result.match,
+          tournament: result.tournament,
+          player1: result.player1,
+          player2: player2 ? { id: player2.id, name: player2.name, email: player2.email } : undefined,
+        };
+      })
+    );
+
+    return sessionsWithPlayers;
   }
 
   // Match events

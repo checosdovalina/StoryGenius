@@ -69,6 +69,7 @@ export const tournaments = pgTable("tournaments", {
   format: tournamentFormatEnum("format").notNull(),
   status: tournamentStatusEnum("status").notNull().default("draft"),
   venue: text("venue").notNull(),
+  clubId: varchar("club_id").references(() => clubs.id),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   maxPlayers: integer("max_players").notNull(),
@@ -199,7 +200,8 @@ export const clubsRelations = relations(clubs, ({ one, many }) => ({
     fields: [clubs.managerId],
     references: [users.id]
   }),
-  courts: many(courts)
+  courts: many(courts),
+  tournaments: many(tournaments)
 }));
 
 export const usersRelations = relations(users, ({ many, one }) => ({
@@ -223,6 +225,10 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   organizer: one(users, {
     fields: [tournaments.organizerId],
     references: [users.id]
+  }),
+  club: one(clubs, {
+    fields: [tournaments.clubId],
+    references: [clubs.id]
   }),
   registrations: many(tournamentRegistrations),
   matches: many(matches)

@@ -10,6 +10,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Match, MatchStatsSession, MatchEvent, Tournament, User } from "@shared/schema";
 import { ArrowLeft, Trophy, Clock } from "lucide-react";
 import { calculateScore, type ScoreState } from "@/lib/scoring";
+import { format } from "date-fns";
 
 export default function StatsCapturePageComponent() {
   const { matchId } = useParams();
@@ -216,6 +217,26 @@ export default function StatsCapturePageComponent() {
             <CardDescription className="text-sm">
               {match.round} - Partido {match.bracketPosition}
             </CardDescription>
+            {session && (
+              <div className="mt-3 pt-3 border-t text-xs space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>Inicio: {format(new Date(session.startedAt), 'HH:mm:ss - dd/MM/yyyy')}</span>
+                </div>
+                {session.completedAt && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span>Fin: {format(new Date(session.completedAt), 'HH:mm:ss - dd/MM/yyyy')}</span>
+                  </div>
+                )}
+                {!session.completedAt && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <div className="h-2 w-2 rounded-full bg-green-600 animate-pulse" />
+                    <span>Sesión activa</span>
+                  </div>
+                )}
+              </div>
+            )}
           </CardHeader>
           
           <CardContent className="space-y-6">
