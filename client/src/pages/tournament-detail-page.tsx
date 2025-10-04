@@ -1045,10 +1045,10 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     enabled: canManage
   });
 
-  // Filter courts to show only those from the same venue as the tournament - memoized
+  // Filter courts to show only those from the same club as the tournament - memoized
   const courts = useMemo(() => 
-    allCourts.filter(court => court.venue === tournament.venue && court.sport === tournament.sport),
-    [allCourts, tournament.venue, tournament.sport]
+    allCourts.filter(court => court.clubId === tournament.clubId && court.sport === tournament.sport),
+    [allCourts, tournament.clubId, tournament.sport]
   );
 
   const matchForm = useForm<CreateMatchForm>({
