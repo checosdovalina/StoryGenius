@@ -82,6 +82,26 @@ The system implements session-based authentication with role-based access contro
 
 # Recent Changes
 
+- **2025-10-04**: ✅ **ENHANCED TOURNAMENT AND STATISTICS MANAGEMENT** - Club-based venue selection and comprehensive statistics module
+  - **Club-Based Venue Selection**:
+    - Added `clubId` foreign key to tournaments table referencing clubs
+    - Modified tournament creation/edit forms to use club dropdown instead of text input
+    - System now stores both `clubId` (for relationships) and `venue` (club name for display)
+    - Frontend fetches clubs from `/api/clubs` endpoint and populates dropdown
+    - Proper cache invalidation on tournament mutations
+  - **Session Time Tracking Display**:
+    - Enhanced stats capture page to display session `startedAt` and `completedAt` timestamps
+    - Added visual indicators for active sessions (sessions without completion time)
+    - User-friendly date/time formatting for session tracking
+  - **Statistics Module Implementation**:
+    - Complete rewrite of `statistics-view.tsx` with tabbed interface
+    - Personal stats tab for all users showing their match participation
+    - Captures tab (admin/escribano only) showing all completed scoring sessions
+    - Backend endpoint GET `/api/stats/sessions` with role-based access control
+    - Database method `getAllStatsSessions()` with joins to matches, tournaments, and users
+    - Session listings include: players, tournament, sport, scores, start/end times, duration
+    - Summary metrics: total sessions, sessions by sport (padel/racquetball)
+    - Proper authorization: statistics capture data visible only to admin and escribano roles
 - **2025-10-01**: ✅ **IMPLEMENTED REAL-TIME MATCH STATISTICS CAPTURE SYSTEM** - Complete live scoring module for admin and escribano roles
   - **Database Schema**:
     - Added `escribano` role to user roles enum for dedicated statistics capture personnel
