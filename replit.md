@@ -82,6 +82,30 @@ The system implements session-based authentication with role-based access contro
 
 # Recent Changes
 
+- **2025-10-04**: ✅ **SPECIAL EVENTS TRACKING AND UPDATED RACQUETBALL SCORING** - Enhanced statistics capture with ace/double-fault/error tracking and revised racquetball rules
+  - **Special Events Tracking**:
+    - Added six special event buttons to stats capture interface (mobile): Ace, Double Fault (D.F.), Error for each player
+    - Ace events award point to player who executed the ace
+    - Double fault and error events award point to opponent
+    - All special events properly record in `match_events` table with dedicated `eventType`
+    - Special event handlers correctly load current game/set state from session JSON (bug fixed)
+    - Visual design: Ace uses secondary variant with Zap icon, fault/error use destructive variant
+    - Mobile-optimized buttons (min-h-[40px]) with compact icons and labels
+  - **Racquetball Scoring Update**:
+    - **New Rules**: First to 15 points wins a set (2-point lead required)
+    - Best of 3 sets to win match
+    - Tiebreak set (if 1-1) played to 11 points (2-point lead required)
+    - Updated `calculateRacquetballScore` in `client/src/lib/scoring.ts` with new point thresholds
+    - Scoring logic maintains set/match winner signals and proper state transitions
+  - **Court Filtering Enhancement**:
+    - Match creation/editing now filters courts by `clubId` instead of venue name
+    - Only shows courts from the same club and sport as the tournament
+    - Prevents cross-club court assignment errors
+    - Updated in `client/src/pages/tournament-detail-page.tsx`
+  - **Bug Fixes**:
+    - Fixed critical bug where special event buttons hardcoded games to 0, causing set/game tracking corruption
+    - All special event handlers now properly parse `player1Games`/`player2Games` from session state
+    - Prevents game reset when logging aces/faults/errors during padel matches
 - **2025-10-04**: ✅ **ENHANCED TOURNAMENT AND STATISTICS MANAGEMENT** - Club-based venue selection and comprehensive statistics module
   - **Club-Based Venue Selection**:
     - Added `clubId` foreign key to tournaments table referencing clubs
