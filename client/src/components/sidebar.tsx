@@ -90,7 +90,7 @@ function SidebarContent({
       id: "statistics" as ViewType,
       label: "Estadísticas",
       icon: BarChart3,
-      roles: ["jugador"]
+      roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
     },
     {
       id: "matchResults" as ViewType,
