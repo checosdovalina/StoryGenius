@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Match, MatchStatsSession, MatchEvent, Tournament, User } from "@shared/schema";
-import { ArrowLeft, Trophy, Clock } from "lucide-react";
+import { ArrowLeft, Trophy, Clock, Zap, X, AlertTriangle } from "lucide-react";
 import { calculateScore, type ScoreState } from "@/lib/scoring";
 import { format } from "date-fns";
 
@@ -141,6 +141,31 @@ export default function StatsCapturePageComponent() {
     },
     onError: () => {
       toast({ title: "Error al registrar punto", variant: "destructive" });
+    }
+  });
+
+  // Record special event mutation (ace, double_fault, error)
+  const recordSpecialEventMutation = useMutation({
+    mutationFn: async (data: { eventType: "ace" | "double_fault" | "error"; playerId: string; player1Score: string; player2Score: string }) => {
+      const response = await apiRequest("POST", `/api/stats/sessions/${session?.id}/events`, {
+        eventType: data.eventType,
+        playerId: data.playerId,
+        setNumber: session?.currentSet || 1,
+        player1Score: data.player1Score,
+        player2Score: data.player2Score
+      });
+      return await response.json();
+    },
+    onSuccess: (_, variables) => {
+      const eventNames = {
+        ace: "Ace",
+        double_fault: "Doble falta",
+        error: "Error"
+      };
+      toast({ title: `${eventNames[variables.eventType]} registrado` });
+    },
+    onError: () => {
+      toast({ title: "Error al registrar evento", variant: "destructive" });
     }
   });
 
@@ -304,8 +329,8 @@ export default function StatsCapturePageComponent() {
 
       {/* Fixed Bottom Action Bar - Mobile */}
       {session ? (
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 space-y-3 md:hidden">
-          <div className="grid grid-cols-2 gap-3">
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-3 space-y-2 md:hidden max-h-[50vh] overflow-y-auto">
+          <div className="grid grid-cols-2 gap-2">
             <Button
               size="lg"
               onClick={async () => {
@@ -354,8 +379,8 @@ export default function StatsCapturePageComponent() {
                 });
               }}
               data-testid="button-point-player1"
-              className="min-h-[56px] text-sm md:text-base"
-              disabled={updateScoreMutation.isPending || recordPointMutation.isPending}
+              className="min-h-[52px] text-sm"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending || recordSpecialEventMutation.isPending}
             >
               Punto {player1?.name?.split(' ')[0]}
             </Button>
@@ -408,16 +433,363 @@ export default function StatsCapturePageComponent() {
                 });
               }}
               data-testid="button-point-player2"
-              className="min-h-[56px] text-sm md:text-base"
-              disabled={updateScoreMutation.isPending || recordPointMutation.isPending}
+              className="min-h-[52px] text-sm"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending || recordSpecialEventMutation.isPending}
             >
               Punto {player2?.name?.split(' ')[0]}
+            </Button>
+          </div>
+
+          {/* Special events row */}
+          <div className="grid grid-cols-6 gap-1.5 text-xs">
+            {/* Player 1 special events */}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={async () => {
+                let currentGames1 = 0, currentGames2 = 0;
+                try {
+                  const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                  const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                  currentGames1 = games1[session.currentSet - 1] || 0;
+                  currentGames2 = games2[session.currentSet - 1] || 0;
+                } catch (e) {
+                  currentGames1 = 0;
+                  currentGames2 = 0;
+                }
+
+                const currentState: ScoreState = {
+                  player1Score: session.player1CurrentScore || "0",
+                  player2Score: session.player2CurrentScore || "0",
+                  player1Games: currentGames1,
+                  player2Games: currentGames2,
+                  player1Sets: session.player1Sets || 0,
+                  player2Sets: session.player2Sets || 0,
+                  currentSet: session.currentSet || 1
+                };
+                
+                const newState = calculateScore(tournament.sport, currentState, "player1");
+                
+                const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                games1Array[newState.currentSet - 1] = newState.player1Games;
+                games2Array[newState.currentSet - 1] = newState.player2Games;
+                
+                await updateScoreMutation.mutateAsync({
+                  player1CurrentScore: newState.player1Score,
+                  player2CurrentScore: newState.player2Score,
+                  player1Sets: newState.player1Sets,
+                  player2Sets: newState.player2Sets,
+                  currentSet: newState.currentSet,
+                  player1Games: JSON.stringify(games1Array),
+                  player2Games: JSON.stringify(games2Array)
+                });
+                
+                recordSpecialEventMutation.mutate({
+                  eventType: "ace",
+                  playerId: match.player1Id,
+                  player1Score: newState.player1Score,
+                  player2Score: newState.player2Score
+                });
+              }}
+              className="min-h-[40px] p-1 flex flex-col items-center"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending || recordSpecialEventMutation.isPending}
+              data-testid="button-ace-player1"
+            >
+              <Zap className="h-3 w-3" />
+              <span className="text-[10px]">Ace</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={async () => {
+                let currentGames1 = 0, currentGames2 = 0;
+                try {
+                  const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                  const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                  currentGames1 = games1[session.currentSet - 1] || 0;
+                  currentGames2 = games2[session.currentSet - 1] || 0;
+                } catch (e) {
+                  currentGames1 = 0;
+                  currentGames2 = 0;
+                }
+
+                const currentState: ScoreState = {
+                  player1Score: session.player1CurrentScore || "0",
+                  player2Score: session.player2CurrentScore || "0",
+                  player1Games: currentGames1,
+                  player2Games: currentGames2,
+                  player1Sets: session.player1Sets || 0,
+                  player2Sets: session.player2Sets || 0,
+                  currentSet: session.currentSet || 1
+                };
+                
+                const newState = calculateScore(tournament.sport, currentState, "player2");
+                
+                const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                games1Array[newState.currentSet - 1] = newState.player1Games;
+                games2Array[newState.currentSet - 1] = newState.player2Games;
+                
+                await updateScoreMutation.mutateAsync({
+                  player1CurrentScore: newState.player1Score,
+                  player2CurrentScore: newState.player2Score,
+                  player1Sets: newState.player1Sets,
+                  player2Sets: newState.player2Sets,
+                  currentSet: newState.currentSet,
+                  player1Games: JSON.stringify(games1Array),
+                  player2Games: JSON.stringify(games2Array)
+                });
+                
+                recordSpecialEventMutation.mutate({
+                  eventType: "double_fault",
+                  playerId: match.player1Id,
+                  player1Score: newState.player1Score,
+                  player2Score: newState.player2Score
+                });
+              }}
+              className="min-h-[40px] p-1 flex flex-col items-center"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending || recordSpecialEventMutation.isPending}
+              data-testid="button-double-fault-player1"
+            >
+              <AlertTriangle className="h-3 w-3" />
+              <span className="text-[10px]">D.F.</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={async () => {
+                let currentGames1 = 0, currentGames2 = 0;
+                try {
+                  const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                  const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                  currentGames1 = games1[session.currentSet - 1] || 0;
+                  currentGames2 = games2[session.currentSet - 1] || 0;
+                } catch (e) {
+                  currentGames1 = 0;
+                  currentGames2 = 0;
+                }
+
+                const currentState: ScoreState = {
+                  player1Score: session.player1CurrentScore || "0",
+                  player2Score: session.player2CurrentScore || "0",
+                  player1Games: currentGames1,
+                  player2Games: currentGames2,
+                  player1Sets: session.player1Sets || 0,
+                  player2Sets: session.player2Sets || 0,
+                  currentSet: session.currentSet || 1
+                };
+                
+                const newState = calculateScore(tournament.sport, currentState, "player2");
+                
+                const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                games1Array[newState.currentSet - 1] = newState.player1Games;
+                games2Array[newState.currentSet - 1] = newState.player2Games;
+                
+                await updateScoreMutation.mutateAsync({
+                  player1CurrentScore: newState.player1Score,
+                  player2CurrentScore: newState.player2Score,
+                  player1Sets: newState.player1Sets,
+                  player2Sets: newState.player2Sets,
+                  currentSet: newState.currentSet,
+                  player1Games: JSON.stringify(games1Array),
+                  player2Games: JSON.stringify(games2Array)
+                });
+                
+                recordSpecialEventMutation.mutate({
+                  eventType: "error",
+                  playerId: match.player1Id,
+                  player1Score: newState.player1Score,
+                  player2Score: newState.player2Score
+                });
+              }}
+              className="min-h-[40px] p-1 flex flex-col items-center"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending || recordSpecialEventMutation.isPending}
+              data-testid="button-error-player1"
+            >
+              <X className="h-3 w-3" />
+              <span className="text-[10px]">Error</span>
+            </Button>
+
+            {/* Player 2 special events */}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={async () => {
+                let currentGames1 = 0, currentGames2 = 0;
+                try {
+                  const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                  const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                  currentGames1 = games1[session.currentSet - 1] || 0;
+                  currentGames2 = games2[session.currentSet - 1] || 0;
+                } catch (e) {
+                  currentGames1 = 0;
+                  currentGames2 = 0;
+                }
+
+                const currentState: ScoreState = {
+                  player1Score: session.player1CurrentScore || "0",
+                  player2Score: session.player2CurrentScore || "0",
+                  player1Games: currentGames1,
+                  player2Games: currentGames2,
+                  player1Sets: session.player1Sets || 0,
+                  player2Sets: session.player2Sets || 0,
+                  currentSet: session.currentSet || 1
+                };
+                
+                const newState = calculateScore(tournament.sport, currentState, "player2");
+                
+                const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                games1Array[newState.currentSet - 1] = newState.player1Games;
+                games2Array[newState.currentSet - 1] = newState.player2Games;
+                
+                await updateScoreMutation.mutateAsync({
+                  player1CurrentScore: newState.player1Score,
+                  player2CurrentScore: newState.player2Score,
+                  player1Sets: newState.player1Sets,
+                  player2Sets: newState.player2Sets,
+                  currentSet: newState.currentSet,
+                  player1Games: JSON.stringify(games1Array),
+                  player2Games: JSON.stringify(games2Array)
+                });
+                
+                recordSpecialEventMutation.mutate({
+                  eventType: "ace",
+                  playerId: match.player2Id,
+                  player1Score: newState.player1Score,
+                  player2Score: newState.player2Score
+                });
+              }}
+              className="min-h-[40px] p-1 flex flex-col items-center"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending || recordSpecialEventMutation.isPending}
+              data-testid="button-ace-player2"
+            >
+              <Zap className="h-3 w-3" />
+              <span className="text-[10px]">Ace</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={async () => {
+                let currentGames1 = 0, currentGames2 = 0;
+                try {
+                  const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                  const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                  currentGames1 = games1[session.currentSet - 1] || 0;
+                  currentGames2 = games2[session.currentSet - 1] || 0;
+                } catch (e) {
+                  currentGames1 = 0;
+                  currentGames2 = 0;
+                }
+
+                const currentState: ScoreState = {
+                  player1Score: session.player1CurrentScore || "0",
+                  player2Score: session.player2CurrentScore || "0",
+                  player1Games: currentGames1,
+                  player2Games: currentGames2,
+                  player1Sets: session.player1Sets || 0,
+                  player2Sets: session.player2Sets || 0,
+                  currentSet: session.currentSet || 1
+                };
+                
+                const newState = calculateScore(tournament.sport, currentState, "player1");
+                
+                const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                games1Array[newState.currentSet - 1] = newState.player1Games;
+                games2Array[newState.currentSet - 1] = newState.player2Games;
+                
+                await updateScoreMutation.mutateAsync({
+                  player1CurrentScore: newState.player1Score,
+                  player2CurrentScore: newState.player2Score,
+                  player1Sets: newState.player1Sets,
+                  player2Sets: newState.player2Sets,
+                  currentSet: newState.currentSet,
+                  player1Games: JSON.stringify(games1Array),
+                  player2Games: JSON.stringify(games2Array)
+                });
+                
+                recordSpecialEventMutation.mutate({
+                  eventType: "double_fault",
+                  playerId: match.player2Id,
+                  player1Score: newState.player1Score,
+                  player2Score: newState.player2Score
+                });
+              }}
+              className="min-h-[40px] p-1 flex flex-col items-center"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending || recordSpecialEventMutation.isPending}
+              data-testid="button-double-fault-player2"
+            >
+              <AlertTriangle className="h-3 w-3" />
+              <span className="text-[10px]">D.F.</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={async () => {
+                let currentGames1 = 0, currentGames2 = 0;
+                try {
+                  const games1 = session.player1Games ? JSON.parse(session.player1Games) : [];
+                  const games2 = session.player2Games ? JSON.parse(session.player2Games) : [];
+                  currentGames1 = games1[session.currentSet - 1] || 0;
+                  currentGames2 = games2[session.currentSet - 1] || 0;
+                } catch (e) {
+                  currentGames1 = 0;
+                  currentGames2 = 0;
+                }
+
+                const currentState: ScoreState = {
+                  player1Score: session.player1CurrentScore || "0",
+                  player2Score: session.player2CurrentScore || "0",
+                  player1Games: currentGames1,
+                  player2Games: currentGames2,
+                  player1Sets: session.player1Sets || 0,
+                  player2Sets: session.player2Sets || 0,
+                  currentSet: session.currentSet || 1
+                };
+                
+                const newState = calculateScore(tournament.sport, currentState, "player1");
+                
+                const games1Array = session.player1Games ? JSON.parse(session.player1Games) : [];
+                const games2Array = session.player2Games ? JSON.parse(session.player2Games) : [];
+                games1Array[newState.currentSet - 1] = newState.player1Games;
+                games2Array[newState.currentSet - 1] = newState.player2Games;
+                
+                await updateScoreMutation.mutateAsync({
+                  player1CurrentScore: newState.player1Score,
+                  player2CurrentScore: newState.player2Score,
+                  player1Sets: newState.player1Sets,
+                  player2Sets: newState.player2Sets,
+                  currentSet: newState.currentSet,
+                  player1Games: JSON.stringify(games1Array),
+                  player2Games: JSON.stringify(games2Array)
+                });
+                
+                recordSpecialEventMutation.mutate({
+                  eventType: "error",
+                  playerId: match.player2Id,
+                  player1Score: newState.player1Score,
+                  player2Score: newState.player2Score
+                });
+              }}
+              className="min-h-[40px] p-1 flex flex-col items-center"
+              disabled={updateScoreMutation.isPending || recordPointMutation.isPending || recordSpecialEventMutation.isPending}
+              data-testid="button-error-player2"
+            >
+              <X className="h-3 w-3" />
+              <span className="text-[10px]">Error</span>
             </Button>
           </div>
           
           <Button
             variant="outline"
-            className="w-full min-h-[48px]"
+            className="w-full min-h-[44px]"
             onClick={() => completeSessionMutation.mutate()}
             disabled={completeSessionMutation.isPending}
             data-testid="button-complete-session"
