@@ -131,7 +131,10 @@ export function calculatePadelScore(
   return newState;
 }
 
-// Racquetball scoring (rally scoring to 15 points)
+// Racquetball scoring (rally scoring to 15 points per set, best of 3 sets)
+// Rules: First to 15 points wins the set (2-point lead required)
+//        First to 2 sets wins the match
+//        If tied 1-1, third set is to 11 points (2-point lead required)
 export function calculateRacquetballScore(
   currentState: ScoreState,
   pointWinner: "player1" | "player2"
@@ -141,19 +144,24 @@ export function calculateRacquetballScore(
   const p1Score = parseInt(newState.player1Score) || 0;
   const p2Score = parseInt(newState.player2Score) || 0;
   
+  // Determine points needed to win current set
+  const isTiebreakSet = newState.player1Sets === 1 && newState.player2Sets === 1;
+  const pointsToWin = isTiebreakSet ? 11 : 15;
+  
   if (pointWinner === "player1") {
     const newScore = p1Score + 1;
     newState.player1Score = newScore.toString();
     
-    // Win game at 15 points (or 2-point lead if tied at 14-14)
-    if (newScore >= 15 && newScore - p2Score >= 2) {
-      newState.player1Games++;
-      newState.gameWinner = "player1";
+    // Win set at required points (with 2-point lead)
+    if (newScore >= pointsToWin && newScore - p2Score >= 2) {
+      newState.player1Sets++;
+      newState.setWinner = "player1";
       newState.player1Score = "0";
       newState.player2Score = "0";
+      newState.currentSet++;
       
-      // Best of 3 games
-      if (newState.player1Games >= 2) {
+      // Best of 3 sets - first to 2 wins match
+      if (newState.player1Sets >= 2) {
         newState.matchWinner = "player1";
       }
     }
@@ -161,13 +169,14 @@ export function calculateRacquetballScore(
     const newScore = p2Score + 1;
     newState.player2Score = newScore.toString();
     
-    if (newScore >= 15 && newScore - p1Score >= 2) {
-      newState.player2Games++;
-      newState.gameWinner = "player2";
+    if (newScore >= pointsToWin && newScore - p1Score >= 2) {
+      newState.player2Sets++;
+      newState.setWinner = "player2";
       newState.player1Score = "0";
       newState.player2Score = "0";
+      newState.currentSet++;
       
-      if (newState.player2Games >= 2) {
+      if (newState.player2Sets >= 2) {
         newState.matchWinner = "player2";
       }
     }
