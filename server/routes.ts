@@ -45,6 +45,7 @@ export function registerRoutes(app: Express): Server {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid tournament data", errors: error.errors });
       }
+      console.error("Error creating tournament:", error);
       res.status(500).json({ message: "Failed to create tournament" });
     }
   });
