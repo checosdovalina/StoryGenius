@@ -1,0 +1,80 @@
+
+
+Live tail
+CST
+
+Menu
+
+==> Running 'npm run start'
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+4:03:27 AM [express] Serving on port 10000
+4:03:31 AM [express] GET /api/clubs 304 in 1539ms :: [{"id":"95456304-d56f-492d-a01b-177fe056b5d3","…
+4:03:32 AM [express] GET /api/user 200 in 208ms :: {"id":"83322d6f-4602-4cbf-9b94-21f6343802d8","use…
+4:03:33 AM [express] GET /api/tournaments 500 in 280ms :: {"message":"Failed to fetch tournaments"}
+4:03:33 AM [express] GET /api/courts 304 in 295ms :: [{"id":"d101106d-a284-4d94-821f-d77f4a33f22f","…
+4:03:33 AM [express] GET /api/users 304 in 270ms :: [{"id":"83322d6f-4602-4cbf-9b94-21f6343802d8","u…
+4:03:53 AM [express] GET /api/user 304 in 206ms :: {"id":"83322d6f-4602-4cbf-9b94-21f6343802d8","use…
+4:03:53 AM [express] GET /api/users 304 in 275ms :: [{"id":"83322d6f-4602-4cbf-9b94-21f6343802d8","u…
+4:03:53 AM [express] GET /api/tournaments 500 in 496ms :: {"message":"Failed to fetch tournaments"}
+4:03:53 AM [express] GET /api/courts 304 in 486ms :: [{"id":"d101106d-a284-4d94-821f-d77f4a33f22f","…
+4:05:17 AM [express] GET /api/tournaments 500 in 711ms :: {"message":"Failed to fetch tournaments"}
+4:05:19 AM [express] GET /api/clubs 200 in 290ms :: [{"id":"95456304-d56f-492d-a01b-177fe056b5d3","n…
+Error creating tournament: error: column "club_id" of relation "tournaments" does not exist
+    at file:///opt/render/project/src/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async NeonPreparedQuery.execute (file:///opt/render/project/src/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+    at async DatabaseStorage.createTournament (file:///opt/render/project/src/dist/index.js:573:29)
+    at async file:///opt/render/project/src/dist/index.js:1319:26 {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '95',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+4:06:13 AM [express] POST /api/tournaments 500 in 709ms :: {"message":"Failed to create tournament"}
+     ==> Deploying...
+     ==> Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://storygenius-e5qd.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+Error creating tournament: error: column "club_id" of relation "tournaments" does not exist
+    at file:///opt/render/project/src/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async NeonPreparedQuery.execute (file:///opt/render/project/src/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+    at async DatabaseStorage.createTournament (file:///opt/render/project/src/dist/index.js:573:29)
+    at async file:///opt/render/project/src/dist/index.js:1319:26 {
+  length: 131,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '95',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets'
+}
+4:18:58 AM [express] POST /api/tournaments 500 in 804ms :: {"message":"Failed to create tournament"}
