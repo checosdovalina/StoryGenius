@@ -120,6 +120,16 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
   // Handle point with shot type
   const handlePoint = (playerId: string, shotType: "recto" | "esquina" | "cruzado" | "punto") => {
+    // Don't allow scoring if match is already won
+    if (scoreState.matchWinner) {
+      toast({ 
+        title: "Partido terminado", 
+        description: "El partido ya ha finalizado",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const pointWinner = playerId === match.player1Id ? "player1" : "player2";
     const newState = calculateOpenIRTScore(scoreState, pointWinner);
     
@@ -167,6 +177,16 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
   // Handle ace
   const handleAce = (playerId: string, side: "derecha" | "izquierda") => {
+    // Don't allow scoring if match is already won
+    if (scoreState.matchWinner) {
+      toast({ 
+        title: "Partido terminado", 
+        description: "El partido ya ha finalizado",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const pointWinner = playerId === match.player1Id ? "player1" : "player2";
     const newState = calculateOpenIRTScore(scoreState, pointWinner);
     
@@ -192,6 +212,16 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
   // Handle double fault
   const handleDoubleFault = (playerId: string) => {
+    // Don't allow scoring if match is already won
+    if (scoreState.matchWinner) {
+      toast({ 
+        title: "Partido terminado", 
+        description: "El partido ya ha finalizado",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Double fault gives point to opponent
     const opponent = playerId === match.player1Id ? "player2" : "player1";
     const newState = calculateOpenIRTScore(scoreState, opponent);
@@ -364,6 +394,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handlePoint(scoreState.serverId, "recto")}
               className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-shot-recto"
             >
               Recto
@@ -371,6 +402,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handlePoint(scoreState.serverId, "esquina")}
               className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-shot-esquina"
             >
               Esquina
@@ -378,6 +410,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handlePoint(scoreState.serverId, "cruzado")}
               className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-shot-cruzado"
             >
               Cruzado
@@ -385,6 +418,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handlePoint(scoreState.serverId, "punto")}
               className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-shot-punto"
             >
               Punto
@@ -397,6 +431,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               onClick={() => handleAce(scoreState.serverId, "derecha")}
               variant="secondary"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-ace-derecha"
             >
               <Zap className="h-5 w-5 mr-1" />
@@ -406,6 +441,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               onClick={() => handleAce(scoreState.serverId, "izquierda")}
               variant="secondary"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-ace-izquierda"
             >
               <Zap className="h-5 w-5 mr-1" />
@@ -415,6 +451,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               onClick={() => handleDoubleFault(scoreState.serverId)}
               variant="destructive"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-double-fault"
             >
               D.F.
@@ -426,7 +463,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             onClick={() => handleTimeout(scoreState.serverId)}
             variant="outline"
             className="w-full mb-3 min-h-[52px] sm:min-h-[60px] text-base sm:text-lg font-semibold"
-            disabled={isPlayer1Serving ? getPlayer1TimeoutsUsed() >= 1 : getPlayer2TimeoutsUsed() >= 1}
+            disabled={!!scoreState.matchWinner || (isPlayer1Serving ? getPlayer1TimeoutsUsed() >= 1 : getPlayer2TimeoutsUsed() >= 1)}
             data-testid="button-timeout"
           >
             <Clock className="h-5 w-5 mr-2" />
@@ -443,7 +480,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                   onClick={() => handleAppellation(scoreState.serverId, "ganada")}
                   variant="outline"
                   className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
-                  disabled={(isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
+                  disabled={!!scoreState.matchWinner || (isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
                   data-testid="button-appellation-won"
                 >
                   Ganada
@@ -452,7 +489,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                   onClick={() => handleAppellation(scoreState.serverId, "perdida")}
                   variant="outline"
                   className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
-                  disabled={(isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
+                  disabled={!!scoreState.matchWinner || (isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
                   data-testid="button-appellation-lost"
                 >
                   Perdida
@@ -468,6 +505,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                 onClick={() => handleTechnical(scoreState.serverId)}
                 variant="destructive"
                 className="w-full min-h-[48px] sm:min-h-[56px] text-3xl sm:text-4xl font-bold"
+                disabled={!!scoreState.matchWinner}
                 data-testid="button-technical"
               >
                 {isPlayer1Serving ? session.player1Technicals : session.player2Technicals}
@@ -510,6 +548,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "recto")}
               className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-shot-recto"
             >
               Recto
@@ -517,6 +556,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "esquina")}
               className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-shot-esquina"
             >
               Esquina
@@ -524,6 +564,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "cruzado")}
               className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-shot-cruzado"
             >
               Cruzado
@@ -531,6 +572,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "punto")}
               className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-shot-punto"
             >
               Punto
@@ -543,6 +585,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               onClick={() => handleAce(isPlayer1Serving ? match.player2Id : match.player1Id, "derecha")}
               variant="secondary"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-ace-derecha"
             >
               <Zap className="h-5 w-5 mr-1" />
@@ -552,6 +595,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               onClick={() => handleAce(isPlayer1Serving ? match.player2Id : match.player1Id, "izquierda")}
               variant="secondary"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-ace-izquierda"
             >
               <Zap className="h-5 w-5 mr-1" />
@@ -561,6 +605,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               onClick={() => handleDoubleFault(isPlayer1Serving ? match.player2Id : match.player1Id)}
               variant="destructive"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
+              disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-double-fault"
             >
               D.F.
@@ -572,7 +617,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             onClick={() => handleTimeout(isPlayer1Serving ? match.player2Id : match.player1Id)}
             variant="outline"
             className="w-full mb-3 min-h-[52px] sm:min-h-[60px] text-base sm:text-lg font-semibold"
-            disabled={!isPlayer1Serving ? getPlayer1TimeoutsUsed() >= 1 : getPlayer2TimeoutsUsed() >= 1}
+            disabled={!!scoreState.matchWinner || (!isPlayer1Serving ? getPlayer1TimeoutsUsed() >= 1 : getPlayer2TimeoutsUsed() >= 1)}
             data-testid="button-receiver-timeout"
           >
             <Clock className="h-5 w-5 mr-2" />
@@ -589,7 +634,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                   onClick={() => handleAppellation(isPlayer1Serving ? match.player2Id : match.player1Id, "ganada")}
                   variant="outline"
                   className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
-                  disabled={(!isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
+                  disabled={!!scoreState.matchWinner || (!isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
                   data-testid="button-receiver-appellation-won"
                 >
                   Ganada
@@ -598,7 +643,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                   onClick={() => handleAppellation(isPlayer1Serving ? match.player2Id : match.player1Id, "perdida")}
                   variant="outline"
                   className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
-                  disabled={(!isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
+                  disabled={!!scoreState.matchWinner || (!isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
                   data-testid="button-receiver-appellation-lost"
                 >
                   Perdida
@@ -614,6 +659,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                 onClick={() => handleTechnical(isPlayer1Serving ? match.player2Id : match.player1Id)}
                 variant="destructive"
                 className="w-full min-h-[48px] sm:min-h-[56px] text-3xl sm:text-4xl font-bold"
+                disabled={!!scoreState.matchWinner}
                 data-testid="button-receiver-technical"
               >
                 {!isPlayer1Serving ? session.player1Technicals : session.player2Technicals}
