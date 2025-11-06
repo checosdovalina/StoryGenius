@@ -246,26 +246,6 @@ export default function StatsCapturePageComponent() {
             <CardDescription className="text-sm">
               {match.round} - Partido {match.bracketPosition}
             </CardDescription>
-            {session && (
-              <div className="mt-3 pt-3 border-t text-xs space-y-1">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span>Inicio: {format(new Date(session.startedAt), 'HH:mm:ss - dd/MM/yyyy')}</span>
-                </div>
-                {session.completedAt && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>Fin: {format(new Date(session.completedAt), 'HH:mm:ss - dd/MM/yyyy')}</span>
-                  </div>
-                )}
-                {!session.completedAt && (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <div className="h-2 w-2 rounded-full bg-green-600 animate-pulse" />
-                    <span>Sesión activa</span>
-                  </div>
-                )}
-              </div>
-            )}
           </CardHeader>
           
           <CardContent className="space-y-6">
@@ -275,26 +255,16 @@ export default function StatsCapturePageComponent() {
               <div className="flex items-center justify-between py-3 border-b">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-base md:text-lg truncate">{player1?.name || "TBD"}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-xs">Sets: {session?.player1Sets || 0}</Badge>
-                  </div>
                 </div>
                 <div className="text-4xl md:text-5xl font-bold tracking-tight ml-4">
-                  {session?.player1CurrentScore || "0"}
+                  0
                 </div>
               </div>
 
               {/* VS Divider */}
               <div className="flex items-center justify-center py-2">
                 <div className="flex items-center gap-3 text-muted-foreground">
-                  {session && (
-                    <>
-                      <Trophy className="h-4 w-4" />
-                      <span className="text-sm font-medium">Set {session.currentSet}</span>
-                      <Badge variant="outline" className="text-xs">{session.status}</Badge>
-                    </>
-                  )}
-                  {!session && <span className="text-lg font-semibold">VS</span>}
+                  <span className="text-lg font-semibold">VS</span>
                 </div>
               </div>
 
@@ -302,12 +272,9 @@ export default function StatsCapturePageComponent() {
               <div className="flex items-center justify-between py-3 border-b">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-base md:text-lg truncate">{player2?.name || "TBD"}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-xs">Sets: {session?.player2Sets || 0}</Badge>
-                  </div>
                 </div>
                 <div className="text-4xl md:text-5xl font-bold tracking-tight ml-4">
-                  {session?.player2CurrentScore || "0"}
+                  0
                 </div>
               </div>
             </div>
