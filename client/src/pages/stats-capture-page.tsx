@@ -11,6 +11,7 @@ import type { Match, MatchStatsSession, MatchEvent, Tournament, User } from "@sh
 import { ArrowLeft, Trophy, Clock, Zap, X, AlertTriangle } from "lucide-react";
 import { calculateScore, type ScoreState } from "@/lib/scoring";
 import { format } from "date-fns";
+import { OpenIRTCapture } from "@/components/open-irt-capture";
 
 export default function StatsCapturePageComponent() {
   const { matchId } = useParams();
@@ -328,7 +329,17 @@ export default function StatsCapturePageComponent() {
       </div>
 
       {/* Fixed Bottom Action Bar - Mobile */}
-      {session ? (
+      {session && tournament.sport === "racquetball" ? (
+        <div className="md:hidden">
+          <OpenIRTCapture
+            match={match}
+            session={session}
+            player1={player1!}
+            player2={player2!}
+            onSessionUpdate={setSession}
+          />
+        </div>
+      ) : session ? (
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-3 space-y-2 md:hidden max-h-[50vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -813,7 +824,17 @@ export default function StatsCapturePageComponent() {
       )}
 
       {/* Desktop Action Buttons */}
-      {session && (
+      {session && tournament.sport === "racquetball" ? (
+        <div className="hidden md:block container mx-auto px-4 max-w-4xl">
+          <OpenIRTCapture
+            match={match}
+            session={session}
+            player1={player1!}
+            player2={player2!}
+            onSessionUpdate={setSession}
+          />
+        </div>
+      ) : session && (
         <div className="hidden md:block container mx-auto px-4 max-w-4xl">
           <Card>
             <CardContent className="pt-6">
