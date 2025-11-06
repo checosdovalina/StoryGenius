@@ -39,6 +39,10 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
   // Update local state when session updates
   useEffect(() => {
+    const matchWinner = session.matchWinner 
+      ? (session.matchWinner === match.player1Id ? "player1" : "player2")
+      : undefined;
+    
     setScoreState({
       player1Score: parseInt(session.player1CurrentScore || "0"),
       player2Score: parseInt(session.player2CurrentScore || "0"),
@@ -47,7 +51,8 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       currentSet: session.currentSet || 1,
       serverId: session.serverId || match.player1Id,
       player1Id: match.player1Id,
-      player2Id: match.player2Id
+      player2Id: match.player2Id,
+      matchWinner
     });
   }, [session, match]);
 
@@ -150,7 +155,8 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       player1Sets: newState.player1Sets,
       player2Sets: newState.player2Sets,
       currentSet: newState.currentSet,
-      serverId: newState.serverId
+      serverId: newState.serverId,
+      matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
     });
 
     if (newState.serverChanged) {
@@ -205,7 +211,8 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       player1Sets: newState.player1Sets,
       player2Sets: newState.player2Sets,
       currentSet: newState.currentSet,
-      serverId: newState.serverId
+      serverId: newState.serverId,
+      matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
     });
 
     toast({ title: `Ace ${side}!` });
@@ -240,7 +247,8 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       player1Sets: newState.player1Sets,
       player2Sets: newState.player2Sets,
       currentSet: newState.currentSet,
-      serverId: newState.serverId
+      serverId: newState.serverId,
+      matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
     });
 
     toast({ title: "Doble falta", variant: "destructive" });

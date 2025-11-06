@@ -189,6 +189,7 @@ export const matchStatsSessions = pgTable("match_stats_sessions", {
   player1Technicals: integer("player1_technicals").default(0), // 0-3
   player2Technicals: integer("player2_technicals").default(0), // 0-3
   matchEndedByTechnical: boolean("match_ended_by_technical").default(false),
+  matchWinner: varchar("match_winner"), // player1Id or player2Id when match is won
   timeoutStartedAt: timestamp("timeout_started_at"), // For 1-minute timer
   timeoutPlayerId: varchar("timeout_player_id").references(() => users.id),
   startedAt: timestamp("started_at").notNull().defaultNow(),
