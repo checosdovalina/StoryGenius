@@ -13,6 +13,21 @@ export interface ScoreState {
   matchWinner?: string;
 }
 
+// Open IRT scoring state (for racquetball)
+export interface OpenIRTScoreState {
+  player1Score: number;
+  player2Score: number;
+  player1Sets: number;
+  player2Sets: number;
+  currentSet: number;
+  serverId: string; // ID of the player currently serving
+  player1Id: string;
+  player2Id: string;
+  setWinner?: string;
+  matchWinner?: string;
+  serverChanged?: boolean; // Indicates if server changed this point
+}
+
 // Padel scoring (15, 30, 40, game)
 export function calculatePadelScore(
   currentState: ScoreState,
@@ -180,6 +195,73 @@ export function calculateRacquetballScore(
         newState.matchWinner = "player2";
       }
     }
+  }
+  
+  return newState;
+}
+
+// Open IRT scoring (for racquetball)
+// Rules: 
+// - Only the server can score points
+// - If the receiver wins the rally, they become the server (but no point is added)
+// - Sets 1 and 2: First to 15 points (2-point lead required)
+// - Set 3 (tiebreak): First to 11 points (2-point lead required)
+// - Best of 3 sets
+export function calculateOpenIRTScore(
+  currentState: OpenIRTScoreState,
+  pointWinner: "player1" | "player2"
+): OpenIRTScoreState {
+  const newState = { ...currentState };
+  const winnerIsPlayer1 = pointWinner === "player1";
+  const winnerId = winnerIsPlayer1 ? newState.player1Id : newState.player2Id;
+  
+  // Determine if winner is the current server
+  const winnerIsServer = winnerId === newState.serverId;
+  
+  // Determine points needed to win current set
+  const isTiebreakSet = newState.player1Sets === 1 && newState.player2Sets === 1;
+  const pointsToWin = isTiebreakSet ? 11 : 15;
+  
+  if (winnerIsServer) {
+    // Server won: add point to their score
+    if (winnerIsPlayer1) {
+      newState.player1Score++;
+      
+      // Check if player1 wins the set
+      if (newState.player1Score >= pointsToWin && newState.player1Score - newState.player2Score >= 2) {
+        newState.player1Sets++;
+        newState.setWinner = "player1";
+        newState.player1Score = 0;
+        newState.player2Score = 0;
+        newState.currentSet++;
+        
+        // Check if player1 wins the match (best of 3)
+        if (newState.player1Sets >= 2) {
+          newState.matchWinner = "player1";
+        }
+      }
+    } else {
+      newState.player2Score++;
+      
+      // Check if player2 wins the set
+      if (newState.player2Score >= pointsToWin && newState.player2Score - newState.player1Score >= 2) {
+        newState.player2Sets++;
+        newState.setWinner = "player2";
+        newState.player1Score = 0;
+        newState.player2Score = 0;
+        newState.currentSet++;
+        
+        // Check if player2 wins the match
+        if (newState.player2Sets >= 2) {
+          newState.matchWinner = "player2";
+        }
+      }
+    }
+    newState.serverChanged = false;
+  } else {
+    // Receiver won: change server (no point added)
+    newState.serverId = winnerId;
+    newState.serverChanged = true;
   }
   
   return newState;
