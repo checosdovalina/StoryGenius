@@ -846,7 +846,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Tournament not found" });
       }
 
-      const validatedData = insertMatchStatsSessionSchema.parse({
+      const sessionData: any = {
         matchId: req.params.matchId,
         startedBy: req.user!.id,
         sport: tournament.sport,
@@ -856,8 +856,21 @@ export function registerRoutes(app: Express): Server {
         player2CurrentScore: "0",
         player1Sets: 0,
         player2Sets: 0
-      });
+      };
 
+      // Initialize Open IRT fields for racquetball
+      if (tournament.sport === "racquetball") {
+        sessionData.serverId = match.player1Id; // Player 1 starts serving
+        sessionData.player1TimeoutsUsed = "[]";
+        sessionData.player2TimeoutsUsed = "[]";
+        sessionData.player1AppellationsUsed = "[]";
+        sessionData.player2AppellationsUsed = "[]";
+        sessionData.player1Technicals = 0;
+        sessionData.player2Technicals = 0;
+        sessionData.matchEndedByTechnical = false;
+      }
+
+      const validatedData = insertMatchStatsSessionSchema.parse(sessionData);
       const session = await storage.createStatsSession(validatedData);
       res.status(201).json(session);
     } catch (error) {
