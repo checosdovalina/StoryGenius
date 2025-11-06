@@ -233,11 +233,13 @@ export function calculateOpenIRTScore(
         newState.setWinner = "player1";
         newState.player1Score = 0;
         newState.player2Score = 0;
-        newState.currentSet++;
         
         // Check if player1 wins the match (best of 3)
         if (newState.player1Sets >= 2) {
           newState.matchWinner = "player1";
+        } else {
+          // Only increment currentSet if match is not won
+          newState.currentSet++;
         }
       }
     } else {
@@ -249,11 +251,13 @@ export function calculateOpenIRTScore(
         newState.setWinner = "player2";
         newState.player1Score = 0;
         newState.player2Score = 0;
-        newState.currentSet++;
         
         // Check if player2 wins the match
         if (newState.player2Sets >= 2) {
           newState.matchWinner = "player2";
+        } else {
+          // Only increment currentSet if match is not won
+          newState.currentSet++;
         }
       }
     }
