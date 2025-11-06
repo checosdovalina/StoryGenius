@@ -14,7 +14,10 @@ export const matchStatusEnum = pgEnum("match_status", ["scheduled", "in_progress
 export const courtStatusEnum = pgEnum("court_status", ["available", "maintenance", "blocked"]);
 export const scheduledMatchStatusEnum = pgEnum("scheduled_match_status", ["programado", "confirmado", "en_curso", "completado", "cancelado"]);
 export const statsSessionStatusEnum = pgEnum("stats_session_status", ["active", "paused", "completed", "cancelled"]);
-export const matchEventTypeEnum = pgEnum("match_event_type", ["point_won", "fault", "ace", "double_fault", "winner", "error", "set_won", "game_won"]);
+export const matchEventTypeEnum = pgEnum("match_event_type", ["point_won", "fault", "ace", "double_fault", "winner", "error", "set_won", "game_won", "timeout", "appellation", "technical"]);
+export const shotTypeEnum = pgEnum("shot_type", ["recto", "esquina", "cruzado", "punto"]);
+export const aceSideEnum = pgEnum("ace_side", ["derecha", "izquierda"]);
+export const appellationResultEnum = pgEnum("appellation_result", ["ganada", "perdida"]);
 
 export const clubs = pgTable("clubs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -177,6 +180,17 @@ export const matchStatsSessions = pgTable("match_stats_sessions", {
   player2Sets: integer("player2_sets").default(0),
   player1Games: text("player1_games"),
   player2Games: text("player2_games"),
+  // Open IRT fields for racquetball
+  serverId: varchar("server_id").references(() => users.id), // Who is currently serving
+  player1TimeoutsUsed: text("player1_timeouts_used").default("[]"), // JSON array per set [0,0,0]
+  player2TimeoutsUsed: text("player2_timeouts_used").default("[]"), // JSON array per set
+  player1AppellationsUsed: text("player1_appellations_used").default("[]"), // JSON array per set
+  player2AppellationsUsed: text("player2_appellations_used").default("[]"), // JSON array per set
+  player1Technicals: integer("player1_technicals").default(0), // 0-3
+  player2Technicals: integer("player2_technicals").default(0), // 0-3
+  matchEndedByTechnical: boolean("match_ended_by_technical").default(false),
+  timeoutStartedAt: timestamp("timeout_started_at"), // For 1-minute timer
+  timeoutPlayerId: varchar("timeout_player_id").references(() => users.id),
   startedAt: timestamp("started_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at")
 });
@@ -190,6 +204,10 @@ export const matchEvents = pgTable("match_events", {
   gameNumber: integer("game_number"),
   player1Score: text("player1_score"),
   player2Score: text("player2_score"),
+  // Open IRT fields for racquetball
+  shotType: shotTypeEnum("shot_type"), // recto, esquina, cruzado, punto
+  aceSide: aceSideEnum("ace_side"), // derecha, izquierda (for ace events)
+  appellationResult: appellationResultEnum("appellation_result"), // ganada, perdida (for appellation events)
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
