@@ -82,6 +82,55 @@ The system implements session-based authentication with role-based access contro
 
 # Recent Changes
 
+- **2025-11-06**: ✅ **OPEN IRT FORMAT IMPLEMENTATION FOR RACQUETBALL** - Complete implementation of International Racquetball Tour (IRT) scoring system with specialized rules and tracking
+  - **Open IRT Scoring Logic**:
+    - Only the server can score points (core IRT rule)
+    - Receiver winning rally switches serve without point award
+    - Sets 1-2: First to 15 points with 2-point lead required
+    - Set 3 (tiebreak): First to 11 points with 2-point lead required
+    - Best of 3 sets to win match
+    - Implemented in `calculateOpenIRTScore` function in `client/src/lib/scoring.ts`
+  - **Two-Panel Interface Design**:
+    - Created separate `OpenIRTCapture` component with green panel (server) and red panel (receiver)
+    - Dynamic panel assignment based on current server
+    - Shot type buttons: Recto, Esquina, Cruzado, Punto for point-by-point tracking
+    - Ace buttons with side tracking (Derecha/Izquierda)
+    - Double fault buttons for both players
+  - **Timeout Management System**:
+    - One timeout per set per player (IRT official rule)
+    - 1-minute countdown timer with visual display
+    - Timeout tracking stored as JSON array per set
+    - Backend initialization in session creation
+    - Button disabled after timeout used in current set
+  - **Appellation System**:
+    - Three appellations per set per player
+    - Won/Lost tracking (lost appellations count against limit)
+    - Dynamic counter display showing remaining appellations
+    - JSON array storage per set in database
+  - **Technical Foul System**:
+    - Counter from 0-3 displayed on button
+    - Each technical subtracts one point from player score
+    - Third technical ends match (automatic forfeit)
+    - Match forfeit flag stored in session
+  - **Database Schema Updates**:
+    - Added `serverId` to track current server in match_stats_sessions
+    - Added timeout tracking columns: `player1TimeoutsUsed`, `player2TimeoutsUsed` (JSON arrays)
+    - Added appellation columns: `player1AppellationsUsed`, `player2AppellationsUsed` (JSON arrays)
+    - Added technical columns: `player1Technicals`, `player2Technicals` (integers 0-3)
+    - Added `matchEndedByTechnical` boolean flag
+    - Added `timeoutStartedAt` and `timeoutPlayerId` for timeout tracking
+    - Event tracking enums: `shot_type` (recto, esquina, cruzado, punto), `ace_side` (derecha, izquierda), `appellation_result` (ganada, perdida)
+  - **Backend Integration**:
+    - Session initialization automatically sets Open IRT fields for racquetball tournaments
+    - Player 1 designated as initial server
+    - All JSON arrays initialized to empty arrays `[]`
+    - Technical and timeout counters initialized to 0/false
+  - **Frontend Integration**:
+    - Stats capture page detects racquetball sport and shows Open IRT component
+    - Separate rendering for mobile and desktop views
+    - WebSocket integration for real-time updates maintained
+    - Graceful fallback to padel interface for padel tournaments
+  - **Component Location**: `client/src/components/open-irt-capture.tsx`
 - **2025-10-04**: ✅ **SPECIAL EVENTS TRACKING AND UPDATED RACQUETBALL SCORING** - Enhanced statistics capture with ace/double-fault/error tracking and revised racquetball rules
   - **Special Events Tracking**:
     - Added six special event buttons to stats capture interface (mobile): Ace, Double Fault (D.F.), Error for each player
