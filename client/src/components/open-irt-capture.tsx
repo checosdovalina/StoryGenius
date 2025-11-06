@@ -337,7 +337,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
   const isPlayer1Serving = scoreState.serverId === match.player1Id;
 
   return (
-    <div className="max-w-md mx-auto space-y-4 p-4">
+    <div className="min-h-screen w-full bg-background p-2 sm:p-4 space-y-3 overflow-y-auto">
       {/* Timeout Timer */}
       {timeoutActive && (
         <Card className="bg-orange-500 border-orange-600">
@@ -353,42 +353,38 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
       {/* Server Panel */}
       <Card className={isPlayer1Serving ? "bg-green-50 border-green-500 border-2" : "bg-green-50 border-green-500 border-2"}>
-        <CardContent className="p-4">
+        <CardContent className="p-3 sm:p-4">
           <div className="text-center mb-3">
-            <h3 className="font-bold text-lg">{isPlayer1Serving ? player1.name : player2.name}</h3>
-            <p className="text-sm text-muted-foreground">Punto jugador sacando</p>
+            <h3 className="font-bold text-xl sm:text-2xl">{isPlayer1Serving ? player1.name : player2.name}</h3>
+            <p className="text-sm sm:text-base text-muted-foreground font-medium">Sacando</p>
           </div>
 
           {/* Shot type buttons */}
           <div className="grid grid-cols-4 gap-2 mb-3">
             <Button
               onClick={() => handlePoint(scoreState.serverId, "recto")}
-              className="bg-green-600 hover:bg-green-700 min-h-[44px]"
-              size="sm"
+              className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-shot-recto"
             >
               Recto
             </Button>
             <Button
               onClick={() => handlePoint(scoreState.serverId, "esquina")}
-              className="bg-green-600 hover:bg-green-700 min-h-[44px]"
-              size="sm"
+              className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-shot-esquina"
             >
               Esquina
             </Button>
             <Button
               onClick={() => handlePoint(scoreState.serverId, "cruzado")}
-              className="bg-green-600 hover:bg-green-700 min-h-[44px]"
-              size="sm"
+              className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-shot-cruzado"
             >
               Cruzado
             </Button>
             <Button
               onClick={() => handlePoint(scoreState.serverId, "punto")}
-              className="bg-green-600 hover:bg-green-700 min-h-[44px]"
-              size="sm"
+              className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-shot-punto"
             >
               Punto
@@ -400,28 +396,25 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handleAce(scoreState.serverId, "derecha")}
               variant="secondary"
-              className="min-h-[44px]"
-              size="sm"
+              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-ace-derecha"
             >
-              <Zap className="h-4 w-4 mr-1" />
+              <Zap className="h-5 w-5 mr-1" />
               Derecha
             </Button>
             <Button
               onClick={() => handleAce(scoreState.serverId, "izquierda")}
               variant="secondary"
-              className="min-h-[44px]"
-              size="sm"
+              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-ace-izquierda"
             >
-              <Zap className="h-4 w-4 mr-1" />
+              <Zap className="h-5 w-5 mr-1" />
               Izquierda
             </Button>
             <Button
               onClick={() => handleDoubleFault(scoreState.serverId)}
               variant="destructive"
-              className="min-h-[44px]"
-              size="sm"
+              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-double-fault"
             >
               D.F.
@@ -432,25 +425,24 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
           <Button
             onClick={() => handleTimeout(scoreState.serverId)}
             variant="outline"
-            className="w-full mb-3 min-h-[44px]"
+            className="w-full mb-3 min-h-[52px] sm:min-h-[60px] text-base sm:text-lg font-semibold"
             disabled={isPlayer1Serving ? getPlayer1TimeoutsUsed() >= 1 : getPlayer2TimeoutsUsed() >= 1}
             data-testid="button-timeout"
           >
-            <Clock className="h-4 w-4 mr-2" />
+            <Clock className="h-5 w-5 mr-2" />
             Tiempo Fuera
             {(isPlayer1Serving ? getPlayer1TimeoutsUsed() : getPlayer2TimeoutsUsed()) >= 1 && " (Usado)"}
           </Button>
 
           {/* Appellation and Technical */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <p className="text-xs text-center font-medium">Apelación</p>
+            <div className="space-y-2">
+              <p className="text-sm sm:text-base text-center font-semibold">Apelación</p>
               <div className="grid grid-cols-2 gap-1">
                 <Button
                   onClick={() => handleAppellation(scoreState.serverId, "ganada")}
                   variant="outline"
-                  size="sm"
-                  className="min-h-[40px]"
+                  className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
                   disabled={(isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
                   data-testid="button-appellation-won"
                 >
@@ -459,25 +451,23 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                 <Button
                   onClick={() => handleAppellation(scoreState.serverId, "perdida")}
                   variant="outline"
-                  size="sm"
-                  className="min-h-[40px]"
+                  className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
                   disabled={(isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
                   data-testid="button-appellation-lost"
                 >
                   Perdida
                 </Button>
               </div>
-              <Badge variant="outline" className="w-full justify-center">
+              <Badge variant="outline" className="w-full justify-center text-sm sm:text-base py-1">
                 {3 - (isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed())} restantes
               </Badge>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs text-center font-medium">Técnico</p>
+            <div className="space-y-2">
+              <p className="text-sm sm:text-base text-center font-semibold">Técnico</p>
               <Button
                 onClick={() => handleTechnical(scoreState.serverId)}
                 variant="destructive"
-                size="sm"
-                className="w-full min-h-[40px]"
+                className="w-full min-h-[48px] sm:min-h-[56px] text-3xl sm:text-4xl font-bold"
                 data-testid="button-technical"
               >
                 {isPlayer1Serving ? session.player1Technicals : session.player2Technicals}
@@ -488,63 +478,59 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       </Card>
 
       {/* Score Display */}
-      <Card className="bg-gradient-to-r from-blue-500 to-purple-500 border-0">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center gap-4">
-            <div className="text-center">
-              <p className="text-white text-sm mb-1">{player1.name}</p>
-              <p className="text-white text-5xl font-bold">{scoreState.player1Score}</p>
-              <p className="text-white text-xs mt-1">Sets: {scoreState.player1Sets}</p>
+      <Card className="bg-gradient-to-r from-blue-500 to-purple-500 border-0 shadow-lg">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-center gap-4 sm:gap-8">
+            <div className="text-center flex-1">
+              <p className="text-white text-sm sm:text-base font-semibold mb-1 truncate">{player1.name}</p>
+              <p className="text-white text-6xl sm:text-7xl font-bold">{scoreState.player1Score}</p>
+              <p className="text-white text-sm sm:text-base mt-1">Sets: {scoreState.player1Sets}</p>
             </div>
-            <div className="text-white text-4xl font-bold">VS</div>
-            <div className="text-center">
-              <p className="text-white text-sm mb-1">{player2.name}</p>
-              <p className="text-white text-5xl font-bold">{scoreState.player2Score}</p>
-              <p className="text-white text-xs mt-1">Sets: {scoreState.player2Sets}</p>
+            <div className="text-white text-3xl sm:text-4xl font-bold">VS</div>
+            <div className="text-center flex-1">
+              <p className="text-white text-sm sm:text-base font-semibold mb-1 truncate">{player2.name}</p>
+              <p className="text-white text-6xl sm:text-7xl font-bold">{scoreState.player2Score}</p>
+              <p className="text-white text-sm sm:text-base mt-1">Sets: {scoreState.player2Sets}</p>
             </div>
           </div>
-          <p className="text-center text-white text-sm mt-3">Set {scoreState.currentSet}</p>
+          <p className="text-center text-white text-base sm:text-lg font-semibold mt-3 sm:mt-4">Set {scoreState.currentSet}</p>
         </CardContent>
       </Card>
 
       {/* Receiver Panel */}
       <Card className={!isPlayer1Serving ? "bg-red-50 border-red-500 border-2" : "bg-red-50 border-red-500 border-2"}>
-        <CardContent className="p-4">
+        <CardContent className="p-3 sm:p-4">
           <div className="text-center mb-3">
-            <h3 className="font-bold text-lg">{!isPlayer1Serving ? player1.name : player2.name}</h3>
-            <p className="text-sm text-muted-foreground">Punto jugador recibiendo</p>
+            <h3 className="font-bold text-xl sm:text-2xl">{!isPlayer1Serving ? player1.name : player2.name}</h3>
+            <p className="text-sm sm:text-base text-muted-foreground font-medium">Recibiendo</p>
           </div>
 
           {/* Shot type buttons */}
           <div className="grid grid-cols-4 gap-2 mb-3">
             <Button
               onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "recto")}
-              className="bg-red-600 hover:bg-red-700 min-h-[44px]"
-              size="sm"
+              className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-receiver-shot-recto"
             >
               Recto
             </Button>
             <Button
               onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "esquina")}
-              className="bg-red-600 hover:bg-red-700 min-h-[44px]"
-              size="sm"
+              className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-receiver-shot-esquina"
             >
               Esquina
             </Button>
             <Button
               onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "cruzado")}
-              className="bg-red-600 hover:bg-red-700 min-h-[44px]"
-              size="sm"
+              className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-receiver-shot-cruzado"
             >
               Cruzado
             </Button>
             <Button
               onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "punto")}
-              className="bg-red-600 hover:bg-red-700 min-h-[44px]"
-              size="sm"
+              className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-receiver-shot-punto"
             >
               Punto
@@ -556,28 +542,25 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <Button
               onClick={() => handleAce(isPlayer1Serving ? match.player2Id : match.player1Id, "derecha")}
               variant="secondary"
-              className="min-h-[44px]"
-              size="sm"
+              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-receiver-ace-derecha"
             >
-              <Zap className="h-4 w-4 mr-1" />
+              <Zap className="h-5 w-5 mr-1" />
               Derecha
             </Button>
             <Button
               onClick={() => handleAce(isPlayer1Serving ? match.player2Id : match.player1Id, "izquierda")}
               variant="secondary"
-              className="min-h-[44px]"
-              size="sm"
+              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-receiver-ace-izquierda"
             >
-              <Zap className="h-4 w-4 mr-1" />
+              <Zap className="h-5 w-5 mr-1" />
               Izquierda
             </Button>
             <Button
               onClick={() => handleDoubleFault(isPlayer1Serving ? match.player2Id : match.player1Id)}
               variant="destructive"
-              className="min-h-[44px]"
-              size="sm"
+              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               data-testid="button-receiver-double-fault"
             >
               D.F.
@@ -588,25 +571,24 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
           <Button
             onClick={() => handleTimeout(isPlayer1Serving ? match.player2Id : match.player1Id)}
             variant="outline"
-            className="w-full mb-3 min-h-[44px]"
+            className="w-full mb-3 min-h-[52px] sm:min-h-[60px] text-base sm:text-lg font-semibold"
             disabled={!isPlayer1Serving ? getPlayer1TimeoutsUsed() >= 1 : getPlayer2TimeoutsUsed() >= 1}
             data-testid="button-receiver-timeout"
           >
-            <Clock className="h-4 w-4 mr-2" />
+            <Clock className="h-5 w-5 mr-2" />
             Tiempo Fuera
             {(!isPlayer1Serving ? getPlayer1TimeoutsUsed() : getPlayer2TimeoutsUsed()) >= 1 && " (Usado)"}
           </Button>
 
           {/* Appellation and Technical */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <p className="text-xs text-center font-medium">Apelación</p>
+            <div className="space-y-2">
+              <p className="text-sm sm:text-base text-center font-semibold">Apelación</p>
               <div className="grid grid-cols-2 gap-1">
                 <Button
                   onClick={() => handleAppellation(isPlayer1Serving ? match.player2Id : match.player1Id, "ganada")}
                   variant="outline"
-                  size="sm"
-                  className="min-h-[40px]"
+                  className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
                   disabled={(!isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
                   data-testid="button-receiver-appellation-won"
                 >
@@ -615,25 +597,23 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                 <Button
                   onClick={() => handleAppellation(isPlayer1Serving ? match.player2Id : match.player1Id, "perdida")}
                   variant="outline"
-                  size="sm"
-                  className="min-h-[40px]"
+                  className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
                   disabled={(!isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
                   data-testid="button-receiver-appellation-lost"
                 >
                   Perdida
                 </Button>
               </div>
-              <Badge variant="outline" className="w-full justify-center">
+              <Badge variant="outline" className="w-full justify-center text-sm sm:text-base py-1">
                 {3 - (!isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed())} restantes
               </Badge>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs text-center font-medium">Técnico</p>
+            <div className="space-y-2">
+              <p className="text-sm sm:text-base text-center font-semibold">Técnico</p>
               <Button
                 onClick={() => handleTechnical(isPlayer1Serving ? match.player2Id : match.player1Id)}
                 variant="destructive"
-                size="sm"
-                className="w-full min-h-[40px]"
+                className="w-full min-h-[48px] sm:min-h-[56px] text-3xl sm:text-4xl font-bold"
                 data-testid="button-receiver-technical"
               >
                 {!isPlayer1Serving ? session.player1Technicals : session.player2Technicals}

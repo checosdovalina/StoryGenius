@@ -217,23 +217,26 @@ export default function StatsCapturePageComponent() {
 
   return (
     <div className="min-h-screen pb-32 md:pb-8">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto p-4 max-w-4xl">
-          <Button 
-            variant="ghost" 
-            onClick={() => setLocation(`/tournaments/${match.tournamentId}`)}
-            data-testid="button-back"
-            className="min-h-[44px]"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver al torneo
-          </Button>
+      {/* Sticky Header - Only show when no active session */}
+      {!session && (
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <div className="container mx-auto p-4 max-w-4xl">
+            <Button 
+              variant="ghost" 
+              onClick={() => setLocation(`/tournaments/${match.tournamentId}`)}
+              data-testid="button-back"
+              className="min-h-[44px]"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver al torneo
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      {/* Main Content - Only show when no active session */}
+      {!session && (
+        <div className="container mx-auto px-4 py-6 max-w-4xl">
         <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
@@ -326,7 +329,8 @@ export default function StatsCapturePageComponent() {
             )}
           </CardContent>
         </Card>
-      </div>
+        </div>
+      )}
 
       {/* Fixed Bottom Action Bar - Mobile */}
       {session && tournament.sport === "racquetball" ? (
@@ -825,14 +829,16 @@ export default function StatsCapturePageComponent() {
 
       {/* Desktop Action Buttons */}
       {session && tournament.sport === "racquetball" ? (
-        <div className="hidden md:block container mx-auto px-4 max-w-4xl">
-          <OpenIRTCapture
-            match={match}
-            session={session}
-            player1={player1!}
-            player2={player2!}
-            onSessionUpdate={setSession}
-          />
+        <div className="hidden md:flex md:items-center md:justify-center md:min-h-screen md:bg-background">
+          <div className="w-full max-w-5xl">
+            <OpenIRTCapture
+              match={match}
+              session={session}
+              player1={player1!}
+              player2={player2!}
+              onSessionUpdate={setSession}
+            />
+          </div>
         </div>
       ) : session && (
         <div className="hidden md:block container mx-auto px-4 max-w-4xl">
