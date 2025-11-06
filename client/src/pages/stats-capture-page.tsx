@@ -341,6 +341,7 @@ export default function StatsCapturePageComponent() {
             player1={player1!}
             player2={player2!}
             onSessionUpdate={setSession}
+            onEndSession={() => completeSessionMutation.mutate()}
           />
         </div>
       ) : session ? (
@@ -837,6 +838,7 @@ export default function StatsCapturePageComponent() {
               player1={player1!}
               player2={player2!}
               onSessionUpdate={setSession}
+              onEndSession={() => completeSessionMutation.mutate()}
             />
           </div>
         </div>

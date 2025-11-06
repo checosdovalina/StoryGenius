@@ -15,9 +15,10 @@ interface OpenIRTCaptureProps {
   player1: User;
   player2: User;
   onSessionUpdate: (session: MatchStatsSession) => void;
+  onEndSession?: () => void;
 }
 
-export function OpenIRTCapture({ match, session, player1, player2, onSessionUpdate }: OpenIRTCaptureProps) {
+export function OpenIRTCapture({ match, session, player1, player2, onSessionUpdate, onEndSession }: OpenIRTCaptureProps) {
   const { toast } = useToast();
   
   // Local scoring state
@@ -532,6 +533,24 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             </div>
           </div>
           <p className="text-center text-white text-base sm:text-lg font-semibold mt-3 sm:mt-4">Set {scoreState.currentSet}</p>
+          
+          {/* Match Winner Banner */}
+          {scoreState.matchWinner && (
+            <div className="mt-4 p-4 bg-white rounded-lg">
+              <p className="text-center text-2xl sm:text-3xl font-bold text-green-600 mb-4">
+                🏆 {scoreState.matchWinner === "player1" ? player1.name : player2.name} gana el partido!
+              </p>
+              {onEndSession && (
+                <Button 
+                  onClick={onEndSession}
+                  className="w-full min-h-[56px] sm:min-h-[64px] text-lg sm:text-xl font-bold bg-green-600 hover:bg-green-700"
+                  data-testid="button-end-session"
+                >
+                  Finalizar Sesión
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
