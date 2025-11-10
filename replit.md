@@ -1,6 +1,6 @@
 # Overview
 
-This project is a comprehensive sports tournament management system, built with a full-stack TypeScript architecture. It supports multiple sports like padel and racquetball and offers extensive features for tournament administration. Key capabilities include user and role management (admin, player, organizer, referee, scrutineer), tournament creation, match scheduling, court management, and detailed player statistics tracking. The system aims to streamline tournament operations and enhance the overall experience for organizers and participants.
+This project is a comprehensive sports tournament management system for **racquetball**, built with a full-stack TypeScript architecture. It offers extensive features for tournament administration including user and role management (admin, player, organizer, referee, scrutineer), tournament creation, match scheduling, court management, and detailed player statistics tracking with shot-type analysis. The system aims to streamline tournament operations and enhance the overall experience for organizers and participants. **Note**: Padel support is preserved in the backend schema for historical data but hidden from all UI forms and selectors (racquetball-only system).
 
 # User Preferences
 
@@ -21,12 +21,17 @@ The system uses PostgreSQL with Drizzle ORM for type-safe operations. The schema
 Session-based authentication with role-based access control is implemented. This includes secure password hashing using Node.js `crypto.scrypt`, `Express-session` with a PostgreSQL store, client-side route protection, and dynamic UI rendering based on user roles (admin, jugador, organizador, arbitro, escrutador).
 
 ## Specific Features
-- **Padel Pairs System**: Supports partner registration and tournament enrollment for padel, including search, invitation, and linking of registered/unregistered partners.
-- **Real-Time Match Statistics Capture**: Live scoring module for admin and scrutineer roles, with sport-specific logic (Padel, Racquetball), WebSocket for real-time updates, and granular event recording.
+- **Real-Time Match Statistics Capture**: Live scoring module for admin and scrutineer roles with racquetball-specific logic, WebSocket for real-time updates, and granular event recording including shot types and serve tracking.
 - **Open IRT Format Implementation for Racquetball**: Specialized scoring logic for International Racquetball Tour (IRT) including server-only scoring, two-panel interface, timeout management, appellation system, and technical foul tracking.
+- **Enhanced Statistics Module**: 
+  - Tabbed interface for personal stats and a captures tab for admins/scrutineers
+  - **Shot-type breakdown**: Tracks recto, esquina, cruzado, punto for detailed analytics
+  - **Serve effectiveness**: Ace tracking by side (derecha/izquierda) with percentage-based effectiveness badges
+  - **Color-coded performance tiers**: Visual indicators for serve effectiveness (Excellent ≥70%, Good ≥50%, Fair ≥30%, Poor <30%)
+  - Summary metrics aggregated from all completed match events
 - **Comprehensive CRUD**: Full Create, Read, Update, Delete functionality for tournaments and matches, with role-based access controls for admins and organizers.
 - **Bracket Generation**: System for generating tournament brackets with transactional safety.
-- **Enhanced Statistics Module**: Tabbed interface for personal stats and a captures tab for admins/scrutineers to view all completed scoring sessions, including summary metrics.
+- **Racquetball-Only UI**: Padel hidden from all tournament creation, court management, and calendar forms while preserving backend schema for historical data. Legacy padel matches display with "(Legacy)" badge in calendar view.
 
 # External Dependencies
 
