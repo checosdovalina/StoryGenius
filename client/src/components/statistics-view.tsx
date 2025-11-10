@@ -24,7 +24,16 @@ export function StatisticsView() {
   });
 
   // Fetch all match stats sessions (for admins/escribanos)
-  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery<(MatchStatsSession & { match?: Match; tournament?: Tournament; player1?: User; player2?: User })[]>({
+  type SessionSummary = MatchStatsSession & { 
+    match?: Match | null; 
+    tournament?: Tournament | null; 
+    player1?: { id: string; name: string; email: string } | null;
+    player2?: { id: string; name: string; email: string } | null;
+    player3?: { id: string; name: string; email: string } | null;
+    player4?: { id: string; name: string; email: string } | null;
+  };
+
+  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery<SessionSummary[]>({
     queryKey: ["/api/stats/sessions"],
     enabled: !!isAdminOrEscribano
   });
@@ -48,9 +57,9 @@ export function StatisticsView() {
     .slice(0, 5);
 
   // Filter completed sessions and sort by most recent
-  const completedSessions = (allSessions as (MatchStatsSession & { match?: Match; tournament?: Tournament; player1?: User; player2?: User })[])
-    .filter((s: MatchStatsSession) => s.status === "completed" && s.completedAt)
-    .sort((a: MatchStatsSession, b: MatchStatsSession) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime());
+  const completedSessions = allSessions
+    .filter((s) => s.status === "completed" && s.completedAt)
+    .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime());
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -431,10 +440,13 @@ export function StatisticsView() {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {completedSessions.map((session: MatchStatsSession & { match?: Match; tournament?: Tournament; player1?: User; player2?: User }) => {
+                    {completedSessions.map((session) => {
                       const duration = calculateSessionDuration(session);
                       const player1Name = session.player1?.name || "Jugador 1";
                       const player2Name = session.player2?.name || "Jugador 2";
+                      const player3Name = session.player3?.name || "Jugador 3";
+                      const player4Name = session.player4?.name || "Jugador 4";
+                      const isDoubles = session.matchType === "doubles";
                       
                       return (
                         <Card key={session.id} className="border-l-4 border-l-accent">
@@ -446,7 +458,15 @@ export function StatisticsView() {
                                   <div className="flex items-center gap-2">
                                     <Users className="h-4 w-4 text-muted-foreground" />
                                     <span className="font-medium text-sm">
-                                      {player1Name} vs {player2Name}
+                                      {isDoubles ? (
+                                        <span>
+                                          {player1Name} & {player3Name} vs {player2Name} & {player4Name}
+                                        </span>
+                                      ) : (
+                                        <span>
+                                          {player1Name} vs {player2Name}
+                                        </span>
+                                      )}
                                     </span>
                                   </div>
                                   {session.tournament && (
