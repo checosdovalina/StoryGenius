@@ -213,6 +213,15 @@ export const matchEvents = pgTable("match_events", {
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
+export const statShareTokens = pgTable("stat_share_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: varchar("token").notNull().unique(),
+  ownerUserId: varchar("owner_user_id").notNull().references(() => users.id),
+  targetPlayerId: varchar("target_player_id").notNull().references(() => users.id),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
+
 // Relations
 export const clubsRelations = relations(clubs, ({ one, many }) => ({
   manager: one(users, {
@@ -475,6 +484,13 @@ export const insertMatchEventSchema = createInsertSchema(matchEvents).omit({
   createdAt: true
 });
 
+export const insertStatShareTokenSchema = createInsertSchema(statShareTokens).omit({
+  id: true,
+  createdAt: true
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable()
+});
+
 // Types
 export type Club = typeof clubs.$inferSelect;
 export type InsertClub = z.infer<typeof insertClubSchema>;
@@ -498,3 +514,5 @@ export type MatchStatsSession = typeof matchStatsSessions.$inferSelect;
 export type InsertMatchStatsSession = z.infer<typeof insertMatchStatsSessionSchema>;
 export type MatchEvent = typeof matchEvents.$inferSelect;
 export type InsertMatchEvent = z.infer<typeof insertMatchEventSchema>;
+export type StatShareToken = typeof statShareTokens.$inferSelect;
+export type InsertStatShareToken = z.infer<typeof insertStatShareTokenSchema>;

@@ -1,11 +1,12 @@
 import { 
-  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents,
+  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents, statShareTokens,
   type User, type InsertUser, type Tournament, type InsertTournament,
   type Court, type InsertCourt, type Match, type InsertMatch,
   type TournamentRegistration, type InsertTournamentRegistration,
   type PlayerStats, type InsertPlayerStats, type PadelPair, type InsertPadelPair,
   type ScheduledMatch, type InsertScheduledMatch, type Club, type InsertClub,
-  type MatchStatsSession, type InsertMatchStatsSession, type MatchEvent, type InsertMatchEvent
+  type MatchStatsSession, type InsertMatchStatsSession, type MatchEvent, type InsertMatchEvent,
+  type StatShareToken, type InsertStatShareToken
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, or, count, avg, sum, isNull, gte, lte, between } from "drizzle-orm";
@@ -112,6 +113,12 @@ export interface IStorage {
 
   // Player statistics from match events
   getPlayersEventStats(): Promise<any[]>;
+
+  // Stat share tokens
+  createStatShareToken(ownerUserId: string, targetPlayerId: string, expiresAt?: Date): Promise<StatShareToken>;
+  getStatShareToken(token: string): Promise<StatShareToken | undefined>;
+  deleteStatShareToken(id: string): Promise<void>;
+  getPlayerPublicStats(playerId: string): Promise<any>;
 
   sessionStore: session.Store;
 }
@@ -995,6 +1002,105 @@ export class DatabaseStorage implements IStorage {
         totalShots: stats.shotRecto + stats.shotEsquina + stats.shotCruzado + stats.shotPunto
       }))
       .sort((a, b) => b.totalPoints - a.totalPoints);
+  }
+
+  // Stat share tokens
+  async createStatShareToken(ownerUserId: string, targetPlayerId: string, expiresAt?: Date): Promise<StatShareToken> {
+    const { randomBytes } = await import("crypto");
+    const token = randomBytes(32).toString('hex');
+    
+    const [created] = await db
+      .insert(statShareTokens)
+      .values({
+        token,
+        ownerUserId,
+        targetPlayerId,
+        expiresAt: expiresAt || null
+      })
+      .returning();
+    
+    return created;
+  }
+
+  async getStatShareToken(token: string): Promise<StatShareToken | undefined> {
+    const [shareToken] = await db
+      .select()
+      .from(statShareTokens)
+      .where(eq(statShareTokens.token, token));
+    
+    return shareToken || undefined;
+  }
+
+  async deleteStatShareToken(id: string): Promise<void> {
+    await db.delete(statShareTokens).where(eq(statShareTokens.id, id));
+  }
+
+  async getPlayerPublicStats(playerId: string): Promise<any> {
+    // Get user info (without sensitive data)
+    const [player] = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        preferredSport: users.preferredSport,
+        padelCategory: users.padelCategory,
+        racquetballLevel: users.racquetballLevel
+      })
+      .from(users)
+      .where(eq(users.id, playerId));
+
+    if (!player) {
+      return null;
+    }
+
+    // Get player stats from events
+    const allStats = await this.getPlayersEventStats();
+    const playerEventStats = allStats.find(s => s.playerId === playerId) || {
+      totalPoints: 0,
+      aces: 0,
+      doubleFaults: 0,
+      errors: 0,
+      shotRecto: 0,
+      shotEsquina: 0,
+      shotCruzado: 0,
+      shotPunto: 0,
+      aceDerecha: 0,
+      aceIzquierda: 0,
+      aceEffectiveness: 0,
+      totalShots: 0
+    };
+
+    // Get match history
+    const playerMatches = await db
+      .select({
+        id: matches.id,
+        player1Sets: matches.player1Sets,
+        player2Sets: matches.player2Sets,
+        winnerId: matches.winnerId,
+        scheduledAt: matches.scheduledAt
+      })
+      .from(matches)
+      .where(
+        or(
+          eq(matches.player1Id, playerId),
+          eq(matches.player2Id, playerId)
+        )
+      )
+      .orderBy(desc(matches.updatedAt))
+      .limit(10);
+
+    const matchesWon = playerMatches.filter(m => m.winnerId === playerId).length;
+    const matchesLost = playerMatches.filter(m => m.winnerId && m.winnerId !== playerId).length;
+
+    return {
+      player,
+      stats: {
+        ...playerEventStats,
+        matchesWon,
+        matchesLost,
+        totalMatches: matchesWon + matchesLost
+      },
+      recentMatches: playerMatches
+    };
   }
 }
 
