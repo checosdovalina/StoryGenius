@@ -6,6 +6,8 @@ import { z } from "zod";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]);
 export const sportEnum = pgEnum("sport", ["padel", "racquetball"]);
+export const matchTypeEnum = pgEnum("match_type", ["singles", "doubles"]);
+export const teamEnum = pgEnum("team", ["1", "2"]);
 export const padelCategoryEnum = pgEnum("padel_category", ["1a", "2a", "3a", "4a", "veteranos", "juvenil"]);
 export const racquetballLevelEnum = pgEnum("racquetball_level", ["principiante", "intermedio", "avanzado", "profesional"]);
 export const tournamentFormatEnum = pgEnum("tournament_format", ["elimination", "round_robin", "groups"]);
@@ -108,8 +110,13 @@ export const tournamentRegistrations = pgTable("tournament_registrations", {
 export const matches = pgTable("matches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
+  matchType: matchTypeEnum("match_type").notNull().default("singles"),
   player1Id: varchar("player1_id").notNull().references(() => users.id),
   player2Id: varchar("player2_id").notNull().references(() => users.id),
+  player3Id: varchar("player3_id").references(() => users.id), // For doubles - team 1
+  player3Name: text("player3_name"), // For non-registered players
+  player4Id: varchar("player4_id").references(() => users.id), // For doubles - team 2
+  player4Name: text("player4_name"), // For non-registered players
   courtId: varchar("court_id").references(() => courts.id),
   scheduledAt: timestamp("scheduled_at"),
   status: matchStatusEnum("status").notNull().default("scheduled"),
@@ -130,6 +137,7 @@ export const scheduledMatches = pgTable("scheduled_matches", {
   title: text("title").notNull(),
   description: text("description"),
   sport: sportEnum("sport").notNull(),
+  matchType: matchTypeEnum("match_type").notNull().default("singles"),
   courtId: varchar("court_id").notNull().references(() => courts.id),
   scheduledDate: timestamp("scheduled_date").notNull(),
   duration: integer("duration_minutes").notNull().default(60),
@@ -139,9 +147,9 @@ export const scheduledMatches = pgTable("scheduled_matches", {
   player1Name: text("player1_name"), // For non-registered players
   player2Id: varchar("player2_id").references(() => users.id),
   player2Name: text("player2_name"), // For non-registered players
-  player3Id: varchar("player3_id").references(() => users.id), // For doubles (padel)
+  player3Id: varchar("player3_id").references(() => users.id), // For doubles - team 1
   player3Name: text("player3_name"),
-  player4Id: varchar("player4_id").references(() => users.id), // For doubles (padel)
+  player4Id: varchar("player4_id").references(() => users.id), // For doubles - team 2
   player4Name: text("player4_name"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -173,25 +181,35 @@ export const matchStatsSessions = pgTable("match_stats_sessions", {
   startedBy: varchar("started_by").notNull().references(() => users.id),
   status: statsSessionStatusEnum("status").notNull().default("active"),
   sport: sportEnum("sport").notNull(),
+  matchType: matchTypeEnum("match_type").notNull().default("singles"),
+  // Team composition - player1/2 are team leaders, player3/4 are partners in doubles
+  player1Id: varchar("player1_id").references(() => users.id), // Team 1 leader
+  player1Name: text("player1_name"), // For non-registered players
+  player2Id: varchar("player2_id").references(() => users.id), // Team 2 leader
+  player2Name: text("player2_name"), // For non-registered players
+  player3Id: varchar("player3_id").references(() => users.id), // Team 1 partner (doubles only)
+  player3Name: text("player3_name"), // For non-registered players
+  player4Id: varchar("player4_id").references(() => users.id), // Team 2 partner (doubles only)
+  player4Name: text("player4_name"), // For non-registered players
   currentSet: integer("current_set").notNull().default(1),
-  player1CurrentScore: text("player1_current_score").default("0"),
-  player2CurrentScore: text("player2_current_score").default("0"),
-  player1Sets: integer("player1_sets").default(0),
-  player2Sets: integer("player2_sets").default(0),
-  player1Games: text("player1_games"),
-  player2Games: text("player2_games"),
+  player1CurrentScore: text("player1_current_score").default("0"), // Team 1 score
+  player2CurrentScore: text("player2_current_score").default("0"), // Team 2 score
+  player1Sets: integer("player1_sets").default(0), // Team 1 sets
+  player2Sets: integer("player2_sets").default(0), // Team 2 sets
+  player1Games: text("player1_games"), // Team 1 games per set
+  player2Games: text("player2_games"), // Team 2 games per set
   // Open IRT fields for racquetball
-  serverId: varchar("server_id").references(() => users.id), // Who is currently serving
-  player1TimeoutsUsed: text("player1_timeouts_used").default("[]"), // JSON array per set [0,0,0]
-  player2TimeoutsUsed: text("player2_timeouts_used").default("[]"), // JSON array per set
-  player1AppellationsUsed: text("player1_appellations_used").default("[]"), // JSON array per set
-  player2AppellationsUsed: text("player2_appellations_used").default("[]"), // JSON array per set
-  player1Technicals: integer("player1_technicals").default(0), // 0-3
-  player2Technicals: integer("player2_technicals").default(0), // 0-3
+  serverId: varchar("server_id").references(() => users.id), // Who is currently serving (specific player)
+  player1TimeoutsUsed: text("player1_timeouts_used").default("[]"), // JSON array per set [0,0,0] - Team 1
+  player2TimeoutsUsed: text("player2_timeouts_used").default("[]"), // JSON array per set - Team 2
+  player1AppellationsUsed: text("player1_appellations_used").default("[]"), // JSON array per set - Team 1
+  player2AppellationsUsed: text("player2_appellations_used").default("[]"), // JSON array per set - Team 2
+  player1Technicals: integer("player1_technicals").default(0), // 0-3 - Team 1
+  player2Technicals: integer("player2_technicals").default(0), // 0-3 - Team 2
   matchEndedByTechnical: boolean("match_ended_by_technical").default(false),
-  matchWinner: varchar("match_winner"), // player1Id or player2Id when match is won
+  matchWinner: varchar("match_winner"), // Winning team leader ID (player1Id or player2Id)
   timeoutStartedAt: timestamp("timeout_started_at"), // For 1-minute timer
-  timeoutPlayerId: varchar("timeout_player_id").references(() => users.id),
+  timeoutPlayerId: varchar("timeout_player_id").references(() => users.id), // Specific player requesting timeout
   startedAt: timestamp("started_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at")
 });
@@ -200,11 +218,12 @@ export const matchEvents = pgTable("match_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   sessionId: varchar("session_id").notNull().references(() => matchStatsSessions.id, { onDelete: 'cascade' }),
   eventType: matchEventTypeEnum("event_type").notNull(),
-  playerId: varchar("player_id").references(() => users.id),
+  playerId: varchar("player_id").references(() => users.id), // Specific player who performed action
+  team: teamEnum("team"), // Denormalized: which team (1 or 2) for easy querying
   setNumber: integer("set_number").notNull(),
   gameNumber: integer("game_number"),
-  player1Score: text("player1_score"),
-  player2Score: text("player2_score"),
+  player1Score: text("player1_score"), // Team 1 score
+  player2Score: text("player2_score"), // Team 2 score
   // Open IRT fields for racquetball
   shotType: shotTypeEnum("shot_type"), // recto, esquina, cruzado, punto
   aceSide: aceSideEnum("ace_side"), // derecha, izquierda (for ace events)
