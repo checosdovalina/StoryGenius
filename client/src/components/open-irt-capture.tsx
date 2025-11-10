@@ -14,13 +14,21 @@ interface OpenIRTCaptureProps {
   session: MatchStatsSession;
   player1: User;
   player2: User;
+  player3?: User;
+  player4?: User;
   onSessionUpdate: (session: MatchStatsSession) => void;
   onEndSession?: () => void;
 }
 
-export function OpenIRTCapture({ match, session, player1, player2, onSessionUpdate, onEndSession }: OpenIRTCaptureProps) {
+export function OpenIRTCapture({ match, session, player1, player2, player3, player4, onSessionUpdate, onEndSession }: OpenIRTCaptureProps) {
   const { toast } = useToast();
   
+  // Active player state for doubles (tracks which of the 4 players is currently acting)
+  const [activeServingPlayerId, setActiveServingPlayerId] = useState<string>(session.serverId || match.player1Id);
+  const [activeReceivingPlayerId, setActiveReceivingPlayerId] = useState<string>(
+    match.player2Id
+  );
+
   // Local scoring state
   const [scoreState, setScoreState] = useState<OpenIRTScoreState>({
     player1Score: parseInt(session.player1CurrentScore || "0"),
@@ -36,6 +44,20 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
   // Timeout state
   const [timeoutActive, setTimeoutActive] = useState(false);
   const [timeoutRemaining, setTimeoutRemaining] = useState(60);
+
+  // Determine if this is a doubles match
+  const isDoubles = session.matchType === "doubles";
+
+  // Get team members (for doubles)
+  const team1Players = isDoubles && player3 ? [player1, player3] : [player1];
+  const team2Players = isDoubles && player4 ? [player2, player4] : [player2];
+
+  // Determine which team is serving
+  const isTeam1Serving = scoreState.serverId === match.player1Id || (match.player3Id && scoreState.serverId === match.player3Id);
+  
+  // Get current serving/receiving team players
+  const servingTeamPlayers = isTeam1Serving ? team1Players : team2Players;
+  const receivingTeamPlayers = isTeam1Serving ? team2Players : team1Players;
 
   // Update local state when session updates
   useEffect(() => {
@@ -55,6 +77,22 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       matchWinner
     });
   }, [session, match]);
+
+  // Reset active player IDs when server changes (sideout)
+  useEffect(() => {
+    if (!isDoubles) return; // Only needed for doubles
+    
+    // Determine which team is currently serving
+    const currentIsTeam1Serving = scoreState.serverId === match.player1Id || (match.player3Id && scoreState.serverId === match.player3Id);
+    
+    // Set active serving player to first player in serving team
+    const firstServingPlayer = currentIsTeam1Serving ? match.player1Id : match.player2Id;
+    setActiveServingPlayerId(firstServingPlayer);
+    
+    // Set active receiving player to first player in receiving team
+    const firstReceivingPlayer = currentIsTeam1Serving ? match.player2Id : match.player1Id;
+    setActiveReceivingPlayerId(firstReceivingPlayer);
+  }, [scoreState.serverId, match.player1Id, match.player2Id, match.player3Id, match.player4Id, isDoubles]);
 
   // Timeout timer
   useEffect(() => {
@@ -136,12 +174,14 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       return;
     }
 
-    const pointWinner = playerId === match.player1Id ? "player1" : "player2";
+    // Determine which team won the point (team1 or team2)
+    const isTeam1Player = playerId === match.player1Id || (match.player3Id && playerId === match.player3Id);
+    const pointWinner = isTeam1Player ? "player1" : "player2";
     const newState = calculateOpenIRTScore(scoreState, pointWinner);
     
     setScoreState(newState);
 
-    // Record event
+    // Record event (with specific playerId for individual stats)
     recordEventMutation.mutate({
       eventType: "point_won",
       playerId,
@@ -167,9 +207,12 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
     }
 
     if (newState.setWinner) {
+      const winnerTeamName = newState.setWinner === "player1" 
+        ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
+        : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
       toast({ 
         title: "¡Set ganado!", 
-        description: `${newState.setWinner === "player1" ? player1.name : player2.name} gana el set` 
+        description: `${winnerTeamName} gana el set` 
       });
     }
 
@@ -194,7 +237,9 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       return;
     }
 
-    const pointWinner = playerId === match.player1Id ? "player1" : "player2";
+    // Determine which team won the point (team1 or team2)
+    const isTeam1Player = playerId === match.player1Id || (match.player3Id && playerId === match.player3Id);
+    const pointWinner = isTeam1Player ? "player1" : "player2";
     const newState = calculateOpenIRTScore(scoreState, pointWinner);
     
     setScoreState(newState);
@@ -230,8 +275,9 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       return;
     }
 
-    // Double fault gives point to opponent
-    const opponent = playerId === match.player1Id ? "player2" : "player1";
+    // Double fault gives point to opponent team
+    const isTeam1Player = playerId === match.player1Id || (match.player3Id && playerId === match.player3Id);
+    const opponent = isTeam1Player ? "player2" : "player1";
     const newState = calculateOpenIRTScore(scoreState, opponent);
     
     setScoreState(newState);
@@ -256,8 +302,8 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
   // Handle timeout
   const handleTimeout = (playerId: string) => {
-    const isPlayer1 = playerId === match.player1Id;
-    const timeoutsUsed = isPlayer1 ? getPlayer1TimeoutsUsed() : getPlayer2TimeoutsUsed();
+    const isTeam1Player = playerId === match.player1Id || (match.player3Id && playerId === match.player3Id);
+    const timeoutsUsed = isTeam1Player ? getPlayer1TimeoutsUsed() : getPlayer2TimeoutsUsed();
 
     if (timeoutsUsed >= 1) {
       toast({ 
@@ -269,7 +315,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
     }
 
     const timeoutsArray = JSON.parse(
-      isPlayer1 ? session.player1TimeoutsUsed! : session.player2TimeoutsUsed!
+      isTeam1Player ? session.player1TimeoutsUsed! : session.player2TimeoutsUsed!
     );
     timeoutsArray[getCurrentSetIndex()] = (timeoutsArray[getCurrentSetIndex()] || 0) + 1;
 
@@ -279,7 +325,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
     });
 
     updateSessionMutation.mutate(
-      isPlayer1 
+      isTeam1Player 
         ? { player1TimeoutsUsed: JSON.stringify(timeoutsArray), timeoutStartedAt: new Date() as any, timeoutPlayerId: playerId }
         : { player2TimeoutsUsed: JSON.stringify(timeoutsArray), timeoutStartedAt: new Date() as any, timeoutPlayerId: playerId }
     );
@@ -291,11 +337,11 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
   // Handle appellation
   const handleAppellation = (playerId: string, result: "ganada" | "perdida") => {
-    const isPlayer1 = playerId === match.player1Id;
-    const appellationsUsed = isPlayer1 ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed();
+    const isTeam1Player = playerId === match.player1Id || (match.player3Id && playerId === match.player3Id);
+    const appellationsUsed = isTeam1Player ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed();
 
     const appellationsArray = JSON.parse(
-      isPlayer1 ? session.player1AppellationsUsed! : session.player2AppellationsUsed!
+      isTeam1Player ? session.player1AppellationsUsed! : session.player2AppellationsUsed!
     );
 
     // Only increment if lost
@@ -310,7 +356,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
     });
 
     updateSessionMutation.mutate(
-      isPlayer1 
+      isTeam1Player 
         ? { player1AppellationsUsed: JSON.stringify(appellationsArray) }
         : { player2AppellationsUsed: JSON.stringify(appellationsArray) }
     );
@@ -323,13 +369,13 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
   // Handle technical
   const handleTechnical = (playerId: string) => {
-    const isPlayer1 = playerId === match.player1Id;
-    const currentTechnicals = isPlayer1 ? session.player1Technicals! : session.player2Technicals!;
+    const isTeam1Player = playerId === match.player1Id || (match.player3Id && playerId === match.player3Id);
+    const currentTechnicals = isTeam1Player ? session.player1Technicals! : session.player2Technicals!;
     const newTechnicals = currentTechnicals + 1;
 
     // Subtract point (technical penalty)
     const newScore = { ...scoreState };
-    if (isPlayer1) {
+    if (isTeam1Player) {
       newScore.player1Score = Math.max(0, newScore.player1Score - 1);
     } else {
       newScore.player2Score = Math.max(0, newScore.player2Score - 1);
@@ -342,7 +388,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       playerId
     });
 
-    const updates: any = isPlayer1
+    const updates: any = isTeam1Player
       ? { 
           player1Technicals: newTechnicals,
           player1CurrentScore: newScore.player1Score.toString()
@@ -356,9 +402,12 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
     if (newTechnicals >= 3) {
       updates.matchEndedByTechnical = true;
       updates.status = "completed";
+      const losingTeamName = isTeam1Player
+        ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
+        : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
       toast({ 
         title: "¡Partido terminado!", 
-        description: `${isPlayer1 ? player1.name : player2.name} pierde por técnico`,
+        description: `${losingTeamName} pierde por técnico`,
         variant: "destructive",
         duration: 5000
       });
@@ -373,7 +422,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
     updateSessionMutation.mutate(updates);
   };
 
-  const isPlayer1Serving = scoreState.serverId === match.player1Id;
+  const isPlayer1Serving = scoreState.serverId === match.player1Id || (match.player3Id && scoreState.serverId === match.player3Id);
 
   return (
     <div className="min-h-screen w-full bg-background p-2 sm:p-4 space-y-3 overflow-y-auto">
@@ -391,17 +440,44 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       )}
 
       {/* Server Panel */}
-      <Card className={isPlayer1Serving ? "bg-green-50 border-green-500 border-2" : "bg-green-50 border-green-500 border-2"}>
+      <Card className="bg-green-50 border-green-500 border-2">
         <CardContent className="p-3 sm:p-4">
           <div className="text-center mb-3">
-            <h3 className="font-bold text-xl sm:text-2xl">{isPlayer1Serving ? player1.name : player2.name}</h3>
-            <p className="text-sm sm:text-base text-muted-foreground font-medium">Sacando</p>
+            {isDoubles ? (
+              <>
+                <h3 className="font-bold text-xl sm:text-2xl">
+                  Equipo {isTeam1Serving ? "1" : "2"}
+                </h3>
+                <p className="text-sm sm:text-base text-muted-foreground font-medium">Sacando</p>
+                <div className="mt-2 flex gap-2 justify-center">
+                  {servingTeamPlayers.map((player) => (
+                    <Button
+                      key={player.id}
+                      onClick={() => setActiveServingPlayerId(player.id)}
+                      variant={activeServingPlayerId === player.id ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-[100px]"
+                      data-testid={`button-select-server-${player.id}`}
+                    >
+                      {player.name}
+                    </Button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-bold text-xl sm:text-2xl">
+                  {servingTeamPlayers[0].name}
+                </h3>
+                <p className="text-sm sm:text-base text-muted-foreground font-medium">Sacando</p>
+              </>
+            )}
           </div>
 
           {/* Shot type buttons */}
           <div className="grid grid-cols-4 gap-2 mb-3">
             <Button
-              onClick={() => handlePoint(scoreState.serverId, "recto")}
+              onClick={() => handlePoint(isDoubles ? activeServingPlayerId : scoreState.serverId, "recto")}
               className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
               data-testid="button-shot-recto"
@@ -409,7 +485,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Recto
             </Button>
             <Button
-              onClick={() => handlePoint(scoreState.serverId, "esquina")}
+              onClick={() => handlePoint(isDoubles ? activeServingPlayerId : scoreState.serverId, "esquina")}
               className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
               data-testid="button-shot-esquina"
@@ -417,7 +493,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Esquina
             </Button>
             <Button
-              onClick={() => handlePoint(scoreState.serverId, "cruzado")}
+              onClick={() => handlePoint(isDoubles ? activeServingPlayerId : scoreState.serverId, "cruzado")}
               className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
               data-testid="button-shot-cruzado"
@@ -425,7 +501,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Cruzado
             </Button>
             <Button
-              onClick={() => handlePoint(scoreState.serverId, "punto")}
+              onClick={() => handlePoint(isDoubles ? activeServingPlayerId : scoreState.serverId, "punto")}
               className="bg-green-600 hover:bg-green-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
               data-testid="button-shot-punto"
@@ -437,7 +513,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
           {/* Ace buttons */}
           <div className="grid grid-cols-3 gap-2 mb-3">
             <Button
-              onClick={() => handleAce(scoreState.serverId, "derecha")}
+              onClick={() => handleAce(isDoubles ? activeServingPlayerId : scoreState.serverId, "derecha")}
               variant="secondary"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
@@ -447,7 +523,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Derecha
             </Button>
             <Button
-              onClick={() => handleAce(scoreState.serverId, "izquierda")}
+              onClick={() => handleAce(isDoubles ? activeServingPlayerId : scoreState.serverId, "izquierda")}
               variant="secondary"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
@@ -457,7 +533,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Izquierda
             </Button>
             <Button
-              onClick={() => handleDoubleFault(scoreState.serverId)}
+              onClick={() => handleDoubleFault(isDoubles ? activeServingPlayerId : scoreState.serverId)}
               variant="destructive"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
@@ -469,7 +545,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
 
           {/* Timeout button */}
           <Button
-            onClick={() => handleTimeout(scoreState.serverId)}
+            onClick={() => handleTimeout(isDoubles ? activeServingPlayerId : scoreState.serverId)}
             variant="outline"
             className="w-full mb-3 min-h-[52px] sm:min-h-[60px] text-base sm:text-lg font-semibold"
             disabled={!!scoreState.matchWinner || (isPlayer1Serving ? getPlayer1TimeoutsUsed() >= 1 : getPlayer2TimeoutsUsed() >= 1)}
@@ -486,7 +562,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               <p className="text-sm sm:text-base text-center font-semibold">Apelación</p>
               <div className="grid grid-cols-2 gap-1">
                 <Button
-                  onClick={() => handleAppellation(scoreState.serverId, "ganada")}
+                  onClick={() => handleAppellation(isDoubles ? activeServingPlayerId : scoreState.serverId, "ganada")}
                   variant="outline"
                   className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
                   disabled={!!scoreState.matchWinner || (isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
@@ -495,7 +571,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
                   Ganada
                 </Button>
                 <Button
-                  onClick={() => handleAppellation(scoreState.serverId, "perdida")}
+                  onClick={() => handleAppellation(isDoubles ? activeServingPlayerId : scoreState.serverId, "perdida")}
                   variant="outline"
                   className="min-h-[48px] sm:min-h-[56px] text-sm sm:text-base font-semibold"
                   disabled={!!scoreState.matchWinner || (isPlayer1Serving ? getPlayer1AppellationsUsed() : getPlayer2AppellationsUsed()) >= 3}
@@ -511,7 +587,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
             <div className="space-y-2">
               <p className="text-sm sm:text-base text-center font-semibold">Técnico</p>
               <Button
-                onClick={() => handleTechnical(scoreState.serverId)}
+                onClick={() => handleTechnical(isDoubles ? activeServingPlayerId : scoreState.serverId)}
                 variant="destructive"
                 className="w-full min-h-[48px] sm:min-h-[56px] text-3xl sm:text-4xl font-bold"
                 disabled={!!scoreState.matchWinner}
@@ -563,17 +639,44 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
       </Card>
 
       {/* Receiver Panel */}
-      <Card className={!isPlayer1Serving ? "bg-red-50 border-red-500 border-2" : "bg-red-50 border-red-500 border-2"}>
+      <Card className="bg-red-50 border-red-500 border-2">
         <CardContent className="p-3 sm:p-4">
           <div className="text-center mb-3">
-            <h3 className="font-bold text-xl sm:text-2xl">{!isPlayer1Serving ? player1.name : player2.name}</h3>
-            <p className="text-sm sm:text-base text-muted-foreground font-medium">Recibiendo</p>
+            {isDoubles ? (
+              <>
+                <h3 className="font-bold text-xl sm:text-2xl">
+                  Equipo {isTeam1Serving ? "2" : "1"}
+                </h3>
+                <p className="text-sm sm:text-base text-muted-foreground font-medium">Recibiendo</p>
+                <div className="mt-2 flex gap-2 justify-center">
+                  {receivingTeamPlayers.map((player) => (
+                    <Button
+                      key={player.id}
+                      onClick={() => setActiveReceivingPlayerId(player.id)}
+                      variant={activeReceivingPlayerId === player.id ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-[100px]"
+                      data-testid={`button-select-receiver-${player.id}`}
+                    >
+                      {player.name}
+                    </Button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-bold text-xl sm:text-2xl">
+                  {receivingTeamPlayers[0].name}
+                </h3>
+                <p className="text-sm sm:text-base text-muted-foreground font-medium">Recibiendo</p>
+              </>
+            )}
           </div>
 
           {/* Shot type buttons */}
           <div className="grid grid-cols-4 gap-2 mb-3">
             <Button
-              onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "recto")}
+              onClick={() => handlePoint(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "recto")}
               className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-shot-recto"
@@ -581,7 +684,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Recto
             </Button>
             <Button
-              onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "esquina")}
+              onClick={() => handlePoint(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "esquina")}
               className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-shot-esquina"
@@ -589,7 +692,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Esquina
             </Button>
             <Button
-              onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "cruzado")}
+              onClick={() => handlePoint(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "cruzado")}
               className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-shot-cruzado"
@@ -597,7 +700,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Cruzado
             </Button>
             <Button
-              onClick={() => handlePoint(isPlayer1Serving ? match.player2Id : match.player1Id, "punto")}
+              onClick={() => handlePoint(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "punto")}
               className="bg-red-600 hover:bg-red-700 min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
               data-testid="button-receiver-shot-punto"
@@ -609,7 +712,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
           {/* Ace buttons */}
           <div className="grid grid-cols-3 gap-2 mb-3">
             <Button
-              onClick={() => handleAce(isPlayer1Serving ? match.player2Id : match.player1Id, "derecha")}
+              onClick={() => handleAce(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "derecha")}
               variant="secondary"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
@@ -619,7 +722,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Derecha
             </Button>
             <Button
-              onClick={() => handleAce(isPlayer1Serving ? match.player2Id : match.player1Id, "izquierda")}
+              onClick={() => handleAce(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "izquierda")}
               variant="secondary"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}
@@ -629,7 +732,7 @@ export function OpenIRTCapture({ match, session, player1, player2, onSessionUpda
               Izquierda
             </Button>
             <Button
-              onClick={() => handleDoubleFault(isPlayer1Serving ? match.player2Id : match.player1Id)}
+              onClick={() => handleDoubleFault(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id))}
               variant="destructive"
               className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
               disabled={!!scoreState.matchWinner}

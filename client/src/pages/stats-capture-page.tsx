@@ -47,6 +47,8 @@ export default function StatsCapturePageComponent() {
 
   const player1 = users.find(u => u.id === match?.player1Id);
   const player2 = users.find(u => u.id === match?.player2Id);
+  const player3 = users.find(u => u.id === match?.player3Id);
+  const player4 = users.find(u => u.id === match?.player4Id);
 
   // Start stats session mutation
   const startSessionMutation = useMutation({
@@ -307,6 +309,8 @@ export default function StatsCapturePageComponent() {
             session={session}
             player1={player1!}
             player2={player2!}
+            player3={player3}
+            player4={player4}
             onSessionUpdate={setSession}
             onEndSession={() => completeSessionMutation.mutate()}
           />
@@ -804,6 +808,8 @@ export default function StatsCapturePageComponent() {
               session={session}
               player1={player1!}
               player2={player2!}
+              player3={player3}
+              player4={player4}
               onSessionUpdate={setSession}
               onEndSession={() => completeSessionMutation.mutate()}
             />
