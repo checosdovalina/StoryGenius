@@ -912,6 +912,8 @@ export class DatabaseStorage implements IStorage {
       .select({
         playerId: matchEvents.playerId,
         eventType: matchEvents.eventType,
+        shotType: matchEvents.shotType,
+        aceSide: matchEvents.aceSide,
         playerName: users.name,
         playerEmail: users.email
       })
@@ -935,11 +937,27 @@ export class DatabaseStorage implements IStorage {
           doubleFaults: 0,
           errors: 0,
           winners: 0,
-          faults: 0
+          faults: 0,
+          // Shot types
+          shotRecto: 0,
+          shotEsquina: 0,
+          shotCruzado: 0,
+          shotPunto: 0,
+          // Ace sides
+          aceDerecha: 0,
+          aceIzquierda: 0
         });
       }
 
       const stats = playerStatsMap.get(event.playerId);
+      
+      // Count shot types for all events that have shotType
+      if (event.shotType) {
+        if (event.shotType === 'recto') stats.shotRecto++;
+        else if (event.shotType === 'esquina') stats.shotEsquina++;
+        else if (event.shotType === 'cruzado') stats.shotCruzado++;
+        else if (event.shotType === 'punto') stats.shotPunto++;
+      }
       
       switch (event.eventType) {
         case 'point_won':
@@ -947,6 +965,9 @@ export class DatabaseStorage implements IStorage {
           break;
         case 'ace':
           stats.aces++;
+          // Count ace sides
+          if (event.aceSide === 'derecha') stats.aceDerecha++;
+          else if (event.aceSide === 'izquierda') stats.aceIzquierda++;
           break;
         case 'double_fault':
           stats.doubleFaults++;
@@ -963,8 +984,16 @@ export class DatabaseStorage implements IStorage {
       }
     });
 
-    // Convert map to array and sort by total points
+    // Convert map to array, calculate percentages, and sort by total points
     return Array.from(playerStatsMap.values())
+      .map(stats => ({
+        ...stats,
+        // Calculate effectiveness percentages
+        aceEffectiveness: stats.aces + stats.doubleFaults > 0 
+          ? Math.round((stats.aces / (stats.aces + stats.doubleFaults)) * 100)
+          : 0,
+        totalShots: stats.shotRecto + stats.shotEsquina + stats.shotCruzado + stats.shotPunto
+      }))
       .sort((a, b) => b.totalPoints - a.totalPoints);
   }
 }

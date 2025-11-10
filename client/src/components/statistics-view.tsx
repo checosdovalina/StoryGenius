@@ -278,9 +278,15 @@ export function StatisticsView() {
                           </div>
                         </TableHead>
                         <TableHead className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <X className="h-4 w-4" />
-                            <span>Errores</span>
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="text-xs">Efectividad</span>
+                            <span className="text-xs text-muted-foreground">Saque</span>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="text-xs">Tipos de</span>
+                            <span className="text-xs text-muted-foreground">Tiro</span>
                           </div>
                         </TableHead>
                       </TableRow>
@@ -301,9 +307,16 @@ export function StatisticsView() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge variant="secondary" className="font-mono">
-                              {player.aces}
-                            </Badge>
+                            <div className="flex flex-col items-center gap-1">
+                              <Badge variant="secondary" className="font-mono">
+                                {player.aces}
+                              </Badge>
+                              {player.aceDerecha + player.aceIzquierda > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                  D:{player.aceDerecha} I:{player.aceIzquierda}
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="destructive" className="font-mono">
@@ -311,9 +324,38 @@ export function StatisticsView() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge variant="outline" className="font-mono">
-                              {player.errors}
-                            </Badge>
+                            {player.aces + player.doubleFaults > 0 ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <Badge 
+                                  variant={player.aceEffectiveness >= 70 ? "default" : player.aceEffectiveness >= 50 ? "secondary" : "outline"}
+                                  className="font-mono"
+                                >
+                                  {player.aceEffectiveness}%
+                                </Badge>
+                                <div className="text-xs text-muted-foreground">
+                                  {player.aces}/{player.aces + player.doubleFaults}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {player.totalShots > 0 ? (
+                              <div className="flex flex-col gap-1 text-xs">
+                                <div className="grid grid-cols-2 gap-1">
+                                  <div className="text-muted-foreground">R: {player.shotRecto}</div>
+                                  <div className="text-muted-foreground">E: {player.shotEsquina}</div>
+                                  <div className="text-muted-foreground">C: {player.shotCruzado}</div>
+                                  <div className="text-muted-foreground">P: {player.shotPunto}</div>
+                                </div>
+                                <div className="font-mono text-muted-foreground">
+                                  Total: {player.totalShots}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
