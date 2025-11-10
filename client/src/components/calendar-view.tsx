@@ -19,37 +19,16 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import type { ScheduledMatch, Court } from "@shared/schema";
 
-// Form validation schema for schedule match modal
+// Form validation schema for schedule match modal (Racquetball only - 2 players)
 const scheduleMatchSchema = z.object({
   title: z.string().min(1, "El título es requerido"),
   date: z.string().min(1, "La fecha es requerida"),
   time: z.string().min(1, "La hora es requerida"),
-  sport: z.enum(["padel", "racquetball"], {
-    required_error: "El deporte es requerido"
-  }),
+  sport: z.literal("racquetball"),
   courtId: z.string().min(1, "La cancha es requerida"),
   duration: z.coerce.number().min(60).max(180),
   player1Name: z.string().min(1, "El nombre del jugador 1 es requerido"),
-  player2Name: z.string().min(1, "El nombre del jugador 2 es requerido"),
-  player3Name: z.string().optional(),
-  player4Name: z.string().optional()
-}).superRefine((data, ctx) => {
-  if (data.sport === "padel") {
-    if (!data.player3Name) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El jugador 3 es requerido para padel",
-        path: ["player3Name"]
-      });
-    }
-    if (!data.player4Name) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El jugador 4 es requerido para padel",
-        path: ["player4Name"]
-      });
-    }
-  }
+  player2Name: z.string().min(1, "El nombre del jugador 2 es requerido")
 });
 
 type ScheduleMatchFormData = z.infer<typeof scheduleMatchSchema>;
@@ -79,12 +58,10 @@ export function CalendarView() {
       title: "",
       date: format(selectedDate, "yyyy-MM-dd"),
       time: "09:00",
-      sport: "padel",
+      sport: "racquetball",
       duration: 90,
       player1Name: "",
-      player2Name: "",
-      player3Name: "",
-      player4Name: ""
+      player2Name: ""
     }
   });
 
@@ -105,16 +82,12 @@ export function CalendarView() {
         duration: data.duration,
         player1Name: data.player1Name,
         player2Name: data.player2Name,
-        player3Name: data.player3Name || null,
-        player4Name: data.player4Name || null,
+        player3Name: null,
+        player4Name: null,
         status: "programado" as const
       };
 
-      return apiRequest(`/api/scheduled-matches`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(matchData)
-      });
+      return apiRequest("POST", "/api/scheduled-matches", matchData);
     },
     onSuccess: () => {
       toast({
@@ -136,8 +109,7 @@ export function CalendarView() {
     }
   });
 
-  const watchedSport = form.watch("sport");
-  const availableCourts = courts.filter(court => court.sport === watchedSport);
+  const availableCourts = courts.filter(court => court.sport === "racquetball");
 
   const timeSlots = [
     "09:00", "10:30", "12:00", "13:30", "15:00", "16:30", "18:00", "19:30"
@@ -302,16 +274,13 @@ export function CalendarView() {
                                 <div className="flex items-center gap-1 text-muted-foreground">
                                   <Users className="h-3 w-3" />
                                   <div className="text-xs">
-                                    {match.sport === "padel" ? (
-                                      <span>
-                                        {player1 && player2 ? `${player1} / ${player2}` : player1 || player2 || "Jugadores TBD"}
-                                        {(player3 || player4) && " vs "}
-                                        {player3 && player4 ? `${player3} / ${player4}` : player3 || player4 || ""}
-                                      </span>
-                                    ) : (
-                                      <span>
-                                        {player1 || "Jugador 1"} vs {player2 || "Jugador 2"}
-                                      </span>
+                                    <span>
+                                      {player1 || "Jugador 1"} vs {player2 || "Jugador 2"}
+                                    </span>
+                                    {match.sport === "padel" && (player3 || player4) && (
+                                      <Badge variant="outline" className="ml-2 text-xs">
+                                        Padel (Legacy)
+                                      </Badge>
                                     )}
                                   </div>
                                 </div>
@@ -403,51 +372,27 @@ export function CalendarView() {
                 />
               </div>
 
-              {/* Sport and Duration */}
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="sport"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Deporte</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-sport">
-                            <SelectValue placeholder="Seleccionar deporte" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="padel">Padel</SelectItem>
-                          <SelectItem value="racquetball">Racquetball</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="duration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duración (min)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          min={60} 
-                          max={180} 
-                          step={30}
-                          {...field}
-                          data-testid="input-duration"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {/* Duration */}
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duración (min)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={60} 
+                        max={180} 
+                        step={30}
+                        {...field}
+                        data-testid="input-duration"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* Court Selection */}
               <FormField
@@ -480,9 +425,7 @@ export function CalendarView() {
                 <div>
                   <h4 className="font-medium">Jugadores</h4>
                   <p className="text-sm text-muted-foreground">
-                    {watchedSport === "padel" 
-                      ? "Padel requiere 4 jugadores (2 vs 2)" 
-                      : "Racquetball requiere 2 jugadores (1 vs 1)"}
+                    Racquetball requiere 2 jugadores (1 vs 1)
                   </p>
                 </div>
                 
@@ -523,46 +466,6 @@ export function CalendarView() {
                     )}
                   />
                 </div>
-
-                {watchedSport === "padel" && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="player3Name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Jugador 3</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Nombre del jugador"
-                              {...field}
-                              data-testid="input-player3"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="player4Name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Jugador 4</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Nombre del jugador"
-                              {...field}
-                              data-testid="input-player4"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
               </div>
 
               {/* Form Actions */}

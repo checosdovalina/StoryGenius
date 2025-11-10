@@ -123,7 +123,6 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
                   <SelectValue placeholder="Seleccionar deporte" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="padel">Pádel</SelectItem>
                   <SelectItem value="racquetball">Raquetbol</SelectItem>
                 </SelectContent>
               </Select>

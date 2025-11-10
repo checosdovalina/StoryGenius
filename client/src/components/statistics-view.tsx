@@ -513,7 +513,7 @@ export function StatisticsView() {
             </Card>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardContent className="p-6">
                   <div className="text-center">
@@ -522,18 +522,6 @@ export function StatisticsView() {
                       {completedSessions.length}
                     </h4>
                     <p className="text-muted-foreground">Sesiones Capturadas</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <Trophy className="h-12 w-12 text-accent mx-auto mb-4" />
-                    <h4 className="text-2xl font-bold text-card-foreground">
-                      {completedSessions.filter((s: MatchStatsSession) => s.sport === "padel").length}
-                    </h4>
-                    <p className="text-muted-foreground">Sesiones de Pádel</p>
                   </div>
                 </CardContent>
               </Card>

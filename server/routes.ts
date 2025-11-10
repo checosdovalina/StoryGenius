@@ -1042,6 +1042,73 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Create share token for player stats (only for own stats or admin)
+  app.post("/api/stats/share", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { targetPlayerId, expiresInDays } = req.body;
+      
+      if (!targetPlayerId) {
+        return res.status(400).json({ message: "Target player ID required" });
+      }
+
+      // Security: Users can only share their own stats unless they are admin
+      if (targetPlayerId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "You can only share your own statistics" });
+      }
+
+      let expiresAt;
+      if (expiresInDays) {
+        expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      }
+
+      const token = await storage.createStatShareToken(req.user!.id, targetPlayerId, expiresAt);
+      res.json(token);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create share token" });
+    }
+  });
+
+  // Get public stats by share token
+  app.get("/api/stats/share/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const shareToken = await storage.getStatShareToken(token);
+      if (!shareToken) {
+        return res.status(404).json({ message: "Share token not found" });
+      }
+
+      // Check if token is expired
+      if (shareToken.expiresAt && new Date(shareToken.expiresAt) < new Date()) {
+        return res.status(403).json({ message: "Share token has expired" });
+      }
+
+      const stats = await storage.getPlayerPublicStats(shareToken.targetPlayerId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch shared stats" });
+    }
+  });
+
+  // Delete share token
+  app.delete("/api/stats/share/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      await storage.deleteStatShareToken(req.params.id);
+      res.json({ message: "Share token deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete share token" });
+    }
+  });
+
 
 
   const httpServer = createServer(app);

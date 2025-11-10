@@ -245,7 +245,6 @@ export function CourtsManagementView() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="padel">Pádel</SelectItem>
                         <SelectItem value="racquetball">Racquetball</SelectItem>
                       </SelectContent>
                     </Select>
