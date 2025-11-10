@@ -19,16 +19,39 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import type { ScheduledMatch, Court } from "@shared/schema";
 
-// Form validation schema for schedule match modal (Racquetball only - 2 players)
+// Form validation schema for schedule match modal (Racquetball: singles or doubles)
 const scheduleMatchSchema = z.object({
   title: z.string().min(1, "El título es requerido"),
   date: z.string().min(1, "La fecha es requerida"),
   time: z.string().min(1, "La hora es requerida"),
   sport: z.literal("racquetball"),
+  matchType: z.enum(["singles", "doubles"], {
+    required_error: "La modalidad es requerida"
+  }),
   courtId: z.string().min(1, "La cancha es requerida"),
   duration: z.coerce.number().min(60).max(180),
   player1Name: z.string().min(1, "El nombre del jugador 1 es requerido"),
-  player2Name: z.string().min(1, "El nombre del jugador 2 es requerido")
+  player2Name: z.string().min(1, "El nombre del jugador 2 es requerido"),
+  player3Name: z.string().optional(),
+  player4Name: z.string().optional()
+}).superRefine((data, ctx) => {
+  // Doubles must have 4 players
+  if (data.matchType === "doubles") {
+    if (!data.player3Name || data.player3Name.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Dobles requiere 4 jugadores",
+        path: ["player3Name"]
+      });
+    }
+    if (!data.player4Name || data.player4Name.trim() === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Dobles requiere 4 jugadores",
+        path: ["player4Name"]
+      });
+    }
+  }
 });
 
 type ScheduleMatchFormData = z.infer<typeof scheduleMatchSchema>;
@@ -59,11 +82,16 @@ export function CalendarView() {
       date: format(selectedDate, "yyyy-MM-dd"),
       time: "09:00",
       sport: "racquetball",
+      matchType: "singles",
       duration: 90,
       player1Name: "",
-      player2Name: ""
+      player2Name: "",
+      player3Name: "",
+      player4Name: ""
     }
   });
+
+  const matchType = form.watch("matchType");
 
   // Update form date when selectedDate changes
   useEffect(() => {
@@ -78,12 +106,13 @@ export function CalendarView() {
         title: data.title,
         scheduledDate: scheduledDate.toISOString(),
         sport: data.sport,
+        matchType: data.matchType,
         courtId: data.courtId,
         duration: data.duration,
         player1Name: data.player1Name,
         player2Name: data.player2Name,
-        player3Name: null,
-        player4Name: null,
+        player3Name: data.matchType === "doubles" ? data.player3Name || null : null,
+        player4Name: data.matchType === "doubles" ? data.player4Name || null : null,
         status: "programado" as const
       };
 
@@ -274,9 +303,15 @@ export function CalendarView() {
                                 <div className="flex items-center gap-1 text-muted-foreground">
                                   <Users className="h-3 w-3" />
                                   <div className="text-xs">
-                                    <span>
-                                      {player1 || "Jugador 1"} vs {player2 || "Jugador 2"}
-                                    </span>
+                                    {match.matchType === "doubles" ? (
+                                      <span>
+                                        {player1 || "J1"} & {player3 || "J3"} vs {player2 || "J2"} & {player4 || "J4"}
+                                      </span>
+                                    ) : (
+                                      <span>
+                                        {player1 || "Jugador 1"} vs {player2 || "Jugador 2"}
+                                      </span>
+                                    )}
                                     {match.sport === "padel" && (player3 || player4) && (
                                       <Badge variant="outline" className="ml-2 text-xs">
                                         Padel (Legacy)
@@ -420,12 +455,38 @@ export function CalendarView() {
                 )}
               />
 
+              {/* Match Type */}
+              <FormField
+                control={form.control}
+                name="matchType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modalidad</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-match-type">
+                          <SelectValue placeholder="Seleccionar modalidad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="singles">Singles (1 vs 1)</SelectItem>
+                        <SelectItem value="doubles">Dobles (2 vs 2)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {/* Players */}
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">Jugadores</h4>
                   <p className="text-sm text-muted-foreground">
-                    Racquetball requiere 2 jugadores (1 vs 1)
+                    {matchType === "doubles" 
+                      ? "Dobles requiere 4 jugadores (2 vs 2)"
+                      : "Singles requiere 2 jugadores (1 vs 1)"
+                    }
                   </p>
                 </div>
                 
@@ -435,7 +496,7 @@ export function CalendarView() {
                     name="player1Name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Jugador 1</FormLabel>
+                        <FormLabel>{matchType === "doubles" ? "Equipo 1 - Jugador 1" : "Jugador 1"}</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="Nombre del jugador"
@@ -453,7 +514,7 @@ export function CalendarView() {
                     name="player2Name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Jugador 2</FormLabel>
+                        <FormLabel>{matchType === "doubles" ? "Equipo 2 - Jugador 1" : "Jugador 2"}</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="Nombre del jugador"
@@ -465,6 +526,46 @@ export function CalendarView() {
                       </FormItem>
                     )}
                   />
+
+                  {matchType === "doubles" && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="player3Name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Equipo 1 - Jugador 2</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Nombre del jugador"
+                                {...field}
+                                data-testid="input-player3"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="player4Name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Equipo 2 - Jugador 2</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Nombre del jugador"
+                                {...field}
+                                data-testid="input-player4"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
                 </div>
               </div>
 
