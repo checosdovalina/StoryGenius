@@ -465,7 +465,25 @@ export const insertMatchSchema = createInsertSchema(matches).omit({
   updatedAt: true
 }).extend({
   scheduledAt: z.coerce.date().optional().nullable()
-});
+}).refine(
+  (data) => {
+    // matches table: player1/2 are always IDs (required), player3/4 can be ID or Name
+    const hasPlayer1 = !!data.player1Id;
+    const hasPlayer2 = !!data.player2Id;
+    const hasPlayer3 = !!(data.player3Id || data.player3Name);
+    const hasPlayer4 = !!(data.player4Id || data.player4Name);
+    
+    if (data.matchType === 'doubles') {
+      return hasPlayer1 && hasPlayer2 && hasPlayer3 && hasPlayer4;
+    } else {
+      return hasPlayer1 && hasPlayer2 && !hasPlayer3 && !hasPlayer4;
+    }
+  },
+  {
+    message: "Singles requiere exactamente 2 jugadores, Doubles requiere exactamente 4 jugadores",
+    path: ["matchType"]
+  }
+);
 
 export const insertPadelPairSchema = createInsertSchema(padelPairs).omit({
   id: true,
@@ -490,7 +508,20 @@ export const insertScheduledMatchSchema = createInsertSchema(scheduledMatches).o
 }).extend({
   scheduledDate: z.coerce.date(),
   duration: z.number().min(30).max(180, "La duración debe estar entre 30 y 180 minutos")
-});
+}).refine(
+  (data) => {
+    const playerCount = [data.player1Id, data.player1Name, data.player2Id, data.player2Name, data.player3Id, data.player3Name, data.player4Id, data.player4Name].filter(Boolean).length;
+    if (data.matchType === 'doubles') {
+      return playerCount === 4;
+    } else {
+      return playerCount === 2;
+    }
+  },
+  {
+    message: "Singles requiere exactamente 2 jugadores, Doubles requiere exactamente 4 jugadores",
+    path: ["matchType"]
+  }
+);
 
 export const insertMatchStatsSessionSchema = createInsertSchema(matchStatsSessions).omit({
   id: true,

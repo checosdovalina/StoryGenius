@@ -816,7 +816,55 @@ export class DatabaseStorage implements IStorage {
 
   // Match stats sessions
   async createStatsSession(session: InsertMatchStatsSession): Promise<MatchStatsSession> {
-    const [created] = await db.insert(matchStatsSessions).values(session).returning();
+    let composedSession = { ...session };
+
+    // Hydrate from match if matchId is provided
+    if (session.matchId) {
+      const match = await this.getMatch(session.matchId);
+      if (!match) {
+        throw new Error("Match not found");
+      }
+
+      // Use match values as defaults, allow caller overrides (nullish coalescing preserves explicit null)
+      composedSession = {
+        matchType: session.matchType ?? match.matchType,
+        player1Id: session.player1Id ?? match.player1Id,
+        player1Name: session.player1Name ?? null,
+        player2Id: session.player2Id ?? match.player2Id,
+        player2Name: session.player2Name ?? null,
+        player3Id: session.player3Id ?? match.player3Id ?? null,
+        player3Name: session.player3Name ?? match.player3Name ?? null,
+        player4Id: session.player4Id ?? match.player4Id ?? null,
+        player4Name: session.player4Name ?? match.player4Name ?? null,
+        ...session // Caller overrides win
+      };
+
+      // Validate matchType consistency
+      if (session.matchType && session.matchType !== match.matchType) {
+        throw new Error("Session matchType conflicts with match matchType");
+      }
+    } else {
+      // Exhibition session: require matchType and all participant data
+      if (!session.matchType) {
+        throw new Error("matchType is required for exhibition sessions");
+      }
+    }
+
+    // Validate singles/doubles invariants
+    const hasPlayer3 = !!(composedSession.player3Id || composedSession.player3Name);
+    const hasPlayer4 = !!(composedSession.player4Id || composedSession.player4Name);
+    
+    if (composedSession.matchType === 'singles') {
+      if (hasPlayer3 || hasPlayer4) {
+        throw new Error("Singles matches cannot have player3 or player4");
+      }
+    } else if (composedSession.matchType === 'doubles') {
+      if (!hasPlayer3 || !hasPlayer4) {
+        throw new Error("Doubles matches must have all 4 players");
+      }
+    }
+
+    const [created] = await db.insert(matchStatsSessions).values(composedSession).returning();
     return created;
   }
 
@@ -892,7 +940,24 @@ export class DatabaseStorage implements IStorage {
 
   // Match events
   async createMatchEvent(event: InsertMatchEvent): Promise<MatchEvent> {
-    const [created] = await db.insert(matchEvents).values(event).returning();
+    let composedEvent = { ...event };
+
+    // Calculate team from playerId if not explicitly provided
+    if (event.sessionId && event.playerId && !event.team) {
+      const session = await this.getStatsSession(event.sessionId);
+      if (session) {
+        // Determine which team the player belongs to
+        if (event.playerId === session.player1Id || event.playerId === session.player3Id) {
+          composedEvent.team = '1';
+        } else if (event.playerId === session.player2Id || event.playerId === session.player4Id) {
+          composedEvent.team = '2';
+        } else {
+          throw new Error("PlayerId does not match any player in the session");
+        }
+      }
+    }
+
+    const [created] = await db.insert(matchEvents).values(composedEvent).returning();
     return created;
   }
 
