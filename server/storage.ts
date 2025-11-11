@@ -811,22 +811,205 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getGlobalRankings(limit = 50): Promise<PlayerStats[]> {
-    return await db
-      .select()
-      .from(playerStats)
-      .where(isNull(playerStats.tournamentId))
-      .orderBy(desc(playerStats.rankingPoints))
-      .limit(limit);
+  async getPlayerMatchOutcomes(tournamentId?: string): Promise<any[]> {
+    // Get all completed matches
+    let matchesQuery = db
+      .select({
+        id: matches.id,
+        tournamentId: matches.tournamentId,
+        matchType: matches.matchType,
+        player1Id: matches.player1Id,
+        player2Id: matches.player2Id,
+        player3Id: matches.player3Id,
+        player4Id: matches.player4Id,
+        winnerId: matches.winnerId,
+        duration: matches.duration
+      })
+      .from(matches)
+      .where(eq(matches.status, "completed"));
+    
+    // Filter by tournament if provided
+    if (tournamentId) {
+      matchesQuery = matchesQuery.where(eq(matches.tournamentId, tournamentId)) as any;
+    }
+    
+    const completedMatches = await matchesQuery;
+    
+    // Aggregate wins/losses/duration per player
+    const playerOutcomesMap = new Map<string, any>();
+    
+    completedMatches.forEach(match => {
+      const playerIds = [
+        match.player1Id,
+        match.player2Id,
+        match.player3Id,
+        match.player4Id
+      ].filter(Boolean) as string[];
+      
+      playerIds.forEach(playerId => {
+        if (!playerOutcomesMap.has(playerId)) {
+          playerOutcomesMap.set(playerId, {
+            playerId,
+            matchesWon: 0,
+            matchesLost: 0,
+            totalMatches: 0,
+            totalDuration: 0
+          });
+        }
+        
+        const outcome = playerOutcomesMap.get(playerId);
+        outcome.totalMatches++;
+        
+        if (match.winnerId) {
+          // Determine if player won or lost
+          const isTeamWin = match.matchType === "doubles"
+            ? (match.player1Id === playerId || match.player3Id === playerId) && (match.winnerId === match.player1Id || match.winnerId === match.player3Id) ||
+              (match.player2Id === playerId || match.player4Id === playerId) && (match.winnerId === match.player2Id || match.winnerId === match.player4Id)
+            : match.winnerId === playerId;
+          
+          if (isTeamWin) {
+            outcome.matchesWon++;
+          } else {
+            outcome.matchesLost++;
+          }
+        }
+        
+        if (match.duration) {
+          outcome.totalDuration += match.duration;
+        }
+      });
+    });
+    
+    return Array.from(playerOutcomesMap.values()).map(outcome => ({
+      ...outcome,
+      avgMatchDuration: outcome.totalMatches > 0 
+        ? Math.round(outcome.totalDuration / outcome.totalMatches)
+        : 0,
+      winRate: outcome.totalMatches > 0
+        ? Math.round((outcome.matchesWon / outcome.totalMatches) * 100)
+        : 0
+    }));
   }
 
-  async getTournamentRankings(tournamentId: string, limit = 50): Promise<PlayerStats[]> {
-    return await db
-      .select()
-      .from(playerStats)
-      .where(eq(playerStats.tournamentId, tournamentId))
-      .orderBy(desc(playerStats.matchesWon))
-      .limit(limit);
+  async getRankingEntries(tournamentId?: string, limit = 50): Promise<any[]> {
+    // Get event stats and match outcomes
+    const [eventStats, matchOutcomes] = await Promise.all([
+      this.getPlayersEventStats(tournamentId),
+      this.getPlayerMatchOutcomes(tournamentId)
+    ]);
+    
+    // Create maps for quick lookup
+    const statsMap = new Map(eventStats.map(s => [s.playerId, s]));
+    const outcomesMap = new Map(matchOutcomes.map(o => [o.playerId, o]));
+    
+    // Get all unique player IDs
+    const allPlayerIds = new Set([
+      ...eventStats.map(s => s.playerId),
+      ...matchOutcomes.map(o => o.playerId)
+    ]);
+    
+    // Get user info for all players
+    const playerUsers = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        club: users.club
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.isActive, true),
+          sql`${users.id} = ANY(${Array.from(allPlayerIds)}::varchar[])`
+        )
+      );
+    
+    const usersMap = new Map(playerUsers.map(u => [u.id, u]));
+    
+    // Combine and calculate ranking scores
+    const rankings = Array.from(allPlayerIds).map(playerId => {
+      const stats = statsMap.get(playerId) || {
+        totalPoints: 0,
+        aces: 0,
+        doubleFaults: 0,
+        winners: 0,
+        errors: 0,
+        aceEffectiveness: 0
+      };
+      
+      const outcomes = outcomesMap.get(playerId) || {
+        matchesWon: 0,
+        matchesLost: 0,
+        totalMatches: 0,
+        avgMatchDuration: 0,
+        winRate: 0
+      };
+      
+      const user = usersMap.get(playerId);
+      if (!user) return null;
+      
+      // Calculate ranking score
+      // Base: wins * 100 + points * 2
+      let rankingScore = (outcomes.matchesWon * 100) + (stats.totalPoints * 2);
+      
+      // Bonus for ace effectiveness (max +20 points)
+      if (stats.aceEffectiveness >= 70) {
+        rankingScore += 20;
+      } else if (stats.aceEffectiveness >= 50) {
+        rankingScore += 10;
+      } else if (stats.aceEffectiveness >= 30) {
+        rankingScore += 5;
+      }
+      
+      // Bonus for winner/error ratio (max +15 points)
+      const winnerErrorRatio = stats.errors > 0 
+        ? stats.winners / stats.errors 
+        : stats.winners > 0 ? 3 : 0;
+      if (winnerErrorRatio >= 2) {
+        rankingScore += 15;
+      } else if (winnerErrorRatio >= 1) {
+        rankingScore += 10;
+      } else if (winnerErrorRatio >= 0.5) {
+        rankingScore += 5;
+      }
+      
+      return {
+        playerId,
+        playerName: user.name,
+        playerEmail: user.email,
+        playerClub: user.club || "Sin club",
+        rankingScore: Math.round(rankingScore),
+        // Match outcomes
+        matchesWon: outcomes.matchesWon,
+        matchesLost: outcomes.matchesLost,
+        totalMatches: outcomes.totalMatches,
+        winRate: outcomes.winRate,
+        avgMatchDuration: outcomes.avgMatchDuration,
+        // Event stats
+        totalPoints: stats.totalPoints,
+        aces: stats.aces,
+        doubleFaults: stats.doubleFaults,
+        aceEffectiveness: stats.aceEffectiveness,
+        winners: stats.winners,
+        errors: stats.errors,
+        // For compatibility with old PlayerStats type
+        rankingPoints: Math.round(rankingScore),
+        currentWinStreak: 0 // Could be calculated if needed
+      };
+    }).filter(Boolean);
+    
+    // Sort by ranking score and limit
+    return rankings
+      .sort((a, b) => (b?.rankingScore || 0) - (a?.rankingScore || 0))
+      .slice(0, limit);
+  }
+
+  async getGlobalRankings(limit = 50): Promise<any[]> {
+    return this.getRankingEntries(undefined, limit);
+  }
+
+  async getTournamentRankings(tournamentId: string, limit = 50): Promise<any[]> {
+    return this.getRankingEntries(tournamentId, limit);
   }
 
   // Match stats sessions
@@ -996,20 +1179,48 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async getPlayersEventStats(): Promise<any[]> {
-    // Get all match events with player info
-    const events = await db
-      .select({
-        playerId: matchEvents.playerId,
-        eventType: matchEvents.eventType,
-        shotType: matchEvents.shotType,
-        aceSide: matchEvents.aceSide,
-        playerName: users.name,
-        playerEmail: users.email
-      })
-      .from(matchEvents)
-      .leftJoin(users, eq(matchEvents.playerId, users.id))
-      .where(eq(users.isActive, true));
+  async getPlayersEventStats(tournamentId?: string): Promise<any[]> {
+    // Build query with optional tournament filter
+    let events;
+    
+    if (tournamentId) {
+      // Filter by tournament - join through sessions and matches
+      events = await db
+        .select({
+          playerId: matchEvents.playerId,
+          eventType: matchEvents.eventType,
+          shotType: matchEvents.shotType,
+          aceSide: matchEvents.aceSide,
+          playerName: users.name,
+          playerEmail: users.email,
+          sessionId: matchEvents.sessionId
+        })
+        .from(matchEvents)
+        .leftJoin(users, eq(matchEvents.playerId, users.id))
+        .leftJoin(matchStatsSessions, eq(matchEvents.sessionId, matchStatsSessions.id))
+        .leftJoin(matches, eq(matchStatsSessions.matchId, matches.id))
+        .where(
+          and(
+            eq(users.isActive, true),
+            eq(matches.tournamentId, tournamentId)
+          )
+        );
+    } else {
+      // Global stats - no tournament filter
+      events = await db
+        .select({
+          playerId: matchEvents.playerId,
+          eventType: matchEvents.eventType,
+          shotType: matchEvents.shotType,
+          aceSide: matchEvents.aceSide,
+          playerName: users.name,
+          playerEmail: users.email,
+          sessionId: matchEvents.sessionId
+        })
+        .from(matchEvents)
+        .leftJoin(users, eq(matchEvents.playerId, users.id))
+        .where(eq(users.isActive, true));
+    }
 
     // Group by player and aggregate stats
     const playerStatsMap = new Map<string, any>();
