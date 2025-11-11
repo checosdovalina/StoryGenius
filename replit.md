@@ -32,6 +32,11 @@ Session-based authentication with role-based access control is implemented. This
 - **Comprehensive CRUD**: Full Create, Read, Update, Delete functionality for tournaments and matches, with role-based access controls for admins and organizers.
 - **Bracket Generation**: System for generating tournament brackets with transactional safety.
 - **Racquetball-Only UI**: Padel hidden from all tournament creation, court management, and calendar forms while preserving backend schema for historical data. Legacy padel matches display with "(Legacy)" badge in calendar view.
+- **Tournament Doubles Integration**: Tournament detail page supports creating, editing, and viewing both singles and doubles matches:
+  - Match creation/edit forms include modalidad selector (Singles/Doubles) with conditional player fields
+  - Doubles matches require 4 unique players with Zod validation (player1 & player3 vs player2 & player4)
+  - Match list displays modality badge and team-based formatting for doubles
+  - Winner highlighting works for both individual (singles) and team (doubles) scenarios
 
 # External Dependencies
 
