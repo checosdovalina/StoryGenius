@@ -985,14 +985,48 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
 }
 
 const createMatchSchema = z.object({
+  matchType: z.enum(["singles", "doubles"]),
   player1Id: z.string().min(1, "Selecciona el primer jugador"),
   player2Id: z.string().min(1, "Selecciona el segundo jugador"),
+  player3Id: z.string().optional(),
+  player4Id: z.string().optional(),
   round: z.string().optional(),
   scheduledAt: z.string().optional(),
   courtId: z.string().optional()
-}).refine(data => data.player1Id !== data.player2Id, {
-  message: "Los jugadores deben ser diferentes",
-  path: ["player2Id"]
+}).superRefine((data, ctx) => {
+  if (data.matchType === "singles") {
+    if (data.player1Id === data.player2Id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Los jugadores deben ser diferentes",
+        path: ["player2Id"]
+      });
+    }
+  } else {
+    if (!data.player3Id || data.player3Id === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona el tercer jugador",
+        path: ["player3Id"]
+      });
+    }
+    if (!data.player4Id || data.player4Id === "") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona el cuarto jugador",
+        path: ["player4Id"]
+      });
+    }
+    const playerIds = [data.player1Id, data.player2Id, data.player3Id || "", data.player4Id || ""].filter(id => id !== "");
+    const uniqueIds = new Set(playerIds);
+    if (uniqueIds.size !== playerIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Todos los jugadores deben ser diferentes",
+        path: ["player4Id"]
+      });
+    }
+  }
 });
 
 type CreateMatchForm = z.infer<typeof createMatchSchema>;
@@ -1054,18 +1088,27 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
   const matchForm = useForm<CreateMatchForm>({
     resolver: zodResolver(createMatchSchema),
     defaultValues: {
+      matchType: "singles",
       player1Id: "",
       player2Id: "",
+      player3Id: "",
+      player4Id: "",
       round: "",
       scheduledAt: "",
       courtId: ""
     }
   });
 
+  const matchType = matchForm.watch("matchType");
+
   const createMatchMutation = useMutation({
     mutationFn: async (data: CreateMatchForm) => {
       const matchData = {
-        ...data,
+        matchType: data.matchType,
+        player1Id: data.player1Id,
+        player2Id: data.player2Id,
+        player3Id: data.matchType === "doubles" ? data.player3Id : null,
+        player4Id: data.matchType === "doubles" ? data.player4Id : null,
         tournamentId: tournament.id,
         scheduledAt: data.scheduledAt && data.scheduledAt.trim() !== "" ? new Date(data.scheduledAt).toISOString() : null,
         round: data.round && data.round.trim() !== "" ? data.round : "Ronda Manual",
@@ -1099,8 +1142,11 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
   const editMatchMutation = useMutation({
     mutationFn: async (data: CreateMatchForm & { matchId: string }) => {
       const matchData = {
+        matchType: data.matchType,
         player1Id: data.player1Id,
         player2Id: data.player2Id,
+        player3Id: data.matchType === "doubles" ? data.player3Id : null,
+        player4Id: data.matchType === "doubles" ? data.player4Id : null,
         round: data.round && data.round.trim() !== "" ? data.round : null,
         scheduledAt: data.scheduledAt && data.scheduledAt.trim() !== "" ? new Date(data.scheduledAt).toISOString() : null,
         courtId: !data.courtId || data.courtId === "none" || data.courtId.trim() === "" ? null : data.courtId
@@ -1203,16 +1249,24 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
             {matches.map((match) => {
               const player1 = getUserById(users, match.player1Id);
               const player2 = getUserById(users, match.player2Id);
+              const player3 = match.player3Id ? getUserById(users, match.player3Id) : null;
+              const player4 = match.player4Id ? getUserById(users, match.player4Id) : null;
+              const isDoubles = match.matchType === "doubles";
+              const team1Won = match.winnerId === match.player1Id || (isDoubles && match.winnerId === match.player3Id);
+              const team2Won = match.winnerId === match.player2Id || (isDoubles && match.winnerId === match.player4Id);
 
               return (
                 <Card key={match.id} className="p-3 sm:p-4" data-testid={`match-item-${match.id}`}>
                   <div className="flex justify-between items-start mb-4">
                     <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap">
                         <span className="font-medium" data-testid={`match-round-${match.id}`}>
                           {match.round}
                         </span>
                         <Badge variant="outline">Partido {match.bracketPosition}</Badge>
+                        <Badge variant="secondary" data-testid={`match-type-badge-${match.id}`}>
+                          {isDoubles ? "Doubles" : "Singles"}
+                        </Badge>
                       </div>
                       {match.scheduledAt && (
                         <p className="text-sm text-muted-foreground">
@@ -1226,10 +1280,18 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <div className={`p-3 rounded-lg border text-center ${match.winnerId === match.player1Id ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/50"}`}>
-                      <div className="font-medium" data-testid={`match-player1-${match.id}`}>
-                        {player1?.name || "TBD"}
-                      </div>
+                    <div className={`p-3 rounded-lg border text-center ${team1Won ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/50"}`}>
+                      {isDoubles ? (
+                        <div>
+                          <div className="font-medium text-sm" data-testid={`match-team1-${match.id}`}>
+                            {player1?.name || "TBD"} & {player3?.name || "TBD"}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="font-medium" data-testid={`match-player1-${match.id}`}>
+                          {player1?.name || "TBD"}
+                        </div>
+                      )}
                       {match.status === "completed" && (
                         <div className="text-lg font-bold mt-1">
                           {match.player1Sets || 0}
@@ -1241,10 +1303,18 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                       <div className="text-xl font-bold text-muted-foreground">VS</div>
                     </div>
 
-                    <div className={`p-3 rounded-lg border text-center ${match.winnerId === match.player2Id ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/50"}`}>
-                      <div className="font-medium" data-testid={`match-player2-${match.id}`}>
-                        {player2?.name || "TBD"}
-                      </div>
+                    <div className={`p-3 rounded-lg border text-center ${team2Won ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/50"}`}>
+                      {isDoubles ? (
+                        <div>
+                          <div className="font-medium text-sm" data-testid={`match-team2-${match.id}`}>
+                            {player2?.name || "TBD"} & {player4?.name || "TBD"}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="font-medium" data-testid={`match-player2-${match.id}`}>
+                          {player2?.name || "TBD"}
+                        </div>
+                      )}
                       {match.status === "completed" && (
                         <div className="text-lg font-bold mt-1">
                           {match.player2Sets || 0}
@@ -1286,8 +1356,11 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                         onClick={() => {
                           setEditingMatch(match);
                           matchForm.reset({
+                            matchType: match.matchType || "singles",
                             player1Id: match.player1Id,
                             player2Id: match.player2Id,
+                            player3Id: match.player3Id || "",
+                            player4Id: match.player4Id || "",
                             round: match.round || "",
                             scheduledAt: match.scheduledAt ? new Date(match.scheduledAt).toISOString().slice(0, 16) : "",
                             courtId: match.courtId || ""
@@ -1355,6 +1428,28 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
           </DialogHeader>
           <Form {...matchForm}>
             <form onSubmit={matchForm.handleSubmit((data) => createMatchMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={matchForm.control}
+                name="matchType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modalidad</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-match-type" className="min-h-[44px]">
+                          <SelectValue placeholder="Selecciona modalidad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="singles">Singles</SelectItem>
+                        <SelectItem value="doubles">Doubles</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={matchForm.control}
@@ -1406,6 +1501,60 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   )}
                 />
               </div>
+
+              {matchType === "doubles" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={matchForm.control}
+                    name="player3Id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Jugador 3</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-player3" className="min-h-[44px]">
+                              <SelectValue placeholder="Selecciona jugador 3" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {players.map((player) => (
+                              <SelectItem key={player.id} value={player.id} data-testid={`player3-option-${player.id}`}>
+                                {player.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={matchForm.control}
+                    name="player4Id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Jugador 4</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-player4" className="min-h-[44px]">
+                              <SelectValue placeholder="Selecciona jugador 4" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {players.map((player) => (
+                              <SelectItem key={player.id} value={player.id} data-testid={`player4-option-${player.id}`}>
+                                {player.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
               <FormField
                 control={matchForm.control}
@@ -1501,6 +1650,28 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
           </DialogHeader>
           <Form {...matchForm}>
             <form onSubmit={matchForm.handleSubmit((data) => editingMatch && editMatchMutation.mutate({ ...data, matchId: editingMatch.id }))} className="space-y-4">
+              <FormField
+                control={matchForm.control}
+                name="matchType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modalidad</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-match-type" className="min-h-[44px]">
+                          <SelectValue placeholder="Selecciona modalidad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="singles">Singles</SelectItem>
+                        <SelectItem value="doubles">Doubles</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={matchForm.control}
@@ -1552,6 +1723,60 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   )}
                 />
               </div>
+
+              {matchType === "doubles" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={matchForm.control}
+                    name="player3Id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Jugador 3</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-player3" className="min-h-[44px]">
+                              <SelectValue placeholder="Selecciona jugador 3" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {players.map((player) => (
+                              <SelectItem key={player.id} value={player.id} data-testid={`edit-player3-option-${player.id}`}>
+                                {player.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={matchForm.control}
+                    name="player4Id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Jugador 4</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-player4" className="min-h-[44px]">
+                              <SelectValue placeholder="Selecciona jugador 4" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {players.map((player) => (
+                              <SelectItem key={player.id} value={player.id} data-testid={`edit-player4-option-${player.id}`}>
+                                {player.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
               <FormField
                 control={matchForm.control}
