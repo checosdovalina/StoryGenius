@@ -1,27 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Bell, Settings, Menu } from "lucide-react";
-import type { ViewType } from "@/pages/home-page";
+import { useLocation } from "wouter";
+import { getRouteMeta } from "@/lib/routes";
 
 interface HeaderProps {
-  currentView: ViewType;
   onToggleSidebar: () => void;
 }
 
-const viewTitles: Record<ViewType, { title: string; subtitle: string }> = {
-  dashboard: { title: "Dashboard", subtitle: "Resumen general del sistema" },
-  userManagement: { title: "Gestión de Usuarios", subtitle: "Administra usuarios y roles" },
-  tournaments: { title: "Gestión de Torneos", subtitle: "Crea y administra torneos" },
-  calendar: { title: "Calendario", subtitle: "Programación de partidos" },
-  club: { title: "Gestión de Club", subtitle: "Administra información del club y canchas" },
-  courts: { title: "Gestión de Canchas", subtitle: "Administra canchas y horarios" },
-  statistics: { title: "Estadísticas", subtitle: "Tu rendimiento deportivo" },
-  rankings: { title: "Rankings", subtitle: "Clasificaciones y posiciones" },
-  matchResults: { title: "Registro de Resultados", subtitle: "Registra resultados oficiales" },
-  myTournaments: { title: "Mis Torneos", subtitle: "Torneos y inscripciones" }
-};
-
-export function Header({ currentView, onToggleSidebar }: HeaderProps) {
-  const { title, subtitle } = viewTitles[currentView];
+export function Header({ onToggleSidebar }: HeaderProps) {
+  const [location] = useLocation();
+  const routeMeta = getRouteMeta(location);
+  
+  const title = routeMeta?.title || "GB Sport";
+  const subtitle = routeMeta?.subtitle || "Sistema de Gestión de Torneos";
 
   return (
     <header className="bg-card border-b border-border px-6 py-4 sticky top-0 z-10">

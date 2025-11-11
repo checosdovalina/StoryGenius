@@ -2,26 +2,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { 
-  Trophy,
-  Home, 
-  Users, 
-  Calendar, 
-  MapPin, 
-  Building,
-  BarChart3, 
-  Medal, 
-  ClipboardList, 
-  List,
-  LogOut,
-  User
-} from "lucide-react";
-import type { ViewType } from "@/pages/home-page";
+import { Link, useLocation } from "wouter";
+import { LogOut, User } from "lucide-react";
 import logoImage from "@assets/gbsport-logo.png";
+import { getRoutesByRole } from "@/lib/routes";
 
 interface SidebarProps {
-  currentView: ViewType;
-  onViewChange: (view: ViewType) => void;
   collapsed: boolean;
   onToggle: () => void;
   mobileOpen?: boolean;
@@ -29,91 +15,18 @@ interface SidebarProps {
 }
 
 function SidebarContent({ 
-  currentView, 
-  onViewChange, 
   collapsed,
   onItemClick
 }: { 
-  currentView: ViewType; 
-  onViewChange: (view: ViewType) => void; 
   collapsed: boolean;
   onItemClick?: () => void;
 }) {
   const { user, logoutMutation } = useAuth();
+  const [location] = useLocation();
 
   if (!user) return null;
 
-  const navigationItems = [
-    {
-      id: "dashboard" as ViewType,
-      label: "Dashboard",
-      icon: Home,
-      roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
-    },
-    {
-      id: "userManagement" as ViewType,
-      label: "Gestión de Usuarios",
-      icon: Users,
-      roles: ["admin"]
-    },
-    {
-      id: "tournaments" as ViewType,
-      label: "Torneos",
-      icon: Trophy,
-      roles: ["admin", "organizador"]
-    },
-    {
-      id: "club" as ViewType,
-      label: "Club",
-      icon: Building,
-      roles: ["admin", "organizador"]
-    },
-    {
-      id: "courts" as ViewType,
-      label: "Canchas",
-      icon: MapPin,
-      roles: ["admin", "organizador"]
-    },
-    {
-      id: "calendar" as ViewType,
-      label: "Calendario",
-      icon: Calendar,
-      roles: ["admin", "organizador"]
-    },
-    {
-      id: "myTournaments" as ViewType,
-      label: "Mis Torneos",
-      icon: List,
-      roles: ["jugador"]
-    },
-    {
-      id: "statistics" as ViewType,
-      label: "Estadísticas",
-      icon: BarChart3,
-      roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
-    },
-    {
-      id: "matchResults" as ViewType,
-      label: "Registro de Resultados",
-      icon: ClipboardList,
-      roles: ["arbitro", "escrutador", "escribano"]
-    },
-    {
-      id: "rankings" as ViewType,
-      label: "Rankings",
-      icon: Medal,
-      roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
-    }
-  ];
-
-  const visibleItems = navigationItems.filter(item => 
-    item.roles.includes(user.role)
-  );
-
-  const handleNavClick = (viewId: ViewType) => {
-    onViewChange(viewId);
-    onItemClick?.();
-  };
+  const visibleRoutes = getRoutesByRole(user.role);
 
   return (
     <>
@@ -138,24 +51,27 @@ function SidebarContent({
 
       <nav className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-2">
-          {visibleItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentView === item.id;
+          {visibleRoutes.map((route) => {
+            const Icon = route.icon;
+            // Exact match or nested route (e.g., /tournaments/123 matches /tournaments)
+            const isActive = location === route.path || 
+                            (location.startsWith(route.path + "/") && route.path !== "/");
             
             return (
-              <Button
-                key={item.id}
-                variant={isActive ? "default" : "ghost"}
-                className={cn(
-                  "w-full justify-start",
-                  collapsed && "px-2"
-                )}
-                onClick={() => handleNavClick(item.id)}
-                data-testid={`nav-${item.id}`}
-              >
-                <Icon className={cn("h-4 w-4", !collapsed && "mr-3")} />
-                {!collapsed && <span>{item.label}</span>}
-              </Button>
+              <Link key={route.path} href={route.path}>
+                <Button
+                  variant={isActive ? "default" : "ghost"}
+                  className={cn(
+                    "w-full justify-start",
+                    collapsed && "px-2"
+                  )}
+                  onClick={onItemClick}
+                  data-testid={`nav-${route.path.replace("/", "")}`}
+                >
+                  <Icon className={cn("h-4 w-4", !collapsed && "mr-3")} />
+                  {!collapsed && <span>{route.label}</span>}
+                </Button>
+              </Link>
             );
           })}
         </div>
@@ -198,7 +114,7 @@ function SidebarContent({
   );
 }
 
-export function Sidebar({ currentView, onViewChange, collapsed, mobileOpen = false, onMobileClose }: SidebarProps) {
+export function Sidebar({ collapsed, mobileOpen = false, onMobileClose, onToggle }: SidebarProps) {
   return (
     <>
       {/* Desktop Sidebar */}
@@ -207,8 +123,6 @@ export function Sidebar({ currentView, onViewChange, collapsed, mobileOpen = fal
         collapsed ? "w-16" : "w-64"
       )}>
         <SidebarContent 
-          currentView={currentView} 
-          onViewChange={onViewChange} 
           collapsed={collapsed}
         />
       </aside>
@@ -220,8 +134,6 @@ export function Sidebar({ currentView, onViewChange, collapsed, mobileOpen = fal
             <SheetTitle>Menú de navegación</SheetTitle>
           </SheetHeader>
           <SidebarContent 
-            currentView={currentView} 
-            onViewChange={onViewChange} 
             collapsed={false}
             onItemClick={onMobileClose}
           />

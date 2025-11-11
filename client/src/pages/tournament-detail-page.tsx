@@ -5,15 +5,13 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { useAuth } from "@/hooks/use-auth";
 import { Tournament, User, Club, updateTournamentSchema } from "@shared/schema";
-import { Sidebar } from "@/components/sidebar";
-import { Header } from "@/components/header";
+import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Users, Trophy, ArrowLeft, X, UserPlus, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import type { ViewType } from "@/pages/home-page";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -72,8 +70,6 @@ export default function TournamentDetailPage() {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [currentView, setCurrentView] = useState<ViewType>("tournaments");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   // =======================
@@ -204,26 +200,13 @@ export default function TournamentDetailPage() {
 
   // ------------------ 3. Main page ------------------
   return (
-    <div className="flex h-screen bg-background"> {/* 3.1 Sidebar container */}
-      <Sidebar
-        currentView={currentView}
-        onViewChange={setCurrentView}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-
-      <main className="flex-1 overflow-auto"> {/* 3.2 Main content */}
-        <Header
-          currentView="tournaments"
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-
-        <div className="p-4 sm:p-6"> {/* 3.3 Page padding */}
+    <AppShell>
+      <div className="p-4 sm:p-6">{/* Page padding */}
           {/* Header with tournament info */}
           <div className="mb-4 sm:mb-6">
             <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
               <Link
-                to="/"
+                to="/tournaments"
                 className="flex items-center text-blue-600 hover:text-blue-800 min-h-[44px] py-2"
                 data-testid="link-back-tournaments"
               >
@@ -558,9 +541,8 @@ export default function TournamentDetailPage() {
               <BracketsTab tournament={tournament} canManage={canManage} />
             </TabsContent> */}
           </Tabs>
-        </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }
 

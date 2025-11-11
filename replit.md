@@ -11,6 +11,8 @@ Preferred communication style: Simple, everyday language.
 ## Frontend Architecture
 The frontend is a React 18 application built with TypeScript, using Vite for development and Tailwind CSS for styling. It leverages a component-based architecture with `shadcn/ui` for consistent design. Key decisions include `React Query` for server state management, `Wouter` for lightweight routing, and `Context API` for authentication.
 
+**Navigation System**: The application uses a route-based navigation system with dedicated URLs for each module (`/dashboard`, `/tournaments`, `/users`, etc.) managed through a centralized route configuration (`lib/routes.ts`). An `AppShell` component provides consistent layout (Sidebar + Header) across all pages. The Sidebar uses `wouter`'s `Link` and `useLocation` for navigation, ensuring the menu works from any page including tournament details and stats capture.
+
 ## Backend Architecture
 The backend is an Express.js application with TypeScript, designed with a modular structure. It uses `Passport.js` with a Local Strategy for authentication, `scrypt` for password hashing, and session-based authentication with PostgreSQL storage. A modular storage layer and `Zod` for type-safe data validation are also core components.
 
@@ -29,6 +31,7 @@ Session-based authentication with role-based access control is implemented. This
   - **Serve effectiveness**: Ace tracking by side (derecha/izquierda) with percentage-based effectiveness badges
   - **Color-coded performance tiers**: Visual indicators for serve effectiveness (Excellent ≥70%, Good ≥50%, Fair ≥30%, Poor <30%)
   - Summary metrics aggregated from all completed match events
+  - **Stats capture from Statistics view**: Captures launched from the Statistics tab update scoreboard in real-time via mutation-based session state updates, working independently of WebSocket broadcasts
 - **Comprehensive CRUD**: Full Create, Read, Update, Delete functionality for tournaments and matches, with role-based access controls for admins and organizers.
 - **Bracket Generation**: System for generating tournament brackets with transactional safety.
 - **Racquetball-Only UI**: Padel hidden from all tournament creation, court management, and calendar forms while preserving backend schema for historical data. Legacy padel matches display with "(Legacy)" badge in calendar view.
@@ -37,6 +40,7 @@ Session-based authentication with role-based access control is implemented. This
   - Doubles matches require 4 unique players with Zod validation (player1 & player3 vs player2 & player4)
   - Match list displays modality badge and team-based formatting for doubles
   - Winner highlighting works for both individual (singles) and team (doubles) scenarios
+  - **Auto-refreshing player lists**: Player queries in match forms use `refetchInterval` (30s) and `refetchOnWindowFocus` to automatically display newly registered players
 
 # External Dependencies
 

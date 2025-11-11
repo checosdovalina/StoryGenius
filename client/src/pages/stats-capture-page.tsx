@@ -139,7 +139,10 @@ export default function StatsCapturePageComponent() {
       });
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.session) {
+        setSession(data.session);
+      }
       toast({ title: "Punto registrado" });
     },
     onError: () => {
@@ -159,7 +162,10 @@ export default function StatsCapturePageComponent() {
       });
       return await response.json();
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      if (data.session) {
+        setSession(data.session);
+      }
       const eventNames = {
         ace: "Ace",
         double_fault: "Doble falta",

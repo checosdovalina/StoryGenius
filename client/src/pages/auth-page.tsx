@@ -25,7 +25,8 @@ export default function AuthPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (user) {
-      setLocation("/");
+      const redirectPath = user.role === "jugador" ? "/my-tournaments" : "/dashboard";
+      setLocation(redirectPath);
     }
   }, [user, setLocation]);
 
