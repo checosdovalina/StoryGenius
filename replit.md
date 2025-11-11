@@ -11,7 +11,13 @@ Preferred communication style: Simple, everyday language.
 ## Frontend Architecture
 The frontend is a React 18 application built with TypeScript, using Vite for development and Tailwind CSS for styling. It leverages a component-based architecture with `shadcn/ui` for consistent design. Key decisions include `React Query` for server state management, `Wouter` for lightweight routing, and `Context API` for authentication.
 
-**Navigation System**: The application uses a route-based navigation system with dedicated URLs for each module (`/dashboard`, `/tournaments`, `/users`, etc.) managed through a centralized route configuration (`lib/routes.ts`). An `AppShell` component provides consistent layout (Sidebar + Header) across all pages. The Sidebar uses `wouter`'s `Link` and `useLocation` for navigation, ensuring the menu works from any page including tournament details and stats capture.
+**Navigation System**: The application uses a URL-based routing system with dedicated routes for each module (`/dashboard`, `/tournaments`, `/users`, etc.) managed through a centralized route configuration (`lib/routes.ts`). An `AppShell` component provides consistent layout (Sidebar + Header) across all pages. The Sidebar uses `wouter`'s `Link` and `useLocation` for navigation, ensuring the menu works from any page including tournament details and stats capture.
+
+**Root Routing**: The root path `/` uses a `RootRedirect` component that inspects authentication state and performs role-based redirects:
+- Unauthenticated users → `/auth`
+- Jugadores → `/my-tournaments`
+- All other roles → `/dashboard`
+- Shows loading spinner during authentication check
 
 ## Backend Architecture
 The backend is an Express.js application with TypeScript, designed with a modular structure. It uses `Passport.js` with a Local Strategy for authentication, `scrypt` for password hashing, and session-based authentication with PostgreSQL storage. A modular storage layer and `Zod` for type-safe data validation are also core components.
