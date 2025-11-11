@@ -9,7 +9,7 @@ import {
   type StatShareToken, type InsertStatShareToken
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc, and, or, count, avg, sum, isNull, gte, lte, between } from "drizzle-orm";
+import { eq, desc, asc, and, or, count, avg, sum, isNull, gte, lte, between, sql } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -95,8 +95,11 @@ export interface IStorage {
   // Statistics and rankings
   getPlayerStats(playerId: string, tournamentId?: string): Promise<PlayerStats[]>;
   updatePlayerStats(playerId: string, tournamentId: string | null, stats: Partial<InsertPlayerStats>): Promise<PlayerStats>;
-  getGlobalRankings(limit?: number): Promise<PlayerStats[]>;
-  getTournamentRankings(tournamentId: string, limit?: number): Promise<PlayerStats[]>;
+  getGlobalRankings(limit?: number): Promise<any[]>;
+  getTournamentRankings(tournamentId: string, limit?: number): Promise<any[]>;
+  getRankingEntries(tournamentId?: string, limit?: number): Promise<any[]>;
+  getPlayerMatchOutcomes(tournamentId?: string): Promise<any[]>;
+  getPlayersEventStats(tournamentId?: string): Promise<any[]>;
 
   // Match stats sessions
   createStatsSession(session: InsertMatchStatsSession): Promise<MatchStatsSession>;
@@ -812,8 +815,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPlayerMatchOutcomes(tournamentId?: string): Promise<any[]> {
+    // Build where condition
+    const whereCondition = tournamentId
+      ? and(eq(matches.status, "completed"), eq(matches.tournamentId, tournamentId))
+      : eq(matches.status, "completed");
+    
     // Get all completed matches
-    let matchesQuery = db
+    const completedMatches = await db
       .select({
         id: matches.id,
         tournamentId: matches.tournamentId,
@@ -826,14 +834,7 @@ export class DatabaseStorage implements IStorage {
         duration: matches.duration
       })
       .from(matches)
-      .where(eq(matches.status, "completed"));
-    
-    // Filter by tournament if provided
-    if (tournamentId) {
-      matchesQuery = matchesQuery.where(eq(matches.tournamentId, tournamentId)) as any;
-    }
-    
-    const completedMatches = await matchesQuery;
+      .where(whereCondition);
     
     // Aggregate wins/losses/duration per player
     const playerOutcomesMap = new Map<string, any>();
