@@ -1070,7 +1070,9 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
   });
 
   const { data: players = [] } = useQuery<User[]>({
-    queryKey: [`/api/tournaments/${tournament.id}/players`]
+    queryKey: [`/api/tournaments/${tournament.id}/players`],
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true
   });
 
   // Only fetch courts if user canManage (optimization)
