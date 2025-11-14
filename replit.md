@@ -26,7 +26,46 @@ The backend is an Express.js application with TypeScript, designed with a modula
 The system uses PostgreSQL with Drizzle ORM for type-safe operations. The schema includes tables for `Users` (with role-based permissions), `Tournaments` (supporting various formats and sports), `Courts` (with status management), `Matches` (for bracket management and scoring), `Tournament Registrations`, and `Player Statistics`. Relationships include one-to-many and many-to-many connections between these entities.
 
 ## Authentication & Authorization
-Session-based authentication with role-based access control is implemented. This includes secure password hashing using Node.js `crypto.scrypt`, `Express-session` with a PostgreSQL store, client-side route protection, and dynamic UI rendering based on user roles (admin, jugador, organizador, arbitro, escrutador).
+Session-based authentication with **hierarchical multi-tenant role-based access control** is implemented. This includes secure password hashing using Node.js `crypto.scrypt`, `Express-session` with a PostgreSQL store, client-side route protection, and dynamic UI rendering based on user roles.
+
+### Multi-Tenant Role System
+The system implements a hierarchical role architecture with two layers:
+
+**Global Roles** (`users.role`):
+- `superadmin`: Reserved exclusively for platform administrators with global access to all tournaments, clubs, courts, and system-level user management.
+- Legacy `admin`: Preserved for backward compatibility with existing global user management endpoints only.
+
+**Tournament-Scoped Roles** (`tournament_user_roles` table):
+- `tournament_admin`: Full management permissions within their assigned tournament (manage matches, players, brackets, stats sessions)
+- `organizador`: Tournament organizer with limited management capabilities
+- `arbitro`: Referee role for match officiating
+- `escrutador`: Scrutineer role for statistics capture
+- `jugador`: Player role for tournament participation
+
+### Authorization Architecture
+All backend endpoints follow a consistent authorization pattern:
+1. **Authentication check**: `req.isAuthenticated()` → 401 if not authenticated
+2. **Resource existence verification**: Fetch resource to verify it exists → 404 if not found
+3. **Permission validation**: 
+   - `storage.isSuperAdmin(userId)` for global operations (create tournaments, manage clubs/courts)
+   - `storage.canManageTournament(userId, tournamentId)` for tournament-scoped operations
+   - `storage.canAssignRole(userId, roleToAssign, tournamentId)` for role assignment with hierarchical validation
+4. **Action execution**: Perform the requested operation
+
+### Authorization Helpers (`server/storage.ts`)
+- `isSuperAdmin(userId)`: Checks if user has global superadmin role
+- `canManageTournament(userId, tournamentId)`: Validates if user is superadmin OR has tournament_admin role for the specific tournament
+- `canAssignRole(userId, role, tournamentId)`: Hierarchical permission check ensuring:
+  - Only superadmin can assign superadmin role (blocked)
+  - Only superadmin can assign tournament_admin role
+  - Tournament admins can assign any role except superadmin and tournament_admin within their tournament
+- `getUserTournamentRoles(userId, tournamentId)`: Retrieves all tournament-scoped roles for a user
+
+### Security Features
+- **Cross-tenant isolation**: Tournament admins cannot access or modify resources from other tournaments
+- **Hierarchical role enforcement**: Lower-privilege roles cannot elevate themselves or assign higher-privilege roles
+- **Composite unique index**: `(tournamentId, userId, role)` prevents duplicate role assignments
+- **Cascade deletion**: Removing a tournament automatically cleans up associated role assignments
 
 ## Specific Features
 - **Real-Time Match Statistics Capture**: Live scoring module for admin and scrutineer roles with racquetball-specific logic, WebSocket for real-time updates, and granular event recording including shot types and serve tracking.
