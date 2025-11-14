@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/select";
 import { useMutation } from "@tanstack/react-query";
 import { Match } from "@shared/schema";
+import { TournamentRolesTab } from "@/components/tournament-roles-tab";
 
 // =======================
 // 1️⃣ Página principal
@@ -519,13 +520,18 @@ export default function TournamentDetailPage() {
 
           {/* Main content tabs */}
           <Tabs defaultValue="players" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className={`grid w-full ${canManage ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <TabsTrigger value="players" data-testid="tab-players" className="min-h-[44px]">
                 Jugadores
               </TabsTrigger>
               <TabsTrigger value="matches" data-testid="tab-matches" className="min-h-[44px]">
                 Partidos
               </TabsTrigger>
+              {canManage && (
+                <TabsTrigger value="roles" data-testid="tab-roles" className="min-h-[44px]">
+                  Roles
+                </TabsTrigger>
+              )}
               {/* <TabsTrigger value="brackets" data-testid="tab-brackets">Brackets</TabsTrigger> */}
             </TabsList>
 
@@ -536,6 +542,12 @@ export default function TournamentDetailPage() {
             <TabsContent value="matches" className="mt-4 sm:mt-6">
               <MatchesTab tournament={tournament} canManage={canManage} />
             </TabsContent>
+
+            {canManage && (
+              <TabsContent value="roles" className="mt-4 sm:mt-6">
+                <TournamentRolesTab tournament={tournament} />
+              </TabsContent>
+            )}
 
             {/* <TabsContent value="brackets" className="mt-6">
               <BracketsTab tournament={tournament} canManage={canManage} />
