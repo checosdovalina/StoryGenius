@@ -4,7 +4,8 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]);
+export const userRoleEnum = pgEnum("user_role", ["superadmin", "admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]);
+export const tournamentRoleEnum = pgEnum("tournament_role", ["tournament_admin", "organizador", "arbitro", "escrutador", "jugador"]);
 export const sportEnum = pgEnum("sport", ["padel", "racquetball"]);
 export const matchTypeEnum = pgEnum("match_type", ["singles", "doubles"]);
 export const teamEnum = pgEnum("team", ["1", "2"]);
@@ -241,6 +242,19 @@ export const statShareTokens = pgTable("stat_share_tokens", {
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
+export const tournamentUserRoles = pgTable("tournament_user_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: tournamentRoleEnum("role").notNull(),
+  assignedBy: varchar("assigned_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+}, (table) => ({
+  // Composite unique index to prevent duplicate role assignments
+  uniqueUserTournamentRole: sql`UNIQUE (${table.tournamentId}, ${table.userId}, ${table.role})`
+}));
+
 // Relations
 export const clubsRelations = relations(clubs, ({ one, many }) => ({
   manager: one(users, {
@@ -265,7 +279,9 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   scheduledMatchesAsPlayer1: many(scheduledMatches, { relationName: "player1" }),
   scheduledMatchesAsPlayer2: many(scheduledMatches, { relationName: "player2" }),
   scheduledMatchesAsPlayer3: many(scheduledMatches, { relationName: "player3" }),
-  scheduledMatchesAsPlayer4: many(scheduledMatches, { relationName: "player4" })
+  scheduledMatchesAsPlayer4: many(scheduledMatches, { relationName: "player4" }),
+  tournamentRoles: many(tournamentUserRoles),
+  assignedRoles: many(tournamentUserRoles, { relationName: "assigner" })
 }));
 
 export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
@@ -278,7 +294,8 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
     references: [clubs.id]
   }),
   registrations: many(tournamentRegistrations),
-  matches: many(matches)
+  matches: many(matches),
+  userRoles: many(tournamentUserRoles)
 }));
 
 export const courtsRelations = relations(courts, ({ one, many }) => ({
@@ -408,6 +425,22 @@ export const matchEventsRelations = relations(matchEvents, ({ one }) => ({
   player: one(users, {
     fields: [matchEvents.playerId],
     references: [users.id]
+  })
+}));
+
+export const tournamentUserRolesRelations = relations(tournamentUserRoles, ({ one }) => ({
+  tournament: one(tournaments, {
+    fields: [tournamentUserRoles.tournamentId],
+    references: [tournaments.id]
+  }),
+  user: one(users, {
+    fields: [tournamentUserRoles.userId],
+    references: [users.id]
+  }),
+  assigner: one(users, {
+    fields: [tournamentUserRoles.assignedBy],
+    references: [users.id],
+    relationName: "assigner"
   })
 }));
 
@@ -541,6 +574,12 @@ export const insertStatShareTokenSchema = createInsertSchema(statShareTokens).om
   expiresAt: z.coerce.date().optional().nullable()
 });
 
+export const insertTournamentUserRoleSchema = createInsertSchema(tournamentUserRoles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 // Types
 export type Club = typeof clubs.$inferSelect;
 export type InsertClub = z.infer<typeof insertClubSchema>;
@@ -566,3 +605,5 @@ export type MatchEvent = typeof matchEvents.$inferSelect;
 export type InsertMatchEvent = z.infer<typeof insertMatchEventSchema>;
 export type StatShareToken = typeof statShareTokens.$inferSelect;
 export type InsertStatShareToken = z.infer<typeof insertStatShareTokenSchema>;
+export type TournamentUserRole = typeof tournamentUserRoles.$inferSelect;
+export type InsertTournamentUserRole = z.infer<typeof insertTournamentUserRoleSchema>;
