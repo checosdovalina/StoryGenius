@@ -1,12 +1,12 @@
 import { 
-  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents, statShareTokens,
+  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents, statShareTokens, tournamentUserRoles,
   type User, type InsertUser, type Tournament, type InsertTournament,
   type Court, type InsertCourt, type Match, type InsertMatch,
   type TournamentRegistration, type InsertTournamentRegistration,
   type PlayerStats, type InsertPlayerStats, type PadelPair, type InsertPadelPair,
   type ScheduledMatch, type InsertScheduledMatch, type Club, type InsertClub,
   type MatchStatsSession, type InsertMatchStatsSession, type MatchEvent, type InsertMatchEvent,
-  type StatShareToken, type InsertStatShareToken
+  type StatShareToken, type InsertStatShareToken, type TournamentUserRole, type InsertTournamentUserRole
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, or, count, avg, sum, isNull, gte, lte, between, sql } from "drizzle-orm";
@@ -122,6 +122,16 @@ export interface IStorage {
   getStatShareToken(token: string): Promise<StatShareToken | undefined>;
   deleteStatShareToken(id: string): Promise<void>;
   getPlayerPublicStats(playerId: string): Promise<any>;
+
+  // Multi-tenant authorization
+  isSuperAdmin(userId: string): Promise<boolean>;
+  getUserTournamentRoles(userId: string, tournamentId: string): Promise<string[]>;
+  canManageTournament(userId: string, tournamentId: string): Promise<boolean>;
+  canAssignRole(assignerId: string, targetRole: string, tournamentId?: string): Promise<boolean>;
+  assignTournamentRole(data: InsertTournamentUserRole): Promise<TournamentUserRole>;
+  removeTournamentRole(tournamentId: string, userId: string, role: string): Promise<void>;
+  getUserTournamentsByRole(userId: string, role?: string): Promise<Tournament[]>;
+  getTournamentUserRoles(tournamentId: string): Promise<Array<TournamentUserRole & { user: User }>>;
 
   sessionStore: session.Store;
 }
@@ -1396,6 +1406,122 @@ export class DatabaseStorage implements IStorage {
       },
       recentMatches: playerMatches
     };
+  }
+
+  // Multi-tenant authorization methods
+  async isSuperAdmin(userId: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    return user?.role === 'superadmin';
+  }
+
+  async getUserTournamentRoles(userId: string, tournamentId: string): Promise<string[]> {
+    const roles = await db
+      .select({ role: tournamentUserRoles.role })
+      .from(tournamentUserRoles)
+      .where(
+        and(
+          eq(tournamentUserRoles.userId, userId),
+          eq(tournamentUserRoles.tournamentId, tournamentId)
+        )
+      );
+    
+    return roles.map(r => r.role);
+  }
+
+  async canManageTournament(userId: string, tournamentId: string): Promise<boolean> {
+    // SuperAdmins can manage all tournaments
+    if (await this.isSuperAdmin(userId)) {
+      return true;
+    }
+
+    // Check if user is tournament admin for this specific tournament
+    const roles = await this.getUserTournamentRoles(userId, tournamentId);
+    return roles.includes('tournament_admin');
+  }
+
+  async canAssignRole(assignerId: string, targetRole: string, tournamentId?: string): Promise<boolean> {
+    // SuperAdmins can assign any role except superadmin
+    if (await this.isSuperAdmin(assignerId)) {
+      return targetRole !== 'superadmin';
+    }
+
+    // Tournament admins can only assign non-admin roles within their tournaments
+    if (tournamentId) {
+      const roles = await this.getUserTournamentRoles(assignerId, tournamentId);
+      if (roles.includes('tournament_admin')) {
+        // Tournament admins cannot assign tournament_admin or superadmin
+        return !['tournament_admin', 'superadmin'].includes(targetRole);
+      }
+    }
+
+    return false;
+  }
+
+  async assignTournamentRole(data: InsertTournamentUserRole): Promise<TournamentUserRole> {
+    const [role] = await db
+      .insert(tournamentUserRoles)
+      .values(data)
+      .returning();
+    
+    return role;
+  }
+
+  async removeTournamentRole(tournamentId: string, userId: string, role: string): Promise<void> {
+    await db
+      .delete(tournamentUserRoles)
+      .where(
+        and(
+          eq(tournamentUserRoles.tournamentId, tournamentId),
+          eq(tournamentUserRoles.userId, userId),
+          eq(tournamentUserRoles.role, role as any)
+        )
+      );
+  }
+
+  async getUserTournamentsByRole(userId: string, role?: string): Promise<Tournament[]> {
+    const conditions = [eq(tournamentUserRoles.userId, userId)];
+    
+    if (role) {
+      conditions.push(eq(tournamentUserRoles.role, role as any));
+    }
+
+    return await db
+      .select({
+        id: tournaments.id,
+        name: tournaments.name,
+        description: tournaments.description,
+        sport: tournaments.sport,
+        format: tournaments.format,
+        status: tournaments.status,
+        venue: tournaments.venue,
+        clubId: tournaments.clubId,
+        startDate: tournaments.startDate,
+        endDate: tournaments.endDate,
+        maxPlayers: tournaments.maxPlayers,
+        registrationFee: tournaments.registrationFee,
+        organizerId: tournaments.organizerId,
+        createdAt: tournaments.createdAt,
+        updatedAt: tournaments.updatedAt
+      })
+      .from(tournaments)
+      .innerJoin(
+        tournamentUserRoles,
+        eq(tournaments.id, tournamentUserRoles.tournamentId)
+      )
+      .where(and(...conditions));
+  }
+
+  async getTournamentUserRoles(tournamentId: string): Promise<Array<TournamentUserRole & { user: User }>> {
+    const roles = await db
+      .select()
+      .from(tournamentUserRoles)
+      .innerJoin(users, eq(tournamentUserRoles.userId, users.id))
+      .where(eq(tournamentUserRoles.tournamentId, tournamentId));
+    
+    return roles.map(r => ({
+      ...r.tournament_user_roles,
+      user: r.users
+    }));
   }
 }
 
