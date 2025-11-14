@@ -87,6 +87,37 @@ All backend endpoints follow a consistent authorization pattern:
   - Winner highlighting works for both individual (singles) and team (doubles) scenarios
   - **Auto-refreshing player lists**: Player queries in match forms use `refetchInterval` (30s) and `refetchOnWindowFocus` to automatically display newly registered players
 
+# Recent Changes (November 2025)
+
+## Multi-Tenant Role System Implementation
+- ✅ Backend refactored to use hierarchical role system (superadmin + tournament-scoped roles)
+- ✅ Authorization helpers: `isSuperAdmin`, `canManageTournament`, `canAssignRole`
+- ✅ All endpoints refactored for multi-tenant authorization
+- ✅ UI for role management in tournament detail page (Roles tab)
+- ✅ Navigation updated to support superadmin role
+
+## Known Limitations & Future Improvements
+
+### Navigation System
+**Current Implementation**: Navigation sidebar uses only `users.role` (global role) to determine visible routes.
+
+**Limitation**: Users with tournament-scoped roles (e.g., `tournament_admin`, `arbitro`, `escrutador`) may not see relevant navigation options because their global role is typically `jugador`.
+
+**Recommended Future Enhancement** (from architecture review):
+Implement a **capability-based navigation service** that:
+1. Queries both `users.role` AND `tournament_user_roles` for the current user
+2. Resolves combined capabilities (e.g., `resolveUserCapabilities(user, tournamentRoles[])`)
+3. Updates navigation logic to use capabilities instead of simple role checks
+4. Allows tournament admins and scoped officials to see management routes for their assigned tournaments
+
+**Acceptance Criteria for Future Implementation**:
+- SuperAdmin: sees all global routes
+- Tournament Admin: sees tournament management routes for assigned tournaments
+- Scoped officials (arbitro, escrutador): see match-result workflows for their tournaments
+- Players without scoped roles: retain current experience
+
+**Workaround**: Tournament Admins can access their tournament management directly via URL `/tournaments/:id` where backend `canManage` checks work correctly.
+
 # External Dependencies
 
 - **Neon PostgreSQL**: Serverless PostgreSQL database.

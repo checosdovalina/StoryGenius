@@ -28,15 +28,15 @@ export const routes: RouteConfig[] = [
     title: "Dashboard",
     subtitle: "Resumen general del sistema",
     icon: Home,
-    roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
+    roles: ["superadmin", "admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
   },
   {
     path: "/users",
     label: "Gestión de Usuarios",
     title: "Gestión de Usuarios",
-    subtitle: "Administra usuarios y roles",
+    subtitle: "Administra usuarios y roles del sistema",
     icon: Users,
-    roles: ["admin"]
+    roles: ["superadmin", "admin"]
   },
   {
     path: "/tournaments",
@@ -44,15 +44,15 @@ export const routes: RouteConfig[] = [
     title: "Gestión de Torneos",
     subtitle: "Crea y administra torneos",
     icon: Trophy,
-    roles: ["admin", "organizador"]
+    roles: ["superadmin", "admin", "organizador"]
   },
   {
     path: "/club",
-    label: "Club",
-    title: "Gestión de Club",
-    subtitle: "Administra información del club y canchas",
+    label: "Clubes",
+    title: "Gestión de Clubes",
+    subtitle: "Administra clubes y sedes",
     icon: Building,
-    roles: ["admin", "organizador"]
+    roles: ["superadmin", "admin"]
   },
   {
     path: "/courts",
@@ -60,7 +60,7 @@ export const routes: RouteConfig[] = [
     title: "Gestión de Canchas",
     subtitle: "Administra canchas y horarios",
     icon: MapPin,
-    roles: ["admin", "organizador"]
+    roles: ["superadmin", "admin"]
   },
   {
     path: "/calendar",
@@ -68,7 +68,7 @@ export const routes: RouteConfig[] = [
     title: "Calendario",
     subtitle: "Programación de partidos",
     icon: Calendar,
-    roles: ["admin", "organizador"]
+    roles: ["superadmin", "admin", "organizador"]
   },
   {
     path: "/my-tournaments",
@@ -84,7 +84,7 @@ export const routes: RouteConfig[] = [
     title: "Estadísticas",
     subtitle: "Tu rendimiento deportivo",
     icon: BarChart3,
-    roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
+    roles: ["superadmin", "admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
   },
   {
     path: "/match-results",
@@ -100,7 +100,7 @@ export const routes: RouteConfig[] = [
     title: "Rankings",
     subtitle: "Clasificaciones y posiciones",
     icon: Medal,
-    roles: ["admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
+    roles: ["superadmin", "admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]
   }
 ];
 
