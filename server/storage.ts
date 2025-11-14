@@ -127,7 +127,7 @@ export interface IStorage {
   isSuperAdmin(userId: string): Promise<boolean>;
   getUserTournamentRoles(userId: string, tournamentId: string): Promise<string[]>;
   canManageTournament(userId: string, tournamentId: string): Promise<boolean>;
-  canAssignRole(assignerId: string, targetRole: string, tournamentId?: string): Promise<boolean>;
+  canAssignRole(assignerId: string, targetRole: string, tournamentId: string): Promise<boolean>;
   assignTournamentRole(data: InsertTournamentUserRole): Promise<TournamentUserRole>;
   removeTournamentRole(tournamentId: string, userId: string, role: string): Promise<void>;
   getUserTournamentsByRole(userId: string, role?: string): Promise<Tournament[]>;
@@ -1439,21 +1439,21 @@ export class DatabaseStorage implements IStorage {
     return roles.includes('tournament_admin');
   }
 
-  async canAssignRole(assignerId: string, targetRole: string, tournamentId?: string): Promise<boolean> {
+  async canAssignRole(assignerId: string, targetRole: string, tournamentId: string): Promise<boolean> {
     // SuperAdmins can assign any role except superadmin
     if (await this.isSuperAdmin(assignerId)) {
       return targetRole !== 'superadmin';
     }
 
-    // Tournament admins can only assign non-admin roles within their tournaments
-    if (tournamentId) {
-      const roles = await this.getUserTournamentRoles(assignerId, tournamentId);
-      if (roles.includes('tournament_admin')) {
-        // Tournament admins cannot assign tournament_admin or superadmin
-        return !['tournament_admin', 'superadmin'].includes(targetRole);
-      }
+    // Tournament admins can only assign non-admin roles within THEIR specific tournaments
+    // CRITICAL: Must verify assignerId has tournament_admin in THIS EXACT tournament
+    const assignerRoles = await this.getUserTournamentRoles(assignerId, tournamentId);
+    if (assignerRoles.includes('tournament_admin')) {
+      // Tournament admins cannot assign tournament_admin or superadmin
+      return !['tournament_admin', 'superadmin'].includes(targetRole);
     }
 
+    // No permission to assign roles
     return false;
   }
 

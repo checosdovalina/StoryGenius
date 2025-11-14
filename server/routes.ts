@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema } from "@shared/schema";
 import { z } from "zod";
 import { MatchStatsWebSocketServer } from "./websocket";
 
@@ -28,9 +28,10 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin or organizador can create tournaments
-      if (!["admin", "organizador"].includes(req.user!.role)) {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      // Multi-tenant: Only SuperAdmin can create tournaments
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (!isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can create tournaments" });
       }
 
       const validatedData = insertTournamentSchema.parse({
@@ -74,8 +75,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Tournament not found" });
       }
 
-      // Only admin or tournament organizer can update
-      if (req.user!.role !== "admin" && existingTournament.organizerId !== req.user!.id) {
+      // Use multi-tenant authorization: SuperAdmin or Tournament Admin can update
+      const canManage = await storage.canManageTournament(req.user!.id, req.params.id);
+      if (!canManage) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
 
@@ -104,8 +106,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Tournament not found" });
       }
 
-      // Only admin or tournament organizer can delete
-      if (req.user!.role !== "admin" && existingTournament.organizerId !== req.user!.id) {
+      // Use multi-tenant authorization: SuperAdmin or Tournament Admin can delete
+      const canManage = await storage.canManageTournament(req.user!.id, req.params.id);
+      if (!canManage) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
 
@@ -721,6 +724,107 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Failed to generate brackets" });
+    }
+  });
+
+  // Multi-tenant role management
+  app.post("/api/tournaments/:id/roles", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { userId, role } = req.body;
+      const tournamentId = req.params.id;
+
+      // Verify tournament exists
+      const tournament = await storage.getTournament(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // CRITICAL: Verify target user exists to prevent orphaned role assignments
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "Target user not found" });
+      }
+
+      // Check if assigner can assign this role in this tournament
+      const canAssign = await storage.canAssignRole(req.user!.id, role, tournamentId);
+      if (!canAssign) {
+        return res.status(403).json({ message: "Insufficient permissions to assign this role" });
+      }
+
+      // Validate the role assignment data
+      const roleData = insertTournamentUserRoleSchema.parse({
+        tournamentId,
+        userId,
+        role,
+        assignedBy: req.user!.id
+      });
+
+      const assignedRole = await storage.assignTournamentRole(roleData);
+      res.status(201).json(assignedRole);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid role data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to assign role" });
+    }
+  });
+
+  app.delete("/api/tournaments/:id/roles", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { userId, role } = req.body;
+      const tournamentId = req.params.id;
+
+      // Verify tournament exists
+      const tournament = await storage.getTournament(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Check if user can manage roles in this tournament (must be superadmin or tournament_admin)
+      const canManage = await storage.canManageTournament(req.user!.id, tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions to remove roles" });
+      }
+
+      await storage.removeTournamentRole(tournamentId, userId, role);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove role" });
+    }
+  });
+
+  app.get("/api/tournaments/:id/roles", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const tournamentId = req.params.id;
+
+      // Verify tournament exists
+      const tournament = await storage.getTournament(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Check if user can view roles (superadmin or tournament_admin)
+      const canView = await storage.canManageTournament(req.user!.id, tournamentId);
+      if (!canView) {
+        return res.status(403).json({ message: "Insufficient permissions to view roles" });
+      }
+
+      const roles = await storage.getTournamentUserRoles(tournamentId);
+      res.json(roles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tournament roles" });
     }
   });
 
