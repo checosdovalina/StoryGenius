@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,14 +7,24 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { UserPlus, Edit, Trash2 } from "lucide-react";
+import { UserPlus, Edit, Trash2, Shield } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import type { User } from "@shared/schema";
+
+type UserWithTournamentRoles = User & {
+  tournamentRoles: Array<{
+    tournamentId: string;
+    tournamentName: string;
+    role: string;
+  }>;
+};
 
 export function UserManagementView() {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
-  const { data: users = [], isLoading } = useQuery<User[]>({
+  const { data: users = [], isLoading } = useQuery<UserWithTournamentRoles[]>({
     queryKey: ["/api/users"]
   });
 
@@ -61,23 +71,129 @@ export function UserManagementView() {
   });
 
   const handleRoleChange = (userId: string, newRole: string) => {
+    // Defensive check: verify user can still be edited
+    const user = users.find(u => u.id === userId);
+    if (!user || !canEditUser(user)) {
+      toast({
+        title: "Error",
+        description: "No tienes permisos para editar este usuario",
+        variant: "destructive"
+      });
+      setEditingUserId(null);
+      return;
+    }
+    
     updateRoleMutation.mutate({ userId, role: newRole });
   };
 
   const handleDeleteUser = (userId: string) => {
+    // Defensive check: verify user can still be deleted
+    const user = users.find(u => u.id === userId);
+    if (!user || !canDeleteUser(user)) {
+      toast({
+        title: "Error",
+        description: "No tienes permisos para eliminar este usuario",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (confirm("¿Estás seguro de que quieres eliminar este usuario?")) {
       deleteUserMutation.mutate(userId);
     }
   };
 
+  const handleEditClick = (user: UserWithTournamentRoles) => {
+    // Gate: only allow edit if permissions are valid
+    if (!canEditUser(user)) {
+      toast({
+        title: "Error",
+        description: "No tienes permisos para editar este usuario",
+        variant: "destructive"
+      });
+      return;
+    }
+    setEditingUserId(user.id);
+  };
+
+  // Reset editing state when permissions change
+  useEffect(() => {
+    if (editingUserId) {
+      const user = users.find(u => u.id === editingUserId);
+      if (user && !canEditUser(user)) {
+        setEditingUserId(null);
+      }
+    }
+  }, [currentUser, users, editingUserId]);
+
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
+      case "superadmin": return "destructive";
       case "admin": return "destructive";
+      case "tournament_admin": return "default";
       case "organizador": return "default";
       case "arbitro": return "secondary";
       case "escrutador": return "secondary";
       default: return "outline";
     }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case "superadmin": return "SuperAdmin";
+      case "admin": return "Admin";
+      case "tournament_admin": return "Admin de Torneo";
+      case "organizador": return "Organizador";
+      case "arbitro": return "Árbitro";
+      case "escrutador": return "Escrutador";
+      case "jugador": return "Jugador";
+      default: return role;
+    }
+  };
+
+  const canEditUser = (user: UserWithTournamentRoles): boolean => {
+    if (!currentUser) return false;
+    
+    // Cannot edit yourself
+    if (user.id === currentUser.id) return false;
+    
+    // Admin legacy cannot edit superadmin users
+    if (user.role === 'superadmin' && currentUser.role !== 'superadmin') return false;
+    
+    return true;
+  };
+
+  const canDeleteUser = (user: UserWithTournamentRoles): boolean => {
+    if (!currentUser) return false;
+    
+    // Cannot delete yourself
+    if (user.id === currentUser.id) return false;
+    
+    // Admin legacy cannot delete superadmin users
+    if (user.role === 'superadmin' && currentUser.role !== 'superadmin') return false;
+    
+    return true;
+  };
+
+  const getAvailableRoles = () => {
+    if (currentUser?.role === 'superadmin') {
+      return [
+        { value: "superadmin", label: "SuperAdmin" },
+        { value: "admin", label: "Admin" },
+        { value: "organizador", label: "Organizador" },
+        { value: "arbitro", label: "Árbitro" },
+        { value: "escrutador", label: "Escrutador" },
+        { value: "jugador", label: "Jugador" },
+      ];
+    }
+    // Admin legacy cannot assign superadmin
+    return [
+      { value: "admin", label: "Admin" },
+      { value: "organizador", label: "Organizador" },
+      { value: "arbitro", label: "Árbitro" },
+      { value: "escrutador", label: "Escrutador" },
+      { value: "jugador", label: "Jugador" },
+    ];
   };
 
   if (isLoading) {
@@ -137,14 +253,25 @@ export function UserManagementView() {
                         {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                       </span>
                     </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 flex-wrap gap-1">
                         <p className="font-medium text-card-foreground" data-testid={`user-name-${user.id}`}>
                           {user.name}
                         </p>
                         <Badge variant={getRoleBadgeVariant(user.role)} data-testid={`user-role-badge-${user.id}`}>
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          {user.role === 'superadmin' && <Shield className="h-3 w-3 mr-1" />}
+                          {getRoleLabel(user.role)}
                         </Badge>
+                        {user.tournamentRoles?.map((tr, idx) => (
+                          <Badge 
+                            key={idx} 
+                            variant="outline" 
+                            className="text-xs"
+                            data-testid={`tournament-role-badge-${user.id}-${idx}`}
+                          >
+                            {getRoleLabel(tr.role)} @ {tr.tournamentName}
+                          </Badge>
+                        ))}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         <p data-testid={`user-email-${user.id}`}>{user.email}</p>
@@ -160,22 +287,23 @@ export function UserManagementView() {
                         onValueChange={(value) => handleRoleChange(user.id, value)}
                         data-testid={`role-select-${user.id}`}
                       >
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="w-48">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="jugador">Jugador</SelectItem>
-                          <SelectItem value="organizador">Organizador</SelectItem>
-                          <SelectItem value="arbitro">Árbitro</SelectItem>
-                          <SelectItem value="escrutador">Escrutador</SelectItem>
-                          <SelectItem value="admin">Administrador</SelectItem>
+                          {getAvailableRoles().map(role => (
+                            <SelectItem key={role.value} value={role.value}>
+                              {role.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     ) : (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setEditingUserId(user.id)}
+                        onClick={() => handleEditClick(user)}
+                        disabled={!canEditUser(user)}
                         data-testid={`button-edit-role-${user.id}`}
                       >
                         <Edit className="h-4 w-4" />
@@ -186,7 +314,8 @@ export function UserManagementView() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteUser(user.id)}
-                      className="text-destructive hover:text-destructive"
+                      disabled={!canDeleteUser(user)}
+                      className="text-destructive hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
                       data-testid={`button-delete-user-${user.id}`}
                     >
                       <Trash2 className="h-4 w-4" />
