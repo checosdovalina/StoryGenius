@@ -22,6 +22,13 @@ The frontend is a React 18 application built with TypeScript, using Vite for dev
 ## Backend Architecture
 The backend is an Express.js application with TypeScript, designed with a modular structure. It uses `Passport.js` with a Local Strategy for authentication, `scrypt` for password hashing, and session-based authentication with PostgreSQL storage. A modular storage layer and `Zod` for type-safe data validation are also core components.
 
+**Error Handling**: Centralized error handling system (`client/src/lib/error-handler.ts` + `queryClient.ts`) that:
+- Preserves backend-specific error messages for validation and business logic errors (4xx)
+- Provides Spanish translations as fallback for common HTTP errors (401, 403, 404, 500)
+- Normalizes diverse response formats (JSON with message/error/detail/errors keys, plain text, arrays, objects)
+- Attaches HTTP status metadata to Error objects for conditional logic (`is403Error` helper)
+- Integrates automatically with all React Query queries and mutations via global error handlers
+
 ## Database Design
 The system uses PostgreSQL with Drizzle ORM for type-safe operations. The schema includes tables for `Users` (with role-based permissions), `Tournaments` (supporting various formats and sports), `Courts` (with status management), `Matches` (for bracket management and scoring), `Tournament Registrations`, and `Player Statistics`. Relationships include one-to-many and many-to-many connections between these entities.
 
@@ -95,6 +102,7 @@ All backend endpoints follow a consistent authorization pattern:
 - ✅ All endpoints refactored for multi-tenant authorization
 - ✅ UI for role management in tournament detail page (Roles tab)
 - ✅ Navigation updated to support superadmin role
+- ✅ Centralized error handling system with Spanish translations and backend message preservation
 
 ## Known Limitations & Future Improvements
 
