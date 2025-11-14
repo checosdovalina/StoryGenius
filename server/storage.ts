@@ -1414,6 +1414,18 @@ export class DatabaseStorage implements IStorage {
     return user?.role === 'superadmin';
   }
 
+  async getSuperAdmins(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.role, 'superadmin'));
+  }
+
+  async isOnlySuperAdmin(userId: string): Promise<boolean> {
+    const superAdmins = await this.getSuperAdmins();
+    return superAdmins.length === 1 && superAdmins[0].id === userId;
+  }
+
   async getUserTournamentRoles(userId: string, tournamentId: string): Promise<string[]> {
     const roles = await db
       .select({ role: tournamentUserRoles.role })
@@ -1426,6 +1438,20 @@ export class DatabaseStorage implements IStorage {
       );
     
     return roles.map(r => r.role);
+  }
+
+  async getAllUserTournamentRoles(userId: string): Promise<Array<{ tournamentId: string; tournamentName: string; role: string }>> {
+    const roles = await db
+      .select({
+        tournamentId: tournamentUserRoles.tournamentId,
+        tournamentName: tournaments.name,
+        role: tournamentUserRoles.role
+      })
+      .from(tournamentUserRoles)
+      .innerJoin(tournaments, eq(tournamentUserRoles.tournamentId, tournaments.id))
+      .where(eq(tournamentUserRoles.userId, userId));
+    
+    return roles;
   }
 
   async canManageTournament(userId: string, tournamentId: string): Promise<boolean> {

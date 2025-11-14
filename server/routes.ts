@@ -684,15 +684,34 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // User management routes (Admin only)
+  // User management routes (SuperAdmin and Admin)
   app.get("/api/users", async (req, res) => {
     try {
-      if (!req.isAuthenticated() || req.user!.role !== 'admin') {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check if user is superadmin or legacy admin
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      const isAdmin = req.user!.role === 'admin';
+      
+      if (!isSuperAdmin && !isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
+      // Get all users with their tournament-scoped roles
       const users = await storage.getAllUsers();
-      res.json(users);
+      const usersWithRoles = await Promise.all(
+        users.map(async (user) => {
+          const tournamentRoles = await storage.getAllUserTournamentRoles(user.id);
+          return {
+            ...user,
+            tournamentRoles
+          };
+        })
+      );
+
+      res.json(usersWithRoles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
     }
@@ -700,12 +719,45 @@ export function registerRoutes(app: Express): Server {
 
   app.put("/api/users/:id/role", async (req, res) => {
     try {
-      if (!req.isAuthenticated() || req.user!.role !== 'admin') {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check if user is superadmin or legacy admin
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      const isAdmin = req.user!.role === 'admin';
+      
+      if (!isSuperAdmin && !isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const { role } = req.body;
-      const user = await storage.updateUserRole(req.params.id, role);
+      const targetUserId = req.params.id;
+
+      // Verify target user exists
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only superadmin can modify superadmin users or assign superadmin role
+      if (targetUser.role === 'superadmin' && !isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can modify superadmin users" });
+      }
+
+      if (role === 'superadmin' && !isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can assign superadmin role" });
+      }
+
+      // Prevent demoting the last superadmin
+      if (targetUser.role === 'superadmin' && role !== 'superadmin') {
+        const isOnly = await storage.isOnlySuperAdmin(targetUserId);
+        if (isOnly) {
+          return res.status(403).json({ message: "Cannot demote the last superadmin in the system" });
+        }
+      }
+
+      const user = await storage.updateUserRole(targetUserId, role);
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Failed to update user role" });
@@ -714,11 +766,40 @@ export function registerRoutes(app: Express): Server {
 
   app.delete("/api/users/:id", async (req, res) => {
     try {
-      if (!req.isAuthenticated() || req.user!.role !== 'admin') {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check if user is superadmin or legacy admin
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      const isAdmin = req.user!.role === 'admin';
+      
+      if (!isSuperAdmin && !isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      await storage.deleteUser(req.params.id);
+      const targetUserId = req.params.id;
+
+      // Verify target user exists
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only superadmin can delete superadmin users
+      if (targetUser.role === 'superadmin' && !isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can delete superadmin users" });
+      }
+
+      // Prevent deleting the last superadmin
+      if (targetUser.role === 'superadmin') {
+        const isOnly = await storage.isOnlySuperAdmin(targetUserId);
+        if (isOnly) {
+          return res.status(403).json({ message: "Cannot delete the last superadmin in the system" });
+        }
+      }
+
+      await storage.deleteUser(targetUserId);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete user" });
