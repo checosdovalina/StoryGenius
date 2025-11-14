@@ -3,19 +3,42 @@ import { getErrorMessage } from "./error-handler";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    let errorMessage: string;
+    let backendMessage: string | undefined;
+    const contentType = res.headers.get("content-type");
+    
     try {
-      const json = await res.json();
-      errorMessage = json.message || res.statusText;
+      if (contentType?.includes("application/json")) {
+        const json = await res.json();
+        // Try common error message keys
+        const rawMessage = json.message || json.error || json.detail || json.errors;
+        
+        // Normalize to string (handle objects/arrays)
+        if (typeof rawMessage === 'string') {
+          backendMessage = rawMessage;
+        } else if (rawMessage && typeof rawMessage === 'object') {
+          // Convert error objects to readable strings
+          if (Array.isArray(rawMessage)) {
+            backendMessage = rawMessage.join(', ');
+          } else {
+            backendMessage = Object.values(rawMessage).flat().join(', ');
+          }
+        }
+      } else {
+        // Fallback to text for non-JSON responses
+        const text = await res.text();
+        if (text && text !== res.statusText) {
+          backendMessage = text;
+        }
+      }
     } catch {
-      errorMessage = res.statusText;
+      // Parsing failed, backendMessage remains undefined
     }
     
-    // Create error with user-friendly message
-    const error = new Error(getErrorMessage(res));
+    // Create error with user-friendly message (prioritizes backend message when available)
+    const error = new Error(getErrorMessage(res, backendMessage));
     // Store original details for debugging
     (error as any).status = res.status;
-    (error as any).originalMessage = errorMessage;
+    (error as any).backendMessage = backendMessage;
     throw error;
   }
 }

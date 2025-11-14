@@ -26,6 +26,17 @@ export function handleApiError(error: any): ApiError {
     };
   }
 
+  // Check if error has HTTP status attached by throwIfResNotOk
+  if (error?.status && typeof error.status === 'number') {
+    // Use error.message which already contains the user-friendly message
+    // Keep statusText as a generic label so effectiveMessage calculation works
+    return {
+      message: error.message || "Request failed",
+      status: error.status,
+      statusText: `HTTP ${error.status}`,
+    };
+  }
+
   return {
     message: error?.message || "Unknown error occurred",
     status: 500,
@@ -33,20 +44,31 @@ export function handleApiError(error: any): ApiError {
   };
 }
 
-export function getErrorMessage(error: any): string {
+export function getErrorMessage(error: any, backendMessage?: string): string {
   const apiError = handleApiError(error);
+  
+  // Use provided backendMessage parameter or fall back to message from apiError
+  const effectiveMessage = backendMessage || (apiError.message !== apiError.statusText ? apiError.message : undefined);
+  
+  // If backend provided a specific message, use it for certain errors
+  if (effectiveMessage && effectiveMessage !== apiError.statusText) {
+    // For 4xx errors (client errors), prefer backend message as it's usually validation/business logic
+    if (apiError.status >= 400 && apiError.status < 500 && apiError.status !== 401 && apiError.status !== 403 && apiError.status !== 404) {
+      return effectiveMessage;
+    }
+  }
   
   switch (apiError.status) {
     case 401:
-      return "No tienes autorización. Por favor inicia sesión.";
+      return effectiveMessage || "No tienes autorización. Por favor inicia sesión.";
     case 403:
-      return "No tienes permisos suficientes para realizar esta acción.";
+      return effectiveMessage || "No tienes permisos suficientes para realizar esta acción.";
     case 404:
-      return "El recurso solicitado no fue encontrado.";
+      return effectiveMessage || "El recurso solicitado no fue encontrado.";
     case 500:
       return "Error del servidor. Por favor intenta de nuevo más tarde.";
     default:
-      return apiError.message;
+      return effectiveMessage || apiError.message;
   }
 }
 
