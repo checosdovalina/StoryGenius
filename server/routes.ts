@@ -169,12 +169,17 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      // Verify tournament exists first
+      const tournament = await storage.getTournament(req.params.id);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Get players after confirming tournament exists
       const players = await storage.getTournamentPlayers(req.params.id);
       
-      // Only expose phone numbers to admin or tournament organizer
-      const tournament = await storage.getTournament(req.params.id);
-      const isAuthorizedForPII = req.user!.role === "admin" || 
-                               (tournament && tournament.organizerId === req.user!.id);
+      // Only expose phone numbers to SuperAdmin or Tournament Admin
+      const isAuthorizedForPII = await storage.canManageTournament(req.user!.id, req.params.id);
       
       const sanitizedPlayers = players.map(player => {
         if (isAuthorizedForPII) {
@@ -205,8 +210,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Tournament not found" });
       }
 
-      // Only admin or tournament organizer can register other players
-      if (req.user!.role !== "admin" && tournament.organizerId !== req.user!.id) {
+      // Only SuperAdmin or Tournament Admin can register other players
+      const canManage = await storage.canManageTournament(req.user!.id, req.params.id);
+      if (!canManage) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
 
@@ -238,8 +244,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Tournament not found" });
       }
 
-      // Only admin or tournament organizer can unregister other players
-      if (req.user!.role !== "admin" && tournament.organizerId !== req.user!.id) {
+      // Only SuperAdmin or Tournament Admin can unregister other players
+      const canManage = await storage.canManageTournament(req.user!.id, req.params.id);
+      if (!canManage) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
 
@@ -266,9 +273,10 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin or organizador can create clubs
-      if (!["admin", "organizador"].includes(req.user!.role)) {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      // Only SuperAdmin can create clubs
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (!isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can create clubs" });
       }
 
       const validatedData = insertClubSchema.parse(req.body);
@@ -300,9 +308,10 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin or organizador can update clubs
-      if (!["admin", "organizador"].includes(req.user!.role)) {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      // Only SuperAdmin can update clubs
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (!isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can update clubs" });
       }
 
       const club = await storage.updateClub(req.params.id, req.body);
@@ -318,9 +327,10 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin can delete clubs
-      if (req.user!.role !== "admin") {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      // Only SuperAdmin can delete clubs
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (!isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can delete clubs" });
       }
 
       await storage.deleteClub(req.params.id);
@@ -346,6 +356,12 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      // Only SuperAdmin can create courts
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (!isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can create courts" });
+      }
+
       const validatedData = insertCourtSchema.parse(req.body);
       const court = await storage.createCourt(validatedData);
       res.status(201).json(court);
@@ -363,6 +379,12 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      // Only SuperAdmin can update courts
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (!isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can update courts" });
+      }
+
       const court = await storage.updateCourt(req.params.id, req.body);
       res.json(court);
     } catch (error) {
@@ -374,6 +396,12 @@ export function registerRoutes(app: Express): Server {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only SuperAdmin can delete courts
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (!isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmin can delete courts" });
       }
 
       await storage.deleteCourt(req.params.id);
@@ -412,6 +440,19 @@ export function registerRoutes(app: Express): Server {
       }
 
       const validatedData = insertMatchSchema.parse(req.body);
+      
+      // Verify tournament exists
+      const tournament = await storage.getTournament(validatedData.tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Only SuperAdmin or Tournament Admin can create matches
+      const canManage = await storage.canManageTournament(req.user!.id, validatedData.tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions to create matches" });
+      }
+
       const match = await storage.createMatch(validatedData);
       res.status(201).json(match);
     } catch (error) {
@@ -428,8 +469,15 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin can update matches
-      if (req.user!.role !== "admin") {
+      // Get match to verify existence and get tournament
+      const existingMatch = await storage.getMatch(req.params.id);
+      if (!existingMatch) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      // Verify user can manage the tournament this match belongs to
+      const canManage = await storage.canManageTournament(req.user!.id, existingMatch.tournamentId);
+      if (!canManage) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
 
@@ -450,8 +498,15 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin can delete matches
-      if (req.user!.role !== "admin") {
+      // Get match to verify existence and get tournament
+      const existingMatch = await storage.getMatch(req.params.id);
+      if (!existingMatch) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      // Verify user can manage the tournament this match belongs to
+      const canManage = await storage.canManageTournament(req.user!.id, existingMatch.tournamentId);
+      if (!canManage) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
 
@@ -466,6 +521,18 @@ export function registerRoutes(app: Express): Server {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get match to verify existence and get tournament
+      const existingMatch = await storage.getMatch(req.params.id);
+      if (!existingMatch) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      // Verify user can manage the tournament this match belongs to
+      const canManage = await storage.canManageTournament(req.user!.id, existingMatch.tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions to record match results" });
       }
 
       const resultSchema = z.object({
@@ -575,8 +642,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Scheduled match not found" });
       }
 
-      // Only the organizer or admin can update
-      if (existingMatch.organizerId !== req.user!.id && req.user!.role !== 'admin') {
+      // Only the organizer or SuperAdmin can update
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (existingMatch.organizerId !== req.user!.id && !isSuperAdmin) {
         return res.status(403).json({ message: "Not authorized to update this match" });
       }
 
@@ -603,8 +671,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Scheduled match not found" });
       }
 
-      // Only the organizer or admin can delete
-      if (existingMatch.organizerId !== req.user!.id && req.user!.role !== 'admin') {
+      // Only the organizer or SuperAdmin can delete
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (existingMatch.organizerId !== req.user!.id && !isSuperAdmin) {
         return res.status(403).json({ message: "Not authorized to delete this match" });
       }
 
@@ -709,10 +778,10 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Tournament not found" });
       }
 
-      // Check if user can manage this tournament - admin or tournament organizer only
-      const user = req.user as any;
-      if (user.role !== "admin" && tournament.organizerId !== user.id) {
-        return res.status(403).json({ message: "Only tournament organizers and admins can generate brackets" });
+      // Check if user can manage this tournament - SuperAdmin or Tournament Admin only
+      const canManage = await storage.canManageTournament(req.user!.id, req.params.id);
+      if (!canManage) {
+        return res.status(403).json({ message: "Only tournament admins and superadmins can generate brackets" });
       }
 
       const { force } = req.body;
@@ -1042,24 +1111,33 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin and escribano can complete sessions
-      if (!["admin", "escribano"].includes(req.user!.role)) {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      const session = await storage.getStatsSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Stats session not found" });
       }
 
-      const session = await storage.completeStatsSession(req.params.sessionId);
+      // Get match to verify tournament
+      const match = await storage.getMatch(session.matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      // Only SuperAdmin or Tournament Admin can complete sessions
+      const canManage = await storage.canManageTournament(req.user!.id, match.tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions to complete stats sessions" });
+      }
+
+      const completedSession = await storage.completeStatsSession(req.params.sessionId);
       
       // Update match status to completed
-      const match = await storage.getMatch(session.matchId);
-      if (match) {
-        await storage.updateMatch(session.matchId, {
-          status: "completed",
-          player1Sets: session.player1Sets || 0,
-          player2Sets: session.player2Sets || 0,
-          player1Games: session.player1Games || "[]",
-          player2Games: session.player2Games || "[]"
-        });
-      }
+      await storage.updateMatch(session.matchId, {
+        status: "completed",
+        player1Sets: completedSession.player1Sets || 0,
+        player2Sets: completedSession.player2Sets || 0,
+        player1Games: completedSession.player1Games || "[]",
+        player2Games: completedSession.player2Games || "[]"
+      });
 
       res.json(session);
     } catch (error) {
@@ -1074,9 +1152,22 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin and escribano can create events
-      if (!["admin", "escribano"].includes(req.user!.role)) {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      // Get session to verify existence and get match
+      const session = await storage.getStatsSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Stats session not found" });
+      }
+
+      // Get match to verify tournament
+      const match = await storage.getMatch(session.matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      // Only SuperAdmin or Tournament Admin can create events
+      const canManage = await storage.canManageTournament(req.user!.id, match.tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions to create match events" });
       }
 
       const validatedData = insertMatchEventSchema.parse({
@@ -1086,9 +1177,8 @@ export function registerRoutes(app: Express): Server {
 
       const event = await storage.createMatchEvent(validatedData);
       
-      // Get session to find matchId for broadcast
-      const session = await storage.getStatsSession(req.params.sessionId);
-      if (session && wsServer) {
+      // Broadcast event to match subscribers
+      if (wsServer) {
         wsServer.broadcastToMatch(session.matchId, {
           type: "match_event",
           event,
