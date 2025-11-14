@@ -1,9 +1,22 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getErrorMessage } from "./error-handler";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let errorMessage: string;
+    try {
+      const json = await res.json();
+      errorMessage = json.message || res.statusText;
+    } catch {
+      errorMessage = res.statusText;
+    }
+    
+    // Create error with user-friendly message
+    const error = new Error(getErrorMessage(res));
+    // Store original details for debugging
+    (error as any).status = res.status;
+    (error as any).originalMessage = errorMessage;
+    throw error;
   }
 }
 
