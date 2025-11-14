@@ -98,11 +98,16 @@ All backend endpoints follow a consistent authorization pattern:
 
 ## Multi-Tenant Role System Implementation
 - ✅ Backend refactored to use hierarchical role system (superadmin + tournament-scoped roles)
-- ✅ Authorization helpers: `isSuperAdmin`, `canManageTournament`, `canAssignRole`
+- ✅ Authorization helpers: `isSuperAdmin`, `canManageTournament`, `canAssignRole`, `getSuperAdmins`, `isOnlySuperAdmin`
 - ✅ All endpoints refactored for multi-tenant authorization
 - ✅ UI for role management in tournament detail page (Roles tab)
 - ✅ Navigation updated to support superadmin role
 - ✅ Centralized error handling system with Spanish translations and backend message preservation
+- ✅ Global user management UI with role-based permissions (SuperAdmin & Admin)
+  - Defense-in-depth security: gate checks, defensive mutations, auto-reset on permission change
+  - Tournament-scoped roles displayed as read-only badges
+  - Protection against last-superadmin deletion/demotion
+  - Admin legacy cannot modify/delete superadmin users
 
 ## Known Limitations & Future Improvements
 
