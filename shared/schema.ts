@@ -135,6 +135,7 @@ export const matches = pgTable("matches", {
 
 export const scheduledMatches = pgTable("scheduled_matches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
   title: text("title").notNull(),
   description: text("description"),
   sport: sportEnum("sport").notNull(),
@@ -295,6 +296,7 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   }),
   registrations: many(tournamentRegistrations),
   matches: many(matches),
+  scheduledMatches: many(scheduledMatches),
   userRoles: many(tournamentUserRoles)
 }));
 
@@ -363,6 +365,10 @@ export const matchesRelations = relations(matches, ({ one }) => ({
 }));
 
 export const scheduledMatchesRelations = relations(scheduledMatches, ({ one }) => ({
+  tournament: one(tournaments, {
+    fields: [scheduledMatches.tournamentId],
+    references: [tournaments.id]
+  }),
   court: one(courts, {
     fields: [scheduledMatches.courtId],
     references: [courts.id]
