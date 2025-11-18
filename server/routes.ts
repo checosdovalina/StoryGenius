@@ -57,7 +57,14 @@ export function registerRoutes(app: Express): Server {
       if (!tournament) {
         return res.status(404).json({ message: "Tournament not found" });
       }
-      res.json(tournament);
+      
+      // Include canManage flag if user is authenticated
+      let canManage = false;
+      if (req.isAuthenticated()) {
+        canManage = await storage.canManageTournament(req.user!.id, req.params.id);
+      }
+      
+      res.json({ ...tournament, canManage });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch tournament" });
     }

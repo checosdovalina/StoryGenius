@@ -101,6 +101,9 @@ All backend endpoints follow a consistent authorization pattern:
 - ✅ Authorization helpers: `isSuperAdmin`, `canManageTournament`, `canAssignRole`, `getSuperAdmins`, `isOnlySuperAdmin`
 - ✅ All endpoints refactored for multi-tenant authorization
 - ✅ UI for role management in tournament detail page (Roles tab)
+  - Tab now visible for both SuperAdmin and Tournament Admin roles
+  - Backend validates permissions via `canManageTournament` helper
+  - GET /api/tournaments/:id includes `canManage` flag in response
 - ✅ Navigation updated to support superadmin role
 - ✅ Centralized error handling system with Spanish translations and backend message preservation
 - ✅ Global user management UI with role-based permissions (SuperAdmin & Admin)

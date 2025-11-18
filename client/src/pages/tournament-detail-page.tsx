@@ -76,7 +76,7 @@ export default function TournamentDetailPage() {
   // =======================
   // 2️⃣ Obtener torneo y clubes
   // =======================
-  const { data: tournament, isLoading } = useQuery<Tournament>({
+  const { data: tournament, isLoading } = useQuery<Tournament & { canManage?: boolean }>({
     queryKey: [`/api/tournaments/${tournamentId}`],
     enabled: !!tournamentId
   });
@@ -197,7 +197,8 @@ export default function TournamentDetailPage() {
     );
   }
 
-  const canManage = !!(user && (user.role === "admin" || tournament.organizerId === user.id));
+  // Use canManage from backend (includes superadmin and tournament_admin roles)
+  const canManage = tournament.canManage || false;
 
   // ------------------ 3. Main page ------------------
   return (
