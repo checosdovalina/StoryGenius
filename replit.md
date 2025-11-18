@@ -93,6 +93,16 @@ All backend endpoints follow a consistent authorization pattern:
   - Match list displays modality badge and team-based formatting for doubles
   - Winner highlighting works for both individual (singles) and team (doubles) scenarios
   - **Auto-refreshing player lists**: Player queries in match forms use `refetchInterval` (30s) and `refetchOnWindowFocus` to automatically display newly registered players
+- **Excel Import Module**: Bulk import functionality for players and matches with automatic data processing:
+  - **Import Types**: Players (Singles/Doubles) and Matches (Singles/Doubles) with different Excel formats for each
+  - **Auto-creation**: Players not in system are automatically created with generated usernames/emails
+  - **Auto-registration**: Imported players are automatically registered for the tournament
+  - **Template System**: Downloadable Excel templates with correct format for each import type
+  - **Validation**: Zod schemas validate all data before processing with detailed error reporting
+  - **Results Preview**: Shows successful imports and errors with row numbers for easy correction
+  - **Authorization**: Only SuperAdmin and Tournament Admin roles can import data (via `canManageTournament`)
+  - **UI Integration**: Import tab in tournament detail page with inline documentation
+  - **Dependencies**: Uses `xlsx` library for Excel parsing, `multer` for file uploads
 
 # Recent Changes (November 2025)
 

@@ -939,6 +939,13 @@ export function registerRoutes(app: Express): Server {
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet);
 
+      // Validate file is not empty
+      if (!data || data.length === 0) {
+        return res.status(400).json({ 
+          message: "El archivo Excel está vacío. Por favor agrega datos a la plantilla antes de importar." 
+        });
+      }
+
       // Determine if it's singles or doubles based on columns
       const firstRow: any = data[0];
       const isDoubles = firstRow.hasOwnProperty('nombrePareja1') || firstRow.hasOwnProperty('nombrePareja2');
@@ -981,6 +988,13 @@ export function registerRoutes(app: Express): Server {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet);
+
+      // Validate file is not empty
+      if (!data || data.length === 0) {
+        return res.status(400).json({ 
+          message: "El archivo Excel está vacío. Por favor agrega datos a la plantilla antes de importar." 
+        });
+      }
 
       const results = await storage.importMatchesFromExcel(tournamentId, data);
       

@@ -1624,6 +1624,11 @@ export class DatabaseStorage implements IStorage {
       created: [] as any[]
     };
 
+    // Guard against empty data
+    if (!data || data.length === 0) {
+      throw new Error("No hay datos para importar. El archivo está vacío.");
+    }
+
     const { excelPlayerSinglesSchema, excelPlayerDoublesSchema } = await import("@shared/schema");
 
     for (let i = 0; i < data.length; i++) {
@@ -1756,6 +1761,11 @@ export class DatabaseStorage implements IStorage {
       errors: [] as string[],
       created: [] as any[]
     };
+
+    // Guard against empty data
+    if (!data || data.length === 0) {
+      throw new Error("No hay datos para importar. El archivo está vacío.");
+    }
 
     const { excelMatchSinglesSchema, excelMatchDoublesSchema } = await import("@shared/schema");
 
