@@ -6,14 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreateTournamentModal } from "@/components/create-tournament-modal";
-import { Plus, Calendar, MapPin, Users, Edit } from "lucide-react";
+import { Plus, Calendar, MapPin, Users, Edit, Shield, UserCheck } from "lucide-react";
 import type { Tournament } from "@shared/schema";
+
+type TournamentWithAccess = Tournament & { 
+  userAccess?: { 
+    hasRole: boolean; 
+    roles: string[]; 
+    isPlayer: boolean 
+  } 
+};
 
 export function TournamentManagementView() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [, navigate] = useLocation();
 
-  const { data: tournaments = [], isLoading } = useQuery<Tournament[]>({
+  const { data: tournaments = [], isLoading } = useQuery<TournamentWithAccess[]>({
     queryKey: ["/api/tournaments"]
   });
 
@@ -35,6 +43,28 @@ export function TournamentManagementView() {
       case "cancelled": return "Cancelado";
       case "draft": return "Borrador";
       default: return status;
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case "tournament_admin": return "Admin de Torneo";
+      case "organizador": return "Organizador";
+      case "arbitro": return "Árbitro";
+      case "escrutador": return "Escrutador";
+      case "jugador": return "Jugador";
+      default: return role;
+    }
+  };
+
+  const getRoleBadgeVariant = (role: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (role) {
+      case "tournament_admin": return "destructive";
+      case "organizador": return "default";
+      case "arbitro": return "secondary";
+      case "escrutador": return "secondary";
+      case "jugador": return "outline";
+      default: return "outline";
     }
   };
 
@@ -97,7 +127,7 @@ export function TournamentManagementView() {
             <Card key={tournament.id} data-testid={`tournament-card-${tournament.id}`}>
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div>
+                  <div className="flex-1">
                     <h4 className="text-lg font-semibold text-card-foreground" data-testid={`tournament-name-${tournament.id}`}>
                       {tournament.name}
                     </h4>
@@ -105,10 +135,39 @@ export function TournamentManagementView() {
                       {tournament.sport.charAt(0).toUpperCase() + tournament.sport.slice(1)} - {tournament.format}
                     </p>
                   </div>
-                  <Badge variant={getStatusBadgeVariant(tournament.status)} data-testid={`tournament-status-${tournament.id}`}>
-                    {getStatusLabel(tournament.status)}
-                  </Badge>
+                  <div className="flex flex-col gap-1 items-end">
+                    <Badge variant={getStatusBadgeVariant(tournament.status)} data-testid={`tournament-status-${tournament.id}`}>
+                      {getStatusLabel(tournament.status)}
+                    </Badge>
+                  </div>
                 </div>
+
+                {/* User access badges */}
+                {tournament.userAccess && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {tournament.userAccess.hasRole && tournament.userAccess.roles.map((role) => (
+                      <Badge 
+                        key={role} 
+                        variant={getRoleBadgeVariant(role)}
+                        className="text-xs"
+                        data-testid={`tournament-role-${tournament.id}-${role}`}
+                      >
+                        <Shield className="w-3 h-3 mr-1" />
+                        {getRoleLabel(role)}
+                      </Badge>
+                    ))}
+                    {tournament.userAccess.isPlayer && !tournament.userAccess.hasRole && (
+                      <Badge 
+                        variant="outline"
+                        className="text-xs"
+                        data-testid={`tournament-player-${tournament.id}`}
+                      >
+                        <UserCheck className="w-3 h-3 mr-1" />
+                        Participante
+                      </Badge>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2 mb-4 text-sm text-muted-foreground">
                   <div className="flex items-center">
