@@ -93,6 +93,10 @@ export interface IStorage {
   updateScheduledMatch(id: string, updates: Partial<InsertScheduledMatch>): Promise<ScheduledMatch>;
   deleteScheduledMatch(id: string): Promise<void>;
 
+  // Excel import
+  importPlayersFromExcel(tournamentId: string, data: any[], isDoubles: boolean): Promise<{ success: number; errors: string[]; created: any[] }>;
+  importMatchesFromExcel(tournamentId: string, data: any[]): Promise<{ success: number; errors: string[]; created: any[] }>;
+
   // Statistics and rankings
   getPlayerStats(playerId: string, tournamentId?: string): Promise<PlayerStats[]>;
   updatePlayerStats(playerId: string, tournamentId: string | null, stats: Partial<InsertPlayerStats>): Promise<PlayerStats>;
@@ -1607,6 +1611,258 @@ export class DatabaseStorage implements IStorage {
       ...r.tournament_user_roles,
       user: r.users
     }));
+  }
+
+  async importPlayersFromExcel(
+    tournamentId: string, 
+    data: any[], 
+    isDoubles: boolean
+  ): Promise<{ success: number; errors: string[]; created: any[] }> {
+    const results = {
+      success: 0,
+      errors: [] as string[],
+      created: [] as any[]
+    };
+
+    const { excelPlayerSinglesSchema, excelPlayerDoublesSchema } = await import("@shared/schema");
+
+    for (let i = 0; i < data.length; i++) {
+      try {
+        const row = data[i];
+        const rowNumber = i + 2; // +2 because Excel starts at 1 and has header row
+
+        if (isDoubles) {
+          // Validate doubles data
+          const validated = excelPlayerDoublesSchema.parse(row);
+          
+          // Check if players already exist or create them
+          const player1Name = validated.nombrePareja1.trim();
+          const player2Name = validated.nombrePareja2.trim();
+          const category = validated.categoria;
+
+          // Create or find player 1
+          let player1 = await db.select().from(users).where(eq(users.name, player1Name)).limit(1);
+          if (player1.length === 0) {
+            const newPlayer1 = await db.insert(users).values({
+              name: player1Name,
+              username: player1Name.toLowerCase().replace(/\s+/g, '_') + '_' + Math.random().toString(36).substring(7),
+              email: player1Name.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
+              password: 'temp_password', // Temporary password
+              role: 'jugador',
+              racquetballLevel: category,
+              preferredSport: 'racquetball'
+            }).returning();
+            player1 = newPlayer1;
+          }
+
+          // Create or find player 2
+          let player2 = await db.select().from(users).where(eq(users.name, player2Name)).limit(1);
+          if (player2.length === 0) {
+            const newPlayer2 = await db.insert(users).values({
+              name: player2Name,
+              username: player2Name.toLowerCase().replace(/\s+/g, '_') + '_' + Math.random().toString(36).substring(7),
+              email: player2Name.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
+              password: 'temp_password',
+              role: 'jugador',
+              racquetballLevel: category,
+              preferredSport: 'racquetball'
+            }).returning();
+            player2 = newPlayer2;
+          }
+
+          // Register both players for the tournament
+          const existingReg1 = await db.select().from(tournamentRegistrations)
+            .where(and(
+              eq(tournamentRegistrations.tournamentId, tournamentId),
+              eq(tournamentRegistrations.playerId, player1[0].id)
+            )).limit(1);
+          
+          if (existingReg1.length === 0) {
+            await db.insert(tournamentRegistrations).values({
+              tournamentId,
+              playerId: player1[0].id
+            });
+          }
+
+          const existingReg2 = await db.select().from(tournamentRegistrations)
+            .where(and(
+              eq(tournamentRegistrations.tournamentId, tournamentId),
+              eq(tournamentRegistrations.playerId, player2[0].id)
+            )).limit(1);
+          
+          if (existingReg2.length === 0) {
+            await db.insert(tournamentRegistrations).values({
+              tournamentId,
+              playerId: player2[0].id
+            });
+          }
+
+          results.created.push({ player1: player1[0].name, player2: player2[0].name, category });
+          results.success++;
+
+        } else {
+          // Singles player
+          const validated = excelPlayerSinglesSchema.parse(row);
+          const playerName = validated.nombre.trim();
+          const category = validated.categoria;
+
+          // Check if player exists or create
+          let player = await db.select().from(users).where(eq(users.name, playerName)).limit(1);
+          if (player.length === 0) {
+            const newPlayer = await db.insert(users).values({
+              name: playerName,
+              username: playerName.toLowerCase().replace(/\s+/g, '_') + '_' + Math.random().toString(36).substring(7),
+              email: playerName.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
+              password: 'temp_password',
+              role: 'jugador',
+              racquetballLevel: category,
+              preferredSport: 'racquetball'
+            }).returning();
+            player = newPlayer;
+          }
+
+          // Register player for tournament
+          const existingReg = await db.select().from(tournamentRegistrations)
+            .where(and(
+              eq(tournamentRegistrations.tournamentId, tournamentId),
+              eq(tournamentRegistrations.playerId, player[0].id)
+            )).limit(1);
+          
+          if (existingReg.length === 0) {
+            await db.insert(tournamentRegistrations).values({
+              tournamentId,
+              playerId: player[0].id
+            });
+          }
+
+          results.created.push({ name: player[0].name, category });
+          results.success++;
+        }
+
+      } catch (error: any) {
+        results.errors.push(`Fila ${i + 2}: ${error.message}`);
+      }
+    }
+
+    return results;
+  }
+
+  async importMatchesFromExcel(
+    tournamentId: string, 
+    data: any[]
+  ): Promise<{ success: number; errors: string[]; created: any[] }> {
+    const results = {
+      success: 0,
+      errors: [] as string[],
+      created: [] as any[]
+    };
+
+    const { excelMatchSinglesSchema, excelMatchDoublesSchema } = await import("@shared/schema");
+
+    for (let i = 0; i < data.length; i++) {
+      try {
+        const row = data[i];
+        const rowNumber = i + 2;
+
+        const modalidad = row.modalidad;
+        
+        if (modalidad === 'Singles') {
+          const validated = excelMatchSinglesSchema.parse(row);
+          
+          // Find players by name
+          const player1Result = await db.select().from(users).where(eq(users.name, validated.jugador1.trim())).limit(1);
+          const player2Result = await db.select().from(users).where(eq(users.name, validated.jugador2.trim())).limit(1);
+
+          if (player1Result.length === 0) {
+            results.errors.push(`Fila ${rowNumber}: Jugador "${validated.jugador1}" no encontrado`);
+            continue;
+          }
+          if (player2Result.length === 0) {
+            results.errors.push(`Fila ${rowNumber}: Jugador "${validated.jugador2}" no encontrado`);
+            continue;
+          }
+
+          // Parse date and time
+          const scheduledAt = new Date(`${validated.fecha}T${validated.hora}`);
+
+          // Create match
+          const match = await db.insert(matches).values({
+            tournamentId,
+            matchType: 'singles',
+            player1Id: player1Result[0].id,
+            player2Id: player2Result[0].id,
+            scheduledAt,
+            status: 'scheduled'
+          }).returning();
+
+          results.created.push({
+            modalidad: 'Singles',
+            jugador1: player1Result[0].name,
+            jugador2: player2Result[0].name,
+            fecha: validated.fecha,
+            hora: validated.hora
+          });
+          results.success++;
+
+        } else if (modalidad === 'Doubles') {
+          const validated = excelMatchDoublesSchema.parse(row);
+          
+          // Find all 4 players
+          const p1Result = await db.select().from(users).where(eq(users.name, validated.nombrePareja1.trim())).limit(1);
+          const p2Result = await db.select().from(users).where(eq(users.name, validated.nombrePareja2.trim())).limit(1);
+          const p3Result = await db.select().from(users).where(eq(users.name, validated.nombreRival1.trim())).limit(1);
+          const p4Result = await db.select().from(users).where(eq(users.name, validated.nombreRival2.trim())).limit(1);
+
+          if (p1Result.length === 0) {
+            results.errors.push(`Fila ${rowNumber}: Jugador "${validated.nombrePareja1}" no encontrado`);
+            continue;
+          }
+          if (p2Result.length === 0) {
+            results.errors.push(`Fila ${rowNumber}: Jugador "${validated.nombrePareja2}" no encontrado`);
+            continue;
+          }
+          if (p3Result.length === 0) {
+            results.errors.push(`Fila ${rowNumber}: Jugador "${validated.nombreRival1}" no encontrado`);
+            continue;
+          }
+          if (p4Result.length === 0) {
+            results.errors.push(`Fila ${rowNumber}: Jugador "${validated.nombreRival2}" no encontrado`);
+            continue;
+          }
+
+          const scheduledAt = new Date(`${validated.fecha}T${validated.hora}`);
+
+          // Create doubles match
+          const match = await db.insert(matches).values({
+            tournamentId,
+            matchType: 'doubles',
+            player1Id: p1Result[0].id,
+            player2Id: p3Result[0].id,
+            player3Id: p2Result[0].id,
+            player4Id: p4Result[0].id,
+            scheduledAt,
+            status: 'scheduled'
+          }).returning();
+
+          results.created.push({
+            modalidad: 'Doubles',
+            pareja1: `${p1Result[0].name} / ${p2Result[0].name}`,
+            pareja2: `${p3Result[0].name} / ${p4Result[0].name}`,
+            fecha: validated.fecha,
+            hora: validated.hora
+          });
+          results.success++;
+
+        } else {
+          results.errors.push(`Fila ${rowNumber}: Modalidad inválida "${modalidad}"`);
+        }
+
+      } catch (error: any) {
+        results.errors.push(`Fila ${i + 2}: ${error.message}`);
+      }
+    }
+
+    return results;
   }
 }
 
