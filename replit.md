@@ -111,6 +111,11 @@ All backend endpoints follow a consistent authorization pattern:
   - Tournament-scoped roles displayed as read-only badges
   - Protection against last-superadmin deletion/demotion
   - Admin legacy cannot modify/delete superadmin users
+- ✅ Tournament access control with role-based filtering
+  - GET /api/tournaments filters tournaments by user access
+  - SuperAdmin sees all tournaments
+  - Other users only see tournaments where they have assigned roles or are registered as players
+  - `getUserTournaments()` method combines tournament_user_roles and tournament_registrations
 
 ## Known Limitations & Future Improvements
 
