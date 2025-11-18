@@ -24,15 +24,22 @@ export function registerRoutes(app: Express): Server {
       const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
       let tournaments;
       
+      console.log(`[TOURNAMENTS] User: ${req.user!.username}, IsSuperAdmin: ${isSuperAdmin}`);
+      
       if (isSuperAdmin) {
         tournaments = await storage.getAllTournaments();
+        console.log(`[TOURNAMENTS] SuperAdmin - returning ALL ${tournaments.length} tournaments`);
       } else {
         // Other users only see tournaments where they have a role or are registered
         tournaments = await storage.getUserTournaments(req.user!.id);
+        console.log(`[TOURNAMENTS] Regular user - returning ${tournaments.length} user-specific tournaments`);
       }
       
+      // Disable caching to prevent stale data
+      res.setHeader('Cache-Control', 'no-store');
       res.json(tournaments);
     } catch (error) {
+      console.error('[TOURNAMENTS] Error:', error);
       res.status(500).json({ message: "Failed to fetch tournaments" });
     }
   });
