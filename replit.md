@@ -120,6 +120,7 @@ All backend endpoints follow a consistent authorization pattern:
     - Role-based access: Badges with shield icon showing specific roles (Admin de Torneo, Organizador, Árbitro, Escrutador, Jugador)
     - Player registration only: "Participante" badge with user-check icon
     - Different colors for each role type (red for admin, blue for organizer, gray for officials)
+  - **Automatic cache clearing**: React Query cache automatically cleared on logout to prevent stale data when switching users
 
 ## Known Limitations & Future Improvements
 
