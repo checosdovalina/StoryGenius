@@ -2,11 +2,16 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema, excelPlayerSinglesSchema, excelPlayerDoublesSchema, excelMatchSinglesSchema, excelMatchDoublesSchema } from "@shared/schema";
 import { z } from "zod";
 import { MatchStatsWebSocketServer } from "./websocket";
+import multer from "multer";
+import * as XLSX from "xlsx";
 
 let wsServer: MatchStatsWebSocketServer;
+
+// Configure multer for file uploads (memory storage for Excel files)
+const upload = multer({ storage: multer.memoryStorage() });
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
@@ -903,6 +908,142 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Failed to generate brackets" });
+    }
+  });
+
+  // Excel Import endpoints
+  app.post("/api/tournaments/:id/import/players", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const tournamentId = req.params.id;
+      const tournament = await storage.getTournament(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      const canManage = await storage.canManageTournament(req.user!.id, tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Only tournament admins can import players" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Parse Excel file
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      // Determine if it's singles or doubles based on columns
+      const firstRow: any = data[0];
+      const isDoubles = firstRow.hasOwnProperty('nombrePareja1') || firstRow.hasOwnProperty('nombrePareja2');
+      
+      const results = await storage.importPlayersFromExcel(tournamentId, data, isDoubles);
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Error importing players:", error);
+      if (error instanceof Error) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to import players" });
+    }
+  });
+
+  app.post("/api/tournaments/:id/import/matches", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const tournamentId = req.params.id;
+      const tournament = await storage.getTournament(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      const canManage = await storage.canManageTournament(req.user!.id, tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Only tournament admins can import matches" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Parse Excel file
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      const results = await storage.importMatchesFromExcel(tournamentId, data);
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Error importing matches:", error);
+      if (error instanceof Error) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to import matches" });
+    }
+  });
+
+  app.get("/api/tournaments/import/templates/:type", async (req, res) => {
+    try {
+      const { type } = req.params;
+      
+      let templateData: any[] = [];
+      let filename = '';
+
+      if (type === 'players-singles') {
+        templateData = [
+          { nombre: 'Juan Pérez', categoria: 'intermedio' },
+          { nombre: 'María García', categoria: 'avanzado' }
+        ];
+        filename = 'plantilla_jugadores_singles.xlsx';
+      } else if (type === 'players-doubles') {
+        templateData = [
+          { nombrePareja1: 'Juan Pérez', nombrePareja2: 'Carlos López', categoria: 'intermedio' },
+          { nombrePareja1: 'María García', nombrePareja2: 'Ana Rodríguez', categoria: 'avanzado' }
+        ];
+        filename = 'plantilla_jugadores_doubles.xlsx';
+      } else if (type === 'matches-singles') {
+        templateData = [
+          { fecha: '2024-01-15', hora: '10:00', modalidad: 'Singles', jugador1: 'Juan Pérez', jugador2: 'Carlos López' },
+          { fecha: '2024-01-15', hora: '11:30', modalidad: 'Singles', jugador1: 'María García', jugador2: 'Ana Rodríguez' }
+        ];
+        filename = 'plantilla_partidos_singles.xlsx';
+      } else if (type === 'matches-doubles') {
+        templateData = [
+          { fecha: '2024-01-15', hora: '10:00', modalidad: 'Doubles', nombrePareja1: 'Juan Pérez', nombrePareja2: 'Carlos López', nombreRival1: 'Pedro Sánchez', nombreRival2: 'Luis Martínez' }
+        ];
+        filename = 'plantilla_partidos_doubles.xlsx';
+      } else {
+        return res.status(400).json({ message: "Invalid template type" });
+      }
+
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(templateData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Datos');
+
+      // Generate buffer
+      const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error generating template:", error);
+      res.status(500).json({ message: "Failed to generate template" });
     }
   });
 

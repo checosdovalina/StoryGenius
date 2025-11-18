@@ -580,6 +580,40 @@ export const insertTournamentUserRoleSchema = createInsertSchema(tournamentUserR
   updatedAt: true
 });
 
+// Excel Import Schemas
+export const excelPlayerSinglesSchema = z.object({
+  nombre: z.string().min(1, "Nombre es requerido"),
+  categoria: z.enum(["principiante", "intermedio", "avanzado", "profesional"], {
+    errorMap: () => ({ message: "Categoría inválida" })
+  })
+});
+
+export const excelPlayerDoublesSchema = z.object({
+  nombrePareja1: z.string().min(1, "Nombre Pareja 1 es requerido"),
+  nombrePareja2: z.string().min(1, "Nombre Pareja 2 es requerido"),
+  categoria: z.enum(["principiante", "intermedio", "avanzado", "profesional"], {
+    errorMap: () => ({ message: "Categoría inválida" })
+  })
+});
+
+export const excelMatchSinglesSchema = z.object({
+  fecha: z.string().min(1, "Fecha es requerida"),
+  hora: z.string().min(1, "Hora es requerida"),
+  modalidad: z.literal("Singles"),
+  jugador1: z.string().min(1, "Jugador 1 es requerido"),
+  jugador2: z.string().min(1, "Jugador 2 es requerido")
+});
+
+export const excelMatchDoublesSchema = z.object({
+  fecha: z.string().min(1, "Fecha es requerida"),
+  hora: z.string().min(1, "Hora es requerida"),
+  modalidad: z.literal("Doubles"),
+  nombrePareja1: z.string().min(1, "Nombre Pareja 1 es requerido"),
+  nombrePareja2: z.string().min(1, "Nombre Pareja 2 es requerido"),
+  nombreRival1: z.string().min(1, "Nombre Rival 1 es requerido"),
+  nombreRival2: z.string().min(1, "Nombre Rival 2 es requerido")
+});
+
 // Types
 export type Club = typeof clubs.$inferSelect;
 export type InsertClub = z.infer<typeof insertClubSchema>;
@@ -607,3 +641,7 @@ export type StatShareToken = typeof statShareTokens.$inferSelect;
 export type InsertStatShareToken = z.infer<typeof insertStatShareTokenSchema>;
 export type TournamentUserRole = typeof tournamentUserRoles.$inferSelect;
 export type InsertTournamentUserRole = z.infer<typeof insertTournamentUserRoleSchema>;
+export type ExcelPlayerSingles = z.infer<typeof excelPlayerSinglesSchema>;
+export type ExcelPlayerDoubles = z.infer<typeof excelPlayerDoublesSchema>;
+export type ExcelMatchSingles = z.infer<typeof excelMatchSinglesSchema>;
+export type ExcelMatchDoubles = z.infer<typeof excelMatchDoublesSchema>;
