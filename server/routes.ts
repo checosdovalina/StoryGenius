@@ -598,47 +598,79 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Scheduled matches routes (calendar)
-  app.get("/api/scheduled-matches", async (req, res) => {
+  // Scheduled matches routes (calendar) - Tournament scoped
+  app.get("/api/tournaments/:tournamentId/scheduled-matches", async (req, res) => {
     try {
-      const { date, startDate, endDate, courtId, organizerId } = req.query;
-      
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { tournamentId } = req.params;
+      const { date } = req.query;
+
+      // Verify tournament exists
+      const tournament = await storage.getTournament(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Check user access: SuperAdmin, Tournament Admin, Organizer can see all
+      // Players only see their own matches
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      const userRoles = await storage.getUserTournamentRoles(req.user!.id, tournamentId);
+      const canManageAll = isSuperAdmin || userRoles.includes('tournament_admin') || userRoles.includes('organizador');
+
       let matches;
       if (date) {
-        // Get matches for specific date
-        matches = await storage.getScheduledMatchesByDate(new Date(date as string));
-      } else if (startDate && endDate) {
-        // Get matches for date range
-        matches = await storage.getScheduledMatchesByDateRange(
-          new Date(startDate as string), 
-          new Date(endDate as string)
+        matches = await storage.getScheduledMatchesByTournamentAndDate(
+          tournamentId, 
+          new Date(date as string)
         );
-      } else if (courtId) {
-        // Get matches for specific court
-        const courtDate = date ? new Date(date as string) : undefined;
-        matches = await storage.getScheduledMatchesByCourt(courtId as string, courtDate);
-      } else if (organizerId) {
-        // Get matches by organizer
-        matches = await storage.getScheduledMatchesByOrganizer(organizerId as string);
       } else {
-        // Get all matches
-        matches = await storage.getAllScheduledMatches();
+        matches = await storage.getScheduledMatchesByTournament(tournamentId);
       }
-      
+
+      // Filter for players - only show their matches
+      if (!canManageAll) {
+        matches = matches.filter(match => 
+          match.player1Id === req.user!.id ||
+          match.player2Id === req.user!.id ||
+          match.player3Id === req.user!.id ||
+          match.player4Id === req.user!.id
+        );
+      }
+
       res.json(matches);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch scheduled matches" });
     }
   });
 
-  app.post("/api/scheduled-matches", async (req, res) => {
+  app.post("/api/tournaments/:tournamentId/scheduled-matches", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      const { tournamentId } = req.params;
+
+      // Verify tournament exists
+      const tournament = await storage.getTournament(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Only SuperAdmin, Tournament Admin, and Organizers can create matches
+      const canManage = await storage.canManageTournament(req.user!.id, tournamentId);
+      const userRoles = await storage.getUserTournamentRoles(req.user!.id, tournamentId);
+      
+      if (!canManage && !userRoles.includes('organizador')) {
+        return res.status(403).json({ message: "You don't have permission to create matches in this tournament" });
+      }
+
       const validatedData = insertScheduledMatchSchema.parse({
         ...req.body,
+        tournamentId,
         organizerId: req.user!.id
       });
 
@@ -664,26 +696,35 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.put("/api/scheduled-matches/:id", async (req, res) => {
+  app.put("/api/tournaments/:tournamentId/scheduled-matches/:id", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      const { tournamentId, id } = req.params;
+
       // Get existing match to check permissions
-      const existingMatch = await storage.getScheduledMatch(req.params.id);
+      const existingMatch = await storage.getScheduledMatch(id);
       if (!existingMatch) {
         return res.status(404).json({ message: "Scheduled match not found" });
       }
 
-      // Only the organizer or SuperAdmin can update
-      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
-      if (existingMatch.organizerId !== req.user!.id && !isSuperAdmin) {
-        return res.status(403).json({ message: "Not authorized to update this match" });
+      // Verify match belongs to this tournament
+      if (existingMatch.tournamentId !== tournamentId) {
+        return res.status(400).json({ message: "Match does not belong to this tournament" });
+      }
+
+      // Only SuperAdmin, Tournament Admin, and Organizers can update
+      const canManage = await storage.canManageTournament(req.user!.id, tournamentId);
+      const userRoles = await storage.getUserTournamentRoles(req.user!.id, tournamentId);
+      
+      if (!canManage && !userRoles.includes('organizador')) {
+        return res.status(403).json({ message: "You don't have permission to update matches in this tournament" });
       }
 
       const validatedData = insertScheduledMatchSchema.partial().parse(req.body);
-      const match = await storage.updateScheduledMatch(req.params.id, validatedData);
+      const match = await storage.updateScheduledMatch(id, validatedData);
       res.json(match);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -693,25 +734,34 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.delete("/api/scheduled-matches/:id", async (req, res) => {
+  app.delete("/api/tournaments/:tournamentId/scheduled-matches/:id", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      const { tournamentId, id } = req.params;
+
       // Get existing match to check permissions
-      const existingMatch = await storage.getScheduledMatch(req.params.id);
+      const existingMatch = await storage.getScheduledMatch(id);
       if (!existingMatch) {
         return res.status(404).json({ message: "Scheduled match not found" });
       }
 
-      // Only the organizer or SuperAdmin can delete
-      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
-      if (existingMatch.organizerId !== req.user!.id && !isSuperAdmin) {
-        return res.status(403).json({ message: "Not authorized to delete this match" });
+      // Verify match belongs to this tournament
+      if (existingMatch.tournamentId !== tournamentId) {
+        return res.status(400).json({ message: "Match does not belong to this tournament" });
       }
 
-      await storage.deleteScheduledMatch(req.params.id);
+      // Only SuperAdmin, Tournament Admin, and Organizers can delete
+      const canManage = await storage.canManageTournament(req.user!.id, tournamentId);
+      const userRoles = await storage.getUserTournamentRoles(req.user!.id, tournamentId);
+      
+      if (!canManage && !userRoles.includes('organizador')) {
+        return res.status(403).json({ message: "You don't have permission to delete matches in this tournament" });
+      }
+
+      await storage.deleteScheduledMatch(id);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete scheduled match" });

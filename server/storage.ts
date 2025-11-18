@@ -90,6 +90,8 @@ export interface IStorage {
   getScheduledMatchesByDateRange(startDate: Date, endDate: Date): Promise<ScheduledMatch[]>;
   getScheduledMatchesByCourt(courtId: string, date?: Date): Promise<ScheduledMatch[]>;
   getScheduledMatchesByOrganizer(organizerId: string): Promise<ScheduledMatch[]>;
+  getScheduledMatchesByTournament(tournamentId: string): Promise<ScheduledMatch[]>;
+  getScheduledMatchesByTournamentAndDate(tournamentId: string, date: Date): Promise<ScheduledMatch[]>;
   updateScheduledMatch(id: string, updates: Partial<InsertScheduledMatch>): Promise<ScheduledMatch>;
   deleteScheduledMatch(id: string): Promise<void>;
 
