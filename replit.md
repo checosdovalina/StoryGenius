@@ -116,6 +116,10 @@ All backend endpoints follow a consistent authorization pattern:
   - SuperAdmin sees all tournaments
   - Other users only see tournaments where they have assigned roles or are registered as players
   - `getUserTournaments()` method combines tournament_user_roles and tournament_registrations
+  - **Visual differentiation**: Tournaments display color-coded badges indicating user's access type:
+    - Role-based access: Badges with shield icon showing specific roles (Admin de Torneo, Organizador, Árbitro, Escrutador, Jugador)
+    - Player registration only: "Participante" badge with user-check icon
+    - Different colors for each role type (red for admin, blue for organizer, gray for officials)
 
 ## Known Limitations & Future Improvements
 
