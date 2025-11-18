@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema, excelPlayerSinglesSchema, excelPlayerDoublesSchema, excelMatchSinglesSchema, excelMatchDoublesSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, updateScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema, excelPlayerSinglesSchema, excelPlayerDoublesSchema, excelMatchSinglesSchema, excelMatchDoublesSchema } from "@shared/schema";
 import { z } from "zod";
 import { MatchStatsWebSocketServer } from "./websocket";
 import multer from "multer";
@@ -723,7 +723,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(403).json({ message: "You don't have permission to update matches in this tournament" });
       }
 
-      const validatedData = insertScheduledMatchSchema.partial().parse(req.body);
+      const validatedData = updateScheduledMatchSchema.parse(req.body);
       const match = await storage.updateScheduledMatch(id, validatedData);
       res.json(match);
     } catch (error) {

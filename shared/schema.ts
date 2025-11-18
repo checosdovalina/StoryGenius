@@ -540,14 +540,16 @@ export const insertPlayerStatsSchema = createInsertSchema(playerStats).omit({
   updatedAt: true
 });
 
-export const insertScheduledMatchSchema = createInsertSchema(scheduledMatches).omit({
+const baseScheduledMatchSchema = createInsertSchema(scheduledMatches).omit({
   id: true,
   createdAt: true,
   updatedAt: true
 }).extend({
   scheduledDate: z.coerce.date(),
   duration: z.number().min(30).max(180, "La duración debe estar entre 30 y 180 minutos")
-}).refine(
+});
+
+export const insertScheduledMatchSchema = baseScheduledMatchSchema.refine(
   (data) => {
     const playerCount = [data.player1Id, data.player1Name, data.player2Id, data.player2Name, data.player3Id, data.player3Name, data.player4Id, data.player4Name].filter(Boolean).length;
     if (data.matchType === 'doubles') {
@@ -561,6 +563,8 @@ export const insertScheduledMatchSchema = createInsertSchema(scheduledMatches).o
     path: ["matchType"]
   }
 );
+
+export const updateScheduledMatchSchema = baseScheduledMatchSchema.partial();
 
 export const insertMatchStatsSessionSchema = createInsertSchema(matchStatsSessions).omit({
   id: true,

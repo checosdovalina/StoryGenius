@@ -825,6 +825,34 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(scheduledMatches.scheduledDate));
   }
 
+  async getScheduledMatchesByTournament(tournamentId: string): Promise<ScheduledMatch[]> {
+    return await db
+      .select()
+      .from(scheduledMatches)
+      .where(eq(scheduledMatches.tournamentId, tournamentId))
+      .orderBy(asc(scheduledMatches.scheduledDate));
+  }
+
+  async getScheduledMatchesByTournamentAndDate(tournamentId: string, date: Date): Promise<ScheduledMatch[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return await db
+      .select()
+      .from(scheduledMatches)
+      .where(
+        and(
+          eq(scheduledMatches.tournamentId, tournamentId),
+          gte(scheduledMatches.scheduledDate, startOfDay),
+          lte(scheduledMatches.scheduledDate, endOfDay)
+        )
+      )
+      .orderBy(asc(scheduledMatches.scheduledDate));
+  }
+
   async updateScheduledMatch(id: string, updates: Partial<InsertScheduledMatch>): Promise<ScheduledMatch> {
     const [match] = await db
       .update(scheduledMatches)
