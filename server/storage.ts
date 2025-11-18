@@ -31,7 +31,7 @@ export interface IStorage {
   getTournament(id: string): Promise<Tournament | undefined>;
   getTournamentsByOrganizer(organizerId: string): Promise<Tournament[]>;
   getAllTournaments(): Promise<Tournament[]>;
-  getUserTournaments(userId: string): Promise<Tournament[]>;
+  getUserTournaments(userId: string): Promise<Array<Tournament & { userAccess: { hasRole: boolean; roles: string[]; isPlayer: boolean } }>>;
   updateTournament(id: string, updates: Partial<InsertTournament>): Promise<Tournament>;
   deleteTournament(id: string): Promise<void>;
 
@@ -249,10 +249,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(tournaments.createdAt));
   }
 
-  async getUserTournaments(userId: string): Promise<Tournament[]> {
+  async getUserTournaments(userId: string): Promise<Array<Tournament & { userAccess: { hasRole: boolean; roles: string[]; isPlayer: boolean } }>> {
     // Get tournaments where user has a role assigned
     const tournamentsWithRoles = await db
-      .selectDistinct({ tournamentId: tournamentUserRoles.tournamentId })
+      .select({ 
+        tournamentId: tournamentUserRoles.tournamentId,
+        role: tournamentUserRoles.role 
+      })
       .from(tournamentUserRoles)
       .where(eq(tournamentUserRoles.userId, userId));
     
@@ -262,14 +265,28 @@ export class DatabaseStorage implements IStorage {
       .from(tournamentRegistrations)
       .where(eq(tournamentRegistrations.playerId, userId));
     
-    // Combine both sets of tournament IDs
-    const allTournamentIds = [
-      ...tournamentsWithRoles.map(t => t.tournamentId),
-      ...tournamentsAsPlayer.map(t => t.tournamentId)
-    ];
+    // Create a map of tournament access info
+    const accessMap = new Map<string, { hasRole: boolean; roles: string[]; isPlayer: boolean }>();
     
-    // Remove duplicates
-    const uniqueTournamentIds = Array.from(new Set(allTournamentIds));
+    // Add role-based access
+    for (const roleRecord of tournamentsWithRoles) {
+      if (!accessMap.has(roleRecord.tournamentId)) {
+        accessMap.set(roleRecord.tournamentId, { hasRole: true, roles: [], isPlayer: false });
+      }
+      accessMap.get(roleRecord.tournamentId)!.roles.push(roleRecord.role);
+    }
+    
+    // Add player-based access
+    for (const playerRecord of tournamentsAsPlayer) {
+      if (!accessMap.has(playerRecord.tournamentId)) {
+        accessMap.set(playerRecord.tournamentId, { hasRole: false, roles: [], isPlayer: true });
+      } else {
+        accessMap.get(playerRecord.tournamentId)!.isPlayer = true;
+      }
+    }
+    
+    // Get all unique tournament IDs
+    const uniqueTournamentIds = Array.from(accessMap.keys());
     
     // If no tournaments found, return empty array
     if (uniqueTournamentIds.length === 0) {
@@ -283,7 +300,11 @@ export class DatabaseStorage implements IStorage {
       .where(sql`${tournaments.id} IN ${sql.raw(`(${uniqueTournamentIds.map(id => `'${id}'`).join(',')})`)}`)
       .orderBy(desc(tournaments.createdAt));
     
-    return userTournaments;
+    // Add access info to each tournament
+    return userTournaments.map(tournament => ({
+      ...tournament,
+      userAccess: accessMap.get(tournament.id)!
+    }));
   }
 
   async updateTournament(id: string, updates: Partial<InsertTournament>): Promise<Tournament> {
