@@ -62,6 +62,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { Match } from "@shared/schema";
 import { TournamentRolesTab } from "@/components/tournament-roles-tab";
+import { ExcelImportDialog } from "@/components/excel-import-dialog";
 
 // =======================
 // 1️⃣ Página principal
@@ -521,7 +522,7 @@ export default function TournamentDetailPage() {
 
           {/* Main content tabs */}
           <Tabs defaultValue="players" className="w-full">
-            <TabsList className={`grid w-full ${canManage ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <TabsList className={`grid w-full ${canManage ? 'grid-cols-4' : 'grid-cols-2'}`}>
               <TabsTrigger value="players" data-testid="tab-players" className="min-h-[44px]">
                 Jugadores
               </TabsTrigger>
@@ -529,9 +530,14 @@ export default function TournamentDetailPage() {
                 Partidos
               </TabsTrigger>
               {canManage && (
-                <TabsTrigger value="roles" data-testid="tab-roles" className="min-h-[44px]">
-                  Roles
-                </TabsTrigger>
+                <>
+                  <TabsTrigger value="import" data-testid="tab-import" className="min-h-[44px]">
+                    Importar
+                  </TabsTrigger>
+                  <TabsTrigger value="roles" data-testid="tab-roles" className="min-h-[44px]">
+                    Roles
+                  </TabsTrigger>
+                </>
               )}
               {/* <TabsTrigger value="brackets" data-testid="tab-brackets">Brackets</TabsTrigger> */}
             </TabsList>
@@ -545,9 +551,57 @@ export default function TournamentDetailPage() {
             </TabsContent>
 
             {canManage && (
-              <TabsContent value="roles" className="mt-4 sm:mt-6">
-                <TournamentRolesTab tournament={tournament} />
-              </TabsContent>
+              <>
+                <TabsContent value="import" className="mt-4 sm:mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Importación Masiva</CardTitle>
+                      <CardDescription>
+                        Importa jugadores y partidos desde archivos Excel para cargar datos de forma rápida y eficiente
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-start gap-4 p-4 border rounded-lg bg-muted/50">
+                        <div className="flex-1 space-y-2">
+                          <h4 className="font-medium">Importar Jugadores</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Carga jugadores individuales (Singles) o parejas (Doubles) desde un archivo Excel. 
+                            Los jugadores serán automáticamente registrados en este torneo.
+                          </p>
+                          <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
+                            <li>Si el jugador no existe, se creará automáticamente</li>
+                            <li>Se requiere nombre y categoría para cada jugador</li>
+                            <li>Para doubles, necesitas dos nombres por pareja</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-4 p-4 border rounded-lg bg-muted/50">
+                        <div className="flex-1 space-y-2">
+                          <h4 className="font-medium">Importar Partidos</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Programa partidos de Singles o Doubles especificando fecha, hora y jugadores.
+                            Los jugadores deben existir previamente en el sistema.
+                          </p>
+                          <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
+                            <li>Los jugadores deben estar registrados antes de importar partidos</li>
+                            <li>Formato de fecha: YYYY-MM-DD (ej: 2024-12-25)</li>
+                            <li>Formato de hora: HH:MM (ej: 14:30)</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center pt-4">
+                        <ExcelImportDialog tournamentId={tournament.id} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="roles" className="mt-4 sm:mt-6">
+                  <TournamentRolesTab tournament={tournament} />
+                </TabsContent>
+              </>
             )}
 
             {/* <TabsContent value="brackets" className="mt-6">
