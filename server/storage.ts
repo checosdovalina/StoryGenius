@@ -31,6 +31,7 @@ export interface IStorage {
   getTournament(id: string): Promise<Tournament | undefined>;
   getTournamentsByOrganizer(organizerId: string): Promise<Tournament[]>;
   getAllTournaments(): Promise<Tournament[]>;
+  getUserTournaments(userId: string): Promise<Tournament[]>;
   updateTournament(id: string, updates: Partial<InsertTournament>): Promise<Tournament>;
   deleteTournament(id: string): Promise<void>;
 
@@ -246,6 +247,43 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(tournaments)
       .orderBy(desc(tournaments.createdAt));
+  }
+
+  async getUserTournaments(userId: string): Promise<Tournament[]> {
+    // Get tournaments where user has a role assigned
+    const tournamentsWithRoles = await db
+      .selectDistinct({ tournamentId: tournamentUserRoles.tournamentId })
+      .from(tournamentUserRoles)
+      .where(eq(tournamentUserRoles.userId, userId));
+    
+    // Get tournaments where user is registered as a player
+    const tournamentsAsPlayer = await db
+      .selectDistinct({ tournamentId: tournamentRegistrations.tournamentId })
+      .from(tournamentRegistrations)
+      .where(eq(tournamentRegistrations.playerId, userId));
+    
+    // Combine both sets of tournament IDs
+    const allTournamentIds = [
+      ...tournamentsWithRoles.map(t => t.tournamentId),
+      ...tournamentsAsPlayer.map(t => t.tournamentId)
+    ];
+    
+    // Remove duplicates
+    const uniqueTournamentIds = Array.from(new Set(allTournamentIds));
+    
+    // If no tournaments found, return empty array
+    if (uniqueTournamentIds.length === 0) {
+      return [];
+    }
+    
+    // Fetch tournament details
+    const userTournaments = await db
+      .select()
+      .from(tournaments)
+      .where(sql`${tournaments.id} IN ${sql.raw(`(${uniqueTournamentIds.map(id => `'${id}'`).join(',')})`)}`)
+      .orderBy(desc(tournaments.createdAt));
+    
+    return userTournaments;
   }
 
   async updateTournament(id: string, updates: Partial<InsertTournament>): Promise<Tournament> {

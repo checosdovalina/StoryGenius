@@ -15,7 +15,22 @@ export function registerRoutes(app: Express): Server {
   // Tournament routes
   app.get("/api/tournaments", async (req, res) => {
     try {
-      const tournaments = await storage.getAllTournaments();
+      // Multi-tenant: Users only see tournaments they have access to
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // SuperAdmin sees all tournaments
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      let tournaments;
+      
+      if (isSuperAdmin) {
+        tournaments = await storage.getAllTournaments();
+      } else {
+        // Other users only see tournaments where they have a role or are registered
+        tournaments = await storage.getUserTournaments(req.user!.id);
+      }
+      
       res.json(tournaments);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch tournaments" });
