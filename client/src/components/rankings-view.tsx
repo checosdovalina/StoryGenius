@@ -1,303 +1,164 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Medal, Trophy, Award } from "lucide-react";
-import type { Tournament } from "@shared/schema";
+import { Trophy, Medal, Award, Loader2 } from "lucide-react";
 
-interface RankingEntry {
+interface RankingPlayer {
   playerId: string;
   playerName: string;
   playerEmail: string;
-  playerClub: string;
-  rankingScore: number;
+  rankingPoints: number;
+  matchesPlayed: number;
   matchesWon: number;
   matchesLost: number;
-  totalMatches: number;
-  winRate: number;
-  avgMatchDuration: number;
-  totalPoints: number;
-  aces: number;
-  doubleFaults: number;
-  aceEffectiveness: number;
-  winners: number;
-  errors: number;
-  rankingPoints: number;
-  currentWinStreak: number;
 }
 
 export function RankingsView() {
-  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
-
-  const { data: globalRankings = [], isLoading: globalLoading } = useQuery<RankingEntry[]>({
-    queryKey: ["/api/rankings/global"]
+  const { data: ranking, isLoading } = useQuery<RankingPlayer[]>({
+    queryKey: ["/api/ranking/global"],
   });
-
-  const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery<Tournament[]>({
-    queryKey: ["/api/tournaments"]
-  });
-
-  const { data: tournamentRankings = [], isLoading: tournamentRankingsLoading } = useQuery<RankingEntry[]>({
-    queryKey: selectedTournamentId ? [`/api/tournaments/${selectedTournamentId}/rankings`] : [],
-    enabled: !!selectedTournamentId
-  });
-
-  const activeTournaments = tournaments.filter(t => t.status === 'active');
-  const selectedTournament = tournaments.find(t => t.id === selectedTournamentId);
 
   const getRankIcon = (position: number) => {
-    switch (position) {
-      case 1: return <Medal className="h-6 w-6 text-yellow-500" />;
-      case 2: return <Medal className="h-6 w-6 text-gray-400" />;
-      case 3: return <Medal className="h-6 w-6 text-amber-600" />;
-      default: return <div className="w-6 h-6 flex items-center justify-center text-muted-foreground font-bold">{position}</div>;
-    }
+    if (position === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
+    if (position === 2) return <Medal className="h-5 w-5 text-gray-400" />;
+    if (position === 3) return <Award className="h-5 w-5 text-amber-600" />;
+    return null;
   };
 
-  if (globalLoading || tournamentsLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center space-x-4">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-32 mb-1" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                    <Skeleton className="h-4 w-16" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center space-x-4">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-32 mb-1" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                    <Skeleton className="h-4 w-16" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  const getRankBadge = (position: number) => {
+    if (position === 1) return <Badge className="bg-yellow-500">1°</Badge>;
+    if (position === 2) return <Badge className="bg-gray-400">2°</Badge>;
+    if (position === 3) return <Badge className="bg-amber-600">3°</Badge>;
+    if (position <= 10) return <Badge variant="secondary">Top 10</Badge>;
+    return null;
+  };
+
+  const getWinRate = (won: number, played: number) => {
+    if (played === 0) return "0%";
+    return `${Math.round((won / played) * 100)}%`;
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-card-foreground">Rankings</h3>
-        <p className="text-muted-foreground">Clasificaciones por torneo y ranking global</p>
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">IRT World Ranking</h1>
+          <p className="text-muted-foreground mt-1">
+            Official International Racquetball Tour Rankings
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Global Rankings */}
-        <Card data-testid="global-rankings">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center">
-                <Trophy className="mr-2 h-5 w-5 text-primary" />
-                Ranking Global
-              </CardTitle>
-              <Select defaultValue="all">
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las categorías</SelectItem>
-                  <SelectItem value="padel">Pádel</SelectItem>
-                  <SelectItem value="racquetball">Raquetbol</SelectItem>
-                </SelectContent>
-              </Select>
+      <Card>
+        <CardHeader>
+          <CardTitle>Global Ranking</CardTitle>
+          <CardDescription>
+            Top 100 jugadores por puntos IRT acumulados
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {globalRankings.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No hay datos de ranking disponibles
-                </p>
-              ) : (
-                globalRankings.slice(0, 10).map((stat, index) => {
-                  const position = index + 1;
-                  
-                  return (
-                    <div key={stat.playerId} className="flex items-center space-x-4" data-testid={`global-rank-${position}`}>
-                      {getRankIcon(position)}
-                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                        <span className="text-primary-foreground text-sm font-medium">
-                          {stat.playerName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-card-foreground" data-testid={`player-name-${position}`}>
-                          {stat.playerName}
-                        </p>
-                        <div className="flex gap-2 items-center text-xs text-muted-foreground">
-                          <span>{stat.playerClub}</span>
-                          <span>•</span>
-                          <span>{stat.matchesWon}V-{stat.matchesLost}D</span>
-                          {stat.winRate > 0 && (
-                            <>
-                              <span>•</span>
-                              <span className="text-accent font-medium">{stat.winRate}%</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-card-foreground" data-testid={`ranking-points-${position}`}>
-                          {stat.rankingScore}
-                        </p>
-                        <p className="text-xs text-muted-foreground">puntos</p>
-                        <div className="flex gap-1 mt-1 justify-end">
-                          {stat.totalPoints > 0 && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0">
-                              {stat.totalPoints}pts
-                            </Badge>
-                          )}
-                          {stat.aces > 0 && (
-                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                              {stat.aces}A
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+          ) : !ranking || ranking.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No hay datos de ranking disponibles
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">Posición</TableHead>
+                    <TableHead>Jugador</TableHead>
+                    <TableHead className="text-right">Puntos IRT</TableHead>
+                    <TableHead className="text-right">Partidos</TableHead>
+                    <TableHead className="text-right">Ganados</TableHead>
+                    <TableHead className="text-right">Perdidos</TableHead>
+                    <TableHead className="text-right">% Victorias</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ranking.map((player, index) => {
+                    const position = index + 1;
+                    return (
+                      <TableRow 
+                        key={player.playerId}
+                        className={position <= 3 ? "bg-muted/50" : ""}
+                        data-testid={`ranking-row-${player.playerId}`}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getRankIcon(position)}
+                            <span className="font-semibold">{position}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium" data-testid={`player-name-${player.playerId}`}>
+                                {player.playerName}
+                              </span>
+                              {getRankBadge(position)}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {player.playerEmail}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="outline" className="font-bold" data-testid={`points-${player.playerId}`}>
+                            {player.rankingPoints || 0}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right" data-testid={`matches-played-${player.playerId}`}>
+                          {player.matchesPlayed}
+                        </TableCell>
+                        <TableCell className="text-right text-green-600 dark:text-green-400" data-testid={`matches-won-${player.playerId}`}>
+                          {player.matchesWon}
+                        </TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400" data-testid={`matches-lost-${player.playerId}`}>
+                          {player.matchesLost}
+                        </TableCell>
+                        <TableCell className="text-right font-medium" data-testid={`win-rate-${player.playerId}`}>
+                          {getWinRate(player.matchesWon, player.matchesPlayed)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Tournament Rankings */}
-        <Card data-testid="tournament-rankings">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center">
-                <Award className="mr-2 h-5 w-5 text-accent" />
-                Rankings de Torneos
-              </CardTitle>
-              <Select value={selectedTournamentId || undefined} onValueChange={setSelectedTournamentId}>
-                <SelectTrigger className="w-48" data-testid="tournament-select">
-                  <SelectValue placeholder="Seleccionar torneo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeTournaments.map((tournament) => (
-                    <SelectItem key={tournament.id} value={tournament.id}>
-                      {tournament.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {activeTournaments.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No hay torneos activos
-                </p>
-              ) : !selectedTournamentId ? (
-                <p className="text-muted-foreground text-center py-8">
-                  Selecciona un torneo para ver el ranking
-                </p>
-              ) : tournamentRankingsLoading ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="flex items-center space-x-4">
-                      <Skeleton className="h-8 w-8 rounded-full" />
-                      <Skeleton className="h-10 w-10 rounded-full" />
-                      <div className="flex-1">
-                        <Skeleton className="h-4 w-32 mb-1" />
-                        <Skeleton className="h-3 w-24" />
-                      </div>
-                      <Skeleton className="h-4 w-16" />
-                    </div>
-                  ))}
-                </div>
-              ) : tournamentRankings.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No hay datos de ranking disponibles para este torneo
-                </p>
-              ) : (
-                tournamentRankings.slice(0, 10).map((stat, index) => {
-                  const position = index + 1;
-                  
-                  return (
-                    <div key={stat.playerId} className="flex items-center space-x-4" data-testid={`tournament-rank-${position}`}>
-                      {getRankIcon(position)}
-                      <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center">
-                        <span className="text-accent-foreground text-sm font-medium">
-                          {stat.playerName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-card-foreground">
-                          {stat.playerName}
-                        </p>
-                        <div className="flex gap-2 items-center text-xs text-muted-foreground">
-                          <span>{stat.playerClub}</span>
-                          <span>•</span>
-                          <span>{stat.matchesWon}V-{stat.matchesLost}D</span>
-                          {stat.winRate > 0 && (
-                            <>
-                              <span>•</span>
-                              <span className="text-accent font-medium">{stat.winRate}%</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-card-foreground">
-                          {stat.rankingScore}
-                        </p>
-                        <p className="text-xs text-muted-foreground">puntos</p>
-                        <div className="flex gap-1 mt-1 justify-end">
-                          {stat.totalPoints > 0 && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0">
-                              {stat.totalPoints}pts
-                            </Badge>
-                          )}
-                          {stat.aces > 0 && (
-                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                              {stat.aces}A
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Información del Sistema IRT</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div>
+            <h4 className="font-semibold mb-2">Tiers de Torneos</h4>
+            <ul className="space-y-1 text-muted-foreground">
+              <li>• <strong>Grand Slam (GS):</strong> 1000 y 900 puntos</li>
+              <li>• <strong>Tier 1 (IRT):</strong> 800 y 700 puntos</li>
+              <li>• <strong>Satellites (SAT):</strong> 600, 500, 400, 350, 250, 150 puntos</li>
+              <li>• <strong>Doubles Pro (DOB):</strong> 800, 700, 600, 500 puntos</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-2">Sistema de Puntos</h4>
+            <p className="text-muted-foreground">
+              Los puntos se otorgan automáticamente al completar partidos en torneos con tier IRT asignado.
+              Los puntos dependen del tier del torneo, la ronda alcanzada, y el resultado del partido.
+              Los puntos no expiran y se acumulan permanentemente.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -28,6 +28,8 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
     endDate: "",
     maxPlayers: "",
     registrationFee: "",
+    tier: "",
+    prizePool: "",
     description: ""
   });
 
@@ -70,6 +72,8 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
       endDate: "",
       maxPlayers: "",
       registrationFee: "",
+      tier: "",
+      prizePool: "",
       description: ""
     });
   };
@@ -90,6 +94,8 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
       endDate: new Date(formData.endDate + 'T23:59:59'),
       maxPlayers: parseInt(formData.maxPlayers),
       registrationFee: formData.registrationFee ? formData.registrationFee : "0",
+      tier: formData.tier || undefined,
+      prizePool: formData.prizePool || undefined,
       description: formData.description || null
     };
 
@@ -234,16 +240,54 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="registrationFee">Cuota de Inscripción ($)</Label>
+              <Input
+                id="registrationFee"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.registrationFee}
+                onChange={(e) => handleInputChange("registrationFee", e.target.value)}
+                data-testid="input-registration-fee"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tier">Tier IRT (Opcional)</Label>
+              <Select value={formData.tier} onValueChange={(value) => handleInputChange("tier", value)}>
+                <SelectTrigger data-testid="select-tournament-tier">
+                  <SelectValue placeholder="Seleccionar tier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GS-1000">Grand Slam - 1000 Pts</SelectItem>
+                  <SelectItem value="GS-900">Grand Slam - 900 Pts</SelectItem>
+                  <SelectItem value="IRT-800">Tier 1 - 800 Pts</SelectItem>
+                  <SelectItem value="IRT-700">Tier 1 - 700 Pts</SelectItem>
+                  <SelectItem value="SAT-600">Satellite - 600 Pts</SelectItem>
+                  <SelectItem value="SAT-500">Satellite - 500 Pts</SelectItem>
+                  <SelectItem value="SAT-400">Satellite - 400 Pts</SelectItem>
+                  <SelectItem value="SAT-350">Satellite - 350 Pts</SelectItem>
+                  <SelectItem value="SAT-250">Satellite - 250 Pts</SelectItem>
+                  <SelectItem value="SAT-150">Satellite - 150 Pts</SelectItem>
+                  <SelectItem value="DOB-800">Doubles Pro - 800 Pts</SelectItem>
+                  <SelectItem value="DOB-700">Doubles Pro - 700 Pts</SelectItem>
+                  <SelectItem value="DOB-600">Doubles Pro - 600 Pts</SelectItem>
+                  <SelectItem value="DOB-500">Doubles Pro - 500 Pts</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="registrationFee">Cuota de Inscripción ($)</Label>
+            <Label htmlFor="prizePool">Prize Pool (Opcional)</Label>
             <Input
-              id="registrationFee"
-              type="number"
-              min="0"
-              step="0.01"
-              value={formData.registrationFee}
-              onChange={(e) => handleInputChange("registrationFee", e.target.value)}
-              data-testid="input-registration-fee"
+              id="prizePool"
+              type="text"
+              placeholder="e.g., $10,000 USD"
+              value={formData.prizePool}
+              onChange={(e) => handleInputChange("prizePool", e.target.value)}
+              data-testid="input-prize-pool"
             />
           </div>
 

@@ -1681,6 +1681,62 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
+      // Calculate and assign IRT ranking points
+      const tournament = await storage.getTournament(match.tournamentId);
+      if (tournament && tournament.tier && match.round) {
+        // Get IRT points configuration for this tier/matchType/round
+        const pointsConfig = await storage.getIrtPointsConfig(
+          tournament.tier,
+          match.matchType,
+          match.round
+        );
+
+        if (pointsConfig) {
+          // Helper function to assign points to a player
+          const assignPoints = async (playerId: string, won: boolean) => {
+            const points = won ? pointsConfig.winnerPoints : pointsConfig.loserPoints;
+            
+            if (points > 0) {
+              // Create ranking history record
+              await storage.createPlayerRankingHistory({
+                playerId,
+                tournamentId: match.tournamentId,
+                matchId: match.id,
+                points,
+                tier: tournament.tier!,
+                round: match.round!,
+                matchType: match.matchType,
+                result: won ? 'won' : 'lost'
+              });
+
+              // Update global ranking points (tournamentId = null for global stats)
+              const globalStatsArray = await storage.getPlayerStats(playerId, null);
+              const globalStats = globalStatsArray[0];
+              
+              if (globalStats) {
+                await storage.updatePlayerStats(playerId, null, {
+                  rankingPoints: (globalStats.rankingPoints || 0) + points
+                });
+              }
+            }
+          };
+
+          // Assign points to all players
+          if (match.player1Id) {
+            await assignPoints(match.player1Id, player1Won);
+          }
+          if (match.player2Id) {
+            await assignPoints(match.player2Id, player2Won);
+          }
+          if (match.player3Id && match.matchType === 'doubles') {
+            await assignPoints(match.player3Id, player1Won);
+          }
+          if (match.player4Id && match.matchType === 'doubles') {
+            await assignPoints(match.player4Id, player2Won);
+          }
+        }
+      }
+
       res.json(completedSession);
     } catch (error) {
       res.status(500).json({ message: "Failed to complete session" });
@@ -1833,6 +1889,84 @@ export function registerRoutes(app: Express): Server {
   // TODO: Re-implement with proper role-based ownership validation, token lifecycle, and tests
   // See: statShareTokens table schema and storage methods remain for future implementation
 
+  // IRT Ranking System Endpoints
+  
+  // Get global ranking
+  app.get("/api/ranking/global", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const ranking = await storage.getGlobalRanking(limit);
+      res.json(ranking);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch global ranking" });
+    }
+  });
+
+  // Get player ranking history
+  app.get("/api/ranking/history/:playerId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const tournamentId = req.query.tournamentId as string | undefined;
+      const history = await storage.getPlayerRankingHistory(req.params.playerId, tournamentId);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch ranking history" });
+    }
+  });
+
+  // Manually edit player ranking points (SuperAdmin only)
+  app.post("/api/ranking/edit", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Only SuperAdmin can manually edit points
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      if (!isSuperAdmin) {
+        return res.status(403).json({ message: "Only SuperAdmins can manually edit ranking points" });
+      }
+
+      const { playerId, points, reason } = req.body;
+
+      if (!playerId || points === undefined) {
+        return res.status(400).json({ message: "playerId and points are required" });
+      }
+
+      // Get current global stats
+      const globalStatsArray = await storage.getPlayerStats(playerId, null);
+      const globalStats = globalStatsArray[0];
+
+      if (!globalStats) {
+        return res.status(404).json({ message: "Player stats not found" });
+      }
+
+      // Update ranking points
+      const updatedStats = await storage.updatePlayerStats(playerId, null, {
+        rankingPoints: (globalStats.rankingPoints || 0) + points
+      });
+
+      // Create history record for manual adjustment
+      await storage.createPlayerRankingHistory({
+        playerId,
+        tournamentId: null,
+        matchId: null,
+        points,
+        tier: null,
+        round: null,
+        matchType: null,
+        result: 'manual_adjustment',
+        notes: reason || 'Manual adjustment by SuperAdmin'
+      });
+
+      res.json(updatedStats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to edit ranking points" });
+    }
+  });
 
 
   const httpServer = createServer(app);
