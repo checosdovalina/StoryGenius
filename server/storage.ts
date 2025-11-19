@@ -121,6 +121,7 @@ export interface IStorage {
   createMatchEvent(event: InsertMatchEvent): Promise<MatchEvent>;
   getSessionEvents(sessionId: string): Promise<MatchEvent[]>;
   getLatestMatchEvents(sessionId: string, limit: number): Promise<MatchEvent[]>;
+  undoLastEvent(sessionId: string): Promise<MatchStatsSession | null>;
 
   // Player statistics from match events
   getPlayersEventStats(): Promise<any[]>;
@@ -1508,6 +1509,54 @@ export class DatabaseStorage implements IStorage {
       .where(eq(matchEvents.sessionId, sessionId))
       .orderBy(desc(matchEvents.createdAt))
       .limit(limit);
+  }
+
+  async undoLastEvent(sessionId: string): Promise<MatchStatsSession | null> {
+    const session = await this.getStatsSession(sessionId);
+    if (!session) {
+      return null;
+    }
+
+    const allEvents = await this.getSessionEvents(sessionId);
+    if (allEvents.length === 0) {
+      return session;
+    }
+
+    const lastEvent = allEvents[allEvents.length - 1];
+
+    await db.delete(matchEvents).where(eq(matchEvents.id, lastEvent.id));
+
+    const updates: Partial<InsertMatchStatsSession> = {};
+
+    if (allEvents.length > 1) {
+      const secondToLastEvent = allEvents[allEvents.length - 2];
+      updates.player1CurrentScore = secondToLastEvent.player1Score || "0";
+      updates.player2CurrentScore = secondToLastEvent.player2Score || "0";
+    } else {
+      updates.player1CurrentScore = "0";
+      updates.player2CurrentScore = "0";
+      updates.player1Sets = 0;
+      updates.player2Sets = 0;
+      updates.currentSet = 1;
+      updates.player1Games = "[]";
+      updates.player2Games = "[]";
+      updates.serverId = session.player1Id;
+    }
+
+    updates.matchWinner = null;
+    updates.matchEndedByTechnical = false;
+    updates.status = "active";
+
+    if (lastEvent.eventType === "technical") {
+      const isTeam1Event = lastEvent.team === '1';
+      if (isTeam1Event && session.player1Technicals! > 0) {
+        updates.player1Technicals = session.player1Technicals! - 1;
+      } else if (!isTeam1Event && session.player2Technicals! > 0) {
+        updates.player2Technicals = session.player2Technicals! - 1;
+      }
+    }
+
+    return await this.updateStatsSession(sessionId, updates);
   }
 
   async getPlayersEventStats(tournamentId?: string): Promise<any[]> {

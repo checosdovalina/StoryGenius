@@ -162,6 +162,21 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     }
   });
 
+  // Undo last event mutation
+  const undoMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/stats/sessions/${session.id}/undo`);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      onSessionUpdate(data);
+      toast({ title: "Acción deshecha", description: "Se ha revertido el último evento" });
+    },
+    onError: () => {
+      toast({ title: "Error al deshacer", description: "No se pudo deshacer la acción", variant: "destructive" });
+    }
+  });
+
   // Handle point with shot type
   const handlePoint = (playerId: string, shotType: "recto" | "esquina" | "cruzado" | "punto") => {
     // Don't allow scoring if match is already won
@@ -261,6 +276,26 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     });
 
     toast({ title: `Ace ${side}!` });
+  };
+
+  // Handle fault (simple fault - no score change)
+  const handleFault = (playerId: string) => {
+    // Don't allow if match is already won
+    if (scoreState.matchWinner) {
+      toast({ 
+        title: "Partido terminado", 
+        description: "El partido ya ha finalizado",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    recordEventMutation.mutate({
+      eventType: "fault",
+      playerId
+    });
+
+    toast({ title: "Falta registrada", description: "Primera falta en el saque" });
   };
 
   // Handle double fault
@@ -426,6 +461,18 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
 
   return (
     <div className="min-h-screen w-full bg-background p-2 sm:p-4 space-y-3 overflow-y-auto">
+      {/* Undo Button */}
+      <Button
+        onClick={() => undoMutation.mutate()}
+        variant="outline"
+        className="w-full min-h-[48px] sm:min-h-[56px] text-base sm:text-lg font-semibold border-2 border-yellow-500 hover:bg-yellow-50"
+        disabled={undoMutation.isPending}
+        data-testid="button-undo"
+      >
+        <X className="h-5 w-5 mr-2 rotate-45" />
+        {undoMutation.isPending ? "Deshaciendo..." : "Deshacer último paso"}
+      </Button>
+
       {/* Timeout Timer */}
       {timeoutActive && (
         <Card className="bg-orange-500 border-orange-600">
@@ -510,8 +557,8 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
             </Button>
           </div>
 
-          {/* Ace buttons */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          {/* Ace and Fault buttons */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
             <Button
               onClick={() => handleAce(isDoubles ? activeServingPlayerId : scoreState.serverId, "derecha")}
               variant="secondary"
@@ -531,6 +578,17 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
             >
               <Zap className="h-5 w-5 mr-1" />
               Izquierda
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <Button
+              onClick={() => handleFault(isDoubles ? activeServingPlayerId : scoreState.serverId)}
+              variant="outline"
+              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold border-orange-500 text-orange-600 hover:bg-orange-50"
+              disabled={!!scoreState.matchWinner}
+              data-testid="button-fault"
+            >
+              Falta
             </Button>
             <Button
               onClick={() => handleDoubleFault(isDoubles ? activeServingPlayerId : scoreState.serverId)}
@@ -709,8 +767,8 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
             </Button>
           </div>
 
-          {/* Ace buttons */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          {/* Ace and Fault buttons */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
             <Button
               onClick={() => handleAce(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "derecha")}
               variant="secondary"
@@ -730,6 +788,17 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
             >
               <Zap className="h-5 w-5 mr-1" />
               Izquierda
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <Button
+              onClick={() => handleFault(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id))}
+              variant="outline"
+              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold border-orange-500 text-orange-600 hover:bg-orange-50"
+              disabled={!!scoreState.matchWinner}
+              data-testid="button-receiver-fault"
+            >
+              Falta
             </Button>
             <Button
               onClick={() => handleDoubleFault(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id))}

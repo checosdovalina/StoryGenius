@@ -1591,6 +1591,50 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Undo last event endpoint
+  app.post("/api/stats/sessions/:sessionId/undo", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get session to verify existence and get match
+      const session = await storage.getStatsSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Stats session not found" });
+      }
+
+      // Get match to verify tournament
+      const match = await storage.getMatch(session.matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      // Only SuperAdmin or Tournament Admin can undo events
+      const canManage = await storage.canManageTournament(req.user!.id, match.tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions to undo match events" });
+      }
+
+      const updatedSession = await storage.undoLastEvent(req.params.sessionId);
+      if (!updatedSession) {
+        return res.status(404).json({ message: "Session not found or no events to undo" });
+      }
+
+      // Broadcast session update to match subscribers
+      if (wsServer) {
+        wsServer.broadcastToMatch(session.matchId, {
+          type: "session_update",
+          session: updatedSession
+        });
+      }
+
+      res.json(updatedSession);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to undo event" });
+    }
+  });
+
   // Get all completed stats sessions (admin/escribano only)
   app.get("/api/stats/sessions", async (req, res) => {
     try {

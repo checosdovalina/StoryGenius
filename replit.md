@@ -26,7 +26,7 @@ The system implements session-based authentication with a hierarchical multi-ten
 
 ## Specific Features
 -   **Real-Time Match Statistics Capture**: Live scoring module with racquetball-specific logic, granular event recording including shot types, and serve tracking. Authorized roles include: superadmin, admin (global), and tournament_admin, organizador, arbitro, escrutador (tournament-scoped). The authorization system properly waits for role data to load before evaluating permissions, preventing premature redirects.
--   **Open IRT Format Implementation**: Specialized scoring logic for International Racquetball Tour (IRT) including server-only scoring, two-panel interface, timeout management, appellation system, and technical foul tracking.
+-   **Open IRT Format Implementation**: Specialized scoring logic for International Racquetball Tour (IRT) including server-only scoring, two-panel interface, timeout management, appellation system, technical foul tracking with automatic match termination at 3 technicals, undo functionality to revert the last action, and fault/double-fault tracking for serve statistics.
 -   **Enhanced Statistics Module**: Tracks shot-type breakdown (recto, esquina, cruzado, punto), serve effectiveness (ace tracking by side with percentage-based badges and color-coded performance tiers), and aggregates summary metrics from completed matches. Statistics capture from this view updates the scoreboard in real-time.
 -   **Comprehensive CRUD**: Full Create, Read, Update, Delete functionality for tournaments and matches with role-based access controls.
 -   **Bracket Generation**: System for generating tournament brackets with transactional safety.
