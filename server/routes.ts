@@ -695,8 +695,13 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "Date parameter required" });
       }
 
+      // Parse date in UTC to avoid timezone issues
+      const dateStr = date as string;
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const searchDate = new Date(Date.UTC(year, month - 1, day));
+
       const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
-      const allMatches = await storage.getScheduledMatchesByDate(new Date(date as string));
+      const allMatches = await storage.getScheduledMatchesByDate(searchDate);
 
       // SuperAdmins and admins see all matches
       if (isSuperAdmin || req.user!.role === 'admin') {
