@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Clock, Users, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -115,7 +116,10 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
   // Create/Update match mutation
   const saveMatchMutation = useMutation({
     mutationFn: async (data: MatchFormData) => {
-      const scheduledDate = new Date(`${data.scheduledDate}T${data.time}:00`);
+      // Interpret the date in the tournament's timezone
+      const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+      const localDateString = `${data.scheduledDate}T${data.time}:00`;
+      const scheduledDate = zonedTimeToUtc(localDateString, tournamentTimezone);
       
       const matchData = {
         title: data.title,
@@ -184,11 +188,15 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
   });
 
   const handleEdit = (match: ScheduledMatch) => {
-    const matchDate = new Date(match.scheduledDate);
+    // Convert UTC date to tournament timezone for editing
+    const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+    const utcDate = new Date(match.scheduledDate);
+    const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+    
     form.reset({
       title: match.title,
-      scheduledDate: format(matchDate, "yyyy-MM-dd"),
-      time: format(matchDate, "HH:mm"),
+      scheduledDate: format(zonedDate, "yyyy-MM-dd"),
+      time: format(zonedDate, "HH:mm"),
       sport: "racquetball",
       matchType: match.matchType,
       courtId: match.courtId,
@@ -234,8 +242,11 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
   ];
 
   const getMatchesForSlot = (courtId: string, time: string) => {
-    const slotStart = new Date(`${format(selectedDate, "yyyy-MM-dd")}T${time}:00`);
-    const slotEnd = new Date(slotStart.getTime() + 90 * 60 * 1000);
+    // Create slot times in tournament timezone
+    const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+    const slotDateString = `${format(selectedDate, "yyyy-MM-dd")}T${time}:00`;
+    const slotStartUtc = zonedTimeToUtc(slotDateString, tournamentTimezone);
+    const slotEndUtc = new Date(slotStartUtc.getTime() + 90 * 60 * 1000);
 
     return scheduledMatches.filter(match => {
       if (match.courtId !== courtId) return false;
@@ -243,7 +254,7 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
       const matchStart = new Date(match.scheduledDate);
       const matchEnd = new Date(matchStart.getTime() + match.duration * 60 * 1000);
       
-      return matchStart < slotEnd && matchEnd > slotStart;
+      return matchStart < slotEndUtc && matchEnd > slotStartUtc;
     });
   };
 
@@ -329,7 +340,11 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
                       return (
                         <div key={court.id} className="p-2 border-r border-border last:border-r-0 min-h-[80px]" data-testid={`court-slot-${court.id}-${time}`}>
                           {matches.map((match) => {
-                            const matchTime = format(new Date(match.scheduledDate), "HH:mm");
+                            // Convert UTC date to tournament timezone for display
+                            const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+                            const utcDate = new Date(match.scheduledDate);
+                            const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+                            const matchTime = format(zonedDate, "HH:mm");
                             
                             return (
                               <div

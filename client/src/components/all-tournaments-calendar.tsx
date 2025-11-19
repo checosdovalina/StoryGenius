@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Calendar, Clock, Users, MapPin, Trophy } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { utcToZonedTime } from "date-fns-tz";
 import type { ScheduledMatch, Court, Tournament } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
@@ -47,6 +48,11 @@ export function AllTournamentsCalendar() {
     if (!tournamentId) return "Sin torneo";
     const tournament = tournaments.find(t => t.id === tournamentId);
     return tournament?.name || "Torneo desconocido";
+  };
+
+  const getTournament = (tournamentId: string | null) => {
+    if (!tournamentId) return null;
+    return tournaments.find(t => t.id === tournamentId) || null;
   };
 
   const getPlayerDisplay = (match: ScheduledMatch) => {
@@ -166,7 +172,15 @@ export function AllTournamentsCalendar() {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />
-                            <span>{format(new Date(match.scheduledDate), "HH:mm")}</span>
+                            <span>
+                              {(() => {
+                                const tournament = getTournament(match.tournamentId);
+                                const timezone = tournament?.timezone || "America/Mexico_City";
+                                const utcDate = new Date(match.scheduledDate);
+                                const zonedDate = utcToZonedTime(utcDate, timezone);
+                                return format(zonedDate, "HH:mm");
+                              })()}
+                            </span>
                             <span>({match.duration} min)</span>
                           </div>
                           <div className="flex items-center gap-1">
