@@ -1342,10 +1342,10 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
         ) : (
           <div className="space-y-4 overflow-x-auto" data-testid="matches-list">
             {matches.map((match) => {
-              const player1 = getUserById(users, match.player1Id);
-              const player2 = getUserById(users, match.player2Id);
-              const player3 = match.player3Id ? getUserById(users, match.player3Id) : null;
-              const player4 = match.player4Id ? getUserById(users, match.player4Id) : null;
+              const player1 = getUserById(players, match.player1Id);
+              const player2 = getUserById(players, match.player2Id);
+              const player3 = match.player3Id ? getUserById(players, match.player3Id) : null;
+              const player4 = match.player4Id ? getUserById(players, match.player4Id) : null;
               const isDoubles = match.matchType === "doubles";
               const team1Won = match.winnerId === match.player1Id || (isDoubles && match.winnerId === match.player3Id);
               const team2Won = match.winnerId === match.player2Id || (isDoubles && match.winnerId === match.player4Id);
@@ -1424,8 +1424,8 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                     </div>
                   )}
 
-                  {/* Capture stats button for admin and escribano */}
-                  {(user?.role === "admin" || user?.role === "escribano") && match.status !== "completed" && (
+                  {/* Capture stats button for admin, superadmin, organizador, arbitro, escribano */}
+                  {(user?.role === "superadmin" || user?.role === "admin" || user?.role === "organizador" || user?.role === "arbitro" || user?.role === "escribano") && match.status !== "completed" && (
                     <div className="mt-4 pt-4 border-t">
                       <Link href={`/stats/capture/${match.id}`}>
                         <Button
