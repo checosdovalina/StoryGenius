@@ -468,12 +468,26 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     if (newTechnicals >= 3) {
       updates.matchEndedByTechnical = true;
       updates.status = "completed";
+      // Winner is the opponent
+      updates.matchWinner = isTeam1Player ? match.player2Id : match.player1Id;
+      
       const losingTeamName = isTeam1Player
         ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
         : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
+      const winningTeamName = !isTeam1Player
+        ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
+        : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
+      
+      // Update local state to show winner
+      const updatedState = { 
+        ...newScore, 
+        matchWinner: isTeam1Player ? "player2" : "player1" 
+      };
+      setScoreState(updatedState);
+      
       toast({ 
         title: "¡Partido terminado!", 
-        description: `${losingTeamName} pierde por técnico`,
+        description: `${winningTeamName} gana - ${losingTeamName} pierde por técnico (3/3)`,
         variant: "destructive",
         duration: 5000
       });
