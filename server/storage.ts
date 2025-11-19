@@ -13,6 +13,7 @@ import { eq, desc, asc, and, or, count, avg, sum, isNull, isNotNull, gte, lte, b
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -967,11 +968,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getScheduledMatchesByTournamentAndDate(tournamentId: string, date: Date): Promise<ScheduledMatch[]> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    // Get tournament to access its timezone
+    const tournament = await this.getTournament(tournamentId);
+    const timezone = tournament?.timezone || "America/Mexico_City";
     
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Create date range in tournament's timezone
+    const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const startOfDayLocal = `${dateString}T00:00:00`;
+    const endOfDayLocal = `${dateString}T23:59:59`;
+    
+    // Convert to UTC for database query
+    const startOfDay = fromZonedTime(startOfDayLocal, timezone);
+    const endOfDay = fromZonedTime(endOfDayLocal, timezone);
 
     // Get scheduled matches
     const scheduled = await db
