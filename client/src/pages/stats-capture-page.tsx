@@ -34,7 +34,7 @@ export default function StatsCapturePageComponent() {
   });
 
   // Fetch tournament roles for authorization
-  const { data: tournamentRoles = [] } = useQuery<string[]>({
+  const { data: tournamentRoles = [], isLoading: rolesLoading } = useQuery<string[]>({
     queryKey: [`/api/tournaments/${match?.tournamentId}/my-roles`],
     enabled: !!match?.tournamentId && !!user
   });
@@ -52,14 +52,19 @@ export default function StatsCapturePageComponent() {
       return;
     }
 
+    // Don't redirect while still loading roles
+    if (rolesLoading || !match?.tournamentId) {
+      return;
+    }
+
     // Allow tournament-specific roles: tournament_admin, organizador, arbitro, escrutador
     const allowedTournamentRoles = ["tournament_admin", "organizador", "arbitro", "escrutador"];
     const hasPermission = tournamentRoles.some(role => allowedTournamentRoles.includes(role));
 
-    if (!hasPermission && match?.tournamentId) {
+    if (!hasPermission) {
       setLocation("/");
     }
-  }, [user, setLocation, tournamentRoles, match?.tournamentId]);
+  }, [user, setLocation, tournamentRoles, match?.tournamentId, rolesLoading]);
 
   // Fetch users for player names
   const { data: users = [] } = useQuery<User[]>({
