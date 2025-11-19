@@ -1491,6 +1491,18 @@ export class DatabaseStorage implements IStorage {
     }
 
     const [created] = await db.insert(matchEvents).values(composedEvent).returning();
+    
+    if (event.sessionId && (event.player1Score || event.player2Score)) {
+      const updates: Partial<InsertMatchStatsSession> = {};
+      if (event.player1Score !== undefined) {
+        updates.player1CurrentScore = event.player1Score;
+      }
+      if (event.player2Score !== undefined) {
+        updates.player2CurrentScore = event.player2Score;
+      }
+      await this.updateStatsSession(event.sessionId, updates);
+    }
+    
     return created;
   }
 

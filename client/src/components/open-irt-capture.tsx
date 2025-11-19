@@ -45,6 +45,9 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
   const [timeoutActive, setTimeoutActive] = useState(false);
   const [timeoutRemaining, setTimeoutRemaining] = useState(60);
 
+  // Fault tracking state for auto-detecting double faults
+  const [lastFault, setLastFault] = useState<{ playerId: string; timestamp: number } | null>(null);
+
   // Determine if this is a doubles match
   const isDoubles = session.matchType === "doubles";
 
@@ -179,6 +182,9 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
 
   // Handle point with shot type
   const handlePoint = (playerId: string, shotType: "recto" | "esquina" | "cruzado" | "punto") => {
+    // Clear fault tracking
+    setLastFault(null);
+
     // Don't allow scoring if match is already won
     if (scoreState.matchWinner) {
       toast({ 
@@ -242,6 +248,9 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
 
   // Handle ace
   const handleAce = (playerId: string, side: "derecha" | "izquierda") => {
+    // Clear fault tracking
+    setLastFault(null);
+
     // Don't allow scoring if match is already won
     if (scoreState.matchWinner) {
       toast({ 
@@ -290,16 +299,32 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       return;
     }
 
+    // Check if there was a recent fault (within 5 seconds) by the same player
+    const now = Date.now();
+    if (lastFault && lastFault.playerId === playerId && (now - lastFault.timestamp) < 5000) {
+      // Auto-convert to double fault
+      handleDoubleFault(playerId);
+      setLastFault(null);
+      return;
+    }
+
+    // Record first fault
     recordEventMutation.mutate({
       eventType: "fault",
       playerId
     });
+
+    // Track this fault
+    setLastFault({ playerId, timestamp: now });
 
     toast({ title: "Falta registrada", description: "Primera falta en el saque" });
   };
 
   // Handle double fault
   const handleDoubleFault = (playerId: string) => {
+    // Clear fault tracking
+    setLastFault(null);
+
     // Don't allow scoring if match is already won
     if (scoreState.matchWinner) {
       toast({ 

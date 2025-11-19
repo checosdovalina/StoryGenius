@@ -1564,12 +1564,14 @@ export function registerRoutes(app: Express): Server {
 
       const event = await storage.createMatchEvent(validatedData);
       
+      const updatedSession = await storage.getStatsSession(req.params.sessionId);
+      
       // Broadcast event to match subscribers
       if (wsServer) {
         wsServer.broadcastToMatch(session.matchId, {
           type: "match_event",
           event,
-          session
+          session: updatedSession
         });
       }
       
