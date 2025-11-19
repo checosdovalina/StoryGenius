@@ -1223,6 +1223,29 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get current user's roles in a tournament
+  app.get("/api/tournaments/:id/my-roles", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const tournamentId = req.params.id;
+
+      // Verify tournament exists
+      const tournament = await storage.getTournament(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Get roles for current user
+      const roles = await storage.getUserTournamentRoles(req.user!.id, tournamentId);
+      res.json(roles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user roles" });
+    }
+  });
+
   app.get("/api/tournaments/:id/roles", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {

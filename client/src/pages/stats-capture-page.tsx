@@ -21,13 +21,6 @@ export default function StatsCapturePageComponent() {
   const [session, setSession] = useState<MatchStatsSession | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
 
-  // Check authorization
-  useEffect(() => {
-    if (!user || !["admin", "escribano"].includes(user.role)) {
-      setLocation("/");
-    }
-  }, [user, setLocation]);
-
   // Fetch match data
   const { data: match, isLoading: matchLoading } = useQuery<Match>({
     queryKey: [`/api/matches/${matchId}`],
@@ -39,6 +32,34 @@ export default function StatsCapturePageComponent() {
     queryKey: [`/api/tournaments/${match?.tournamentId}`],
     enabled: !!match?.tournamentId
   });
+
+  // Fetch tournament roles for authorization
+  const { data: tournamentRoles = [] } = useQuery<string[]>({
+    queryKey: [`/api/tournaments/${match?.tournamentId}/my-roles`],
+    enabled: !!match?.tournamentId && !!user
+  });
+
+  // Check authorization
+  useEffect(() => {
+    if (!user) {
+      setLocation("/");
+      return;
+    }
+
+    // Allow global roles: superadmin, admin
+    const allowedGlobalRoles = ["superadmin", "admin"];
+    if (allowedGlobalRoles.includes(user.role)) {
+      return;
+    }
+
+    // Allow tournament-specific roles: tournament_admin, organizador, arbitro, escrutador
+    const allowedTournamentRoles = ["tournament_admin", "organizador", "arbitro", "escrutador"];
+    const hasPermission = tournamentRoles.some(role => allowedTournamentRoles.includes(role));
+
+    if (!hasPermission && match?.tournamentId) {
+      setLocation("/");
+    }
+  }, [user, setLocation, tournamentRoles, match?.tournamentId]);
 
   // Fetch users for player names
   const { data: users = [] } = useQuery<User[]>({
