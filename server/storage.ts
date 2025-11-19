@@ -9,7 +9,7 @@ import {
   type StatShareToken, type InsertStatShareToken, type TournamentUserRole, type InsertTournamentUserRole
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc, and, or, count, avg, sum, isNull, gte, lte, between, sql } from "drizzle-orm";
+import { eq, desc, asc, and, or, count, avg, sum, isNull, isNotNull, gte, lte, between, sql } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -826,11 +826,76 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getScheduledMatchesByTournament(tournamentId: string): Promise<ScheduledMatch[]> {
-    return await db
+    // Get scheduled matches
+    const scheduled = await db
       .select()
       .from(scheduledMatches)
       .where(eq(scheduledMatches.tournamentId, tournamentId))
       .orderBy(asc(scheduledMatches.scheduledDate));
+
+    // Get tournament matches with scheduled dates
+    const tournamentMatches = await db
+      .select({
+        match: matches,
+        player1: users,
+        player2: {
+          id: sql<string>`p2.id`,
+          name: sql<string>`p2.name`,
+        },
+        player3: {
+          id: sql<string | null>`p3.id`,
+          name: sql<string | null>`p3.name`,
+        },
+        player4: {
+          id: sql<string | null>`p4.id`,
+          name: sql<string | null>`p4.name`,
+        }
+      })
+      .from(matches)
+      .leftJoin(users, eq(matches.player1Id, users.id))
+      .leftJoin(sql`users as p2`, sql`${matches.player2Id} = p2.id`)
+      .leftJoin(sql`users as p3`, sql`${matches.player3Id} = p3.id`)
+      .leftJoin(sql`users as p4`, sql`${matches.player4Id} = p4.id`)
+      .where(
+        and(
+          eq(matches.tournamentId, tournamentId),
+          isNotNull(matches.scheduledAt)
+        )
+      )
+      .orderBy(asc(matches.scheduledAt));
+
+    // Map tournament matches to ScheduledMatch format
+    const mappedMatches: ScheduledMatch[] = tournamentMatches.map((row) => ({
+      id: row.match.id,
+      title: row.match.round || "Partido",
+      scheduledDate: row.match.scheduledAt!,
+      sport: "racquetball" as const,
+      matchType: row.match.matchType as "singles" | "doubles",
+      courtId: row.match.courtId || "", // Default empty if no court assigned
+      duration: 90, // Default duration
+      player1Name: row.player1?.name || null,
+      player2Name: row.player2?.name || null,
+      player3Name: row.player3?.name || null,
+      player4Name: row.player4?.name || null,
+      player1Id: row.match.player1Id,
+      player2Id: row.match.player2Id,
+      player3Id: row.match.player3Id || null,
+      player4Id: row.match.player4Id || null,
+      tournamentId: row.match.tournamentId,
+      organizerId: row.match.tournamentId, // Use tournament as organizer fallback
+      status: row.match.status === "completed" ? "completado" : 
+              row.match.status === "in_progress" ? "en_curso" :
+              row.match.status === "confirmed" ? "confirmado" : "programado",
+      notes: null,
+      createdAt: row.match.createdAt,
+      updatedAt: row.match.updatedAt
+    }));
+
+    // Combine both lists and sort by date
+    const allMatches = [...scheduled, ...mappedMatches];
+    allMatches.sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+
+    return allMatches;
   }
 
   async getScheduledMatchesByTournamentAndDate(tournamentId: string, date: Date): Promise<ScheduledMatch[]> {
@@ -840,7 +905,8 @@ export class DatabaseStorage implements IStorage {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    return await db
+    // Get scheduled matches
+    const scheduled = await db
       .select()
       .from(scheduledMatches)
       .where(
@@ -851,6 +917,72 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(asc(scheduledMatches.scheduledDate));
+
+    // Get tournament matches with scheduled dates for this day
+    const tournamentMatches = await db
+      .select({
+        match: matches,
+        player1: users,
+        player2: {
+          id: sql<string>`p2.id`,
+          name: sql<string>`p2.name`,
+        },
+        player3: {
+          id: sql<string | null>`p3.id`,
+          name: sql<string | null>`p3.name`,
+        },
+        player4: {
+          id: sql<string | null>`p4.id`,
+          name: sql<string | null>`p4.name`,
+        }
+      })
+      .from(matches)
+      .leftJoin(users, eq(matches.player1Id, users.id))
+      .leftJoin(sql`users as p2`, sql`${matches.player2Id} = p2.id`)
+      .leftJoin(sql`users as p3`, sql`${matches.player3Id} = p3.id`)
+      .leftJoin(sql`users as p4`, sql`${matches.player4Id} = p4.id`)
+      .where(
+        and(
+          eq(matches.tournamentId, tournamentId),
+          isNotNull(matches.scheduledAt),
+          gte(matches.scheduledAt, startOfDay),
+          lte(matches.scheduledAt, endOfDay)
+        )
+      )
+      .orderBy(asc(matches.scheduledAt));
+
+    // Map tournament matches to ScheduledMatch format
+    const mappedMatches: ScheduledMatch[] = tournamentMatches.map((row) => ({
+      id: row.match.id,
+      title: row.match.round || "Partido",
+      scheduledDate: row.match.scheduledAt!,
+      sport: "racquetball" as const,
+      matchType: row.match.matchType as "singles" | "doubles",
+      courtId: row.match.courtId || "",
+      duration: 90,
+      player1Name: row.player1?.name || null,
+      player2Name: row.player2?.name || null,
+      player3Name: row.player3?.name || null,
+      player4Name: row.player4?.name || null,
+      player1Id: row.match.player1Id,
+      player2Id: row.match.player2Id,
+      player3Id: row.match.player3Id || null,
+      player4Id: row.match.player4Id || null,
+      tournamentId: row.match.tournamentId,
+      organizerId: row.match.tournamentId,
+      status: row.match.status === "completed" ? "completado" : 
+              row.match.status === "in_progress" ? "en_curso" :
+              row.match.status === "confirmed" ? "confirmado" : "programado",
+      notes: null,
+      createdAt: row.match.createdAt,
+      updatedAt: row.match.updatedAt
+    }));
+
+    // Combine both lists and sort by date
+    const allMatches = [...scheduled, ...mappedMatches];
+    allMatches.sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+
+    return allMatches;
   }
 
   async updateScheduledMatch(id: string, updates: Partial<InsertScheduledMatch>): Promise<ScheduledMatch> {
