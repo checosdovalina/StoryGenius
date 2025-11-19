@@ -11,9 +11,10 @@ import { useAuth } from "@/hooks/use-auth";
 
 export function CalendarView() {
   const { user } = useAuth();
-  const isAdminOrSuperAdmin = user?.role === "superadmin" || user?.role === "admin";
+  // Show "All tournaments" for any role except jugador
+  const canViewAllTournaments = user?.role !== "jugador";
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>(
-    isAdminOrSuperAdmin ? "all" : ""
+    canViewAllTournaments ? "all" : ""
   );
 
   // Fetch all tournaments (backend filters based on user role)
@@ -68,12 +69,12 @@ export function CalendarView() {
                 <SelectValue placeholder="Selecciona un torneo para ver su calendario" />
               </SelectTrigger>
               <SelectContent>
-                {isAdminOrSuperAdmin && (
+                {canViewAllTournaments && (
                   <SelectItem value="all" data-testid="option-all-tournaments">
                     📅 Todos los torneos
                   </SelectItem>
                 )}
-                {availableTournaments.length === 0 && !isAdminOrSuperAdmin ? (
+                {availableTournaments.length === 0 && !canViewAllTournaments ? (
                   <div className="p-4 text-sm text-muted-foreground text-center">
                     No hay torneos disponibles
                   </div>
