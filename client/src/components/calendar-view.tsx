@@ -11,7 +11,10 @@ import { useAuth } from "@/hooks/use-auth";
 
 export function CalendarView() {
   const { user } = useAuth();
-  const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
+  const isAdminOrSuperAdmin = user?.role === "superadmin" || user?.role === "admin";
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>(
+    isAdminOrSuperAdmin ? "all" : ""
+  );
 
   // Fetch all tournaments (backend filters based on user role)
   const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery<Tournament[]>({
@@ -19,7 +22,6 @@ export function CalendarView() {
   });
 
   const availableTournaments = tournaments;
-  const isAdminOrSuperAdmin = user?.role === "superadmin" || user?.role === "admin";
 
   if (tournamentsLoading) {
     return (
