@@ -12,15 +12,12 @@ export function CalendarView() {
   const { user } = useAuth();
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
 
-  // Fetch all tournaments based on user role
+  // Fetch all tournaments (backend filters based on user role)
   const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery<Tournament[]>({
     queryKey: ["/api/tournaments"]
   });
 
-  // Filter tournaments based on user role
-  const availableTournaments = user?.role === "jugador"
-    ? tournaments.filter(t => t.canManage || t.canView)
-    : tournaments;
+  const availableTournaments = tournaments;
 
   if (tournamentsLoading) {
     return (

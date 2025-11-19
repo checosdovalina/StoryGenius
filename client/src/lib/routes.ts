@@ -68,7 +68,7 @@ export const routes: RouteConfig[] = [
     title: "Calendario",
     subtitle: "Programación de partidos",
     icon: Calendar,
-    roles: ["superadmin", "admin", "organizador"]
+    roles: ["superadmin", "admin", "organizador", "arbitro", "escrutador", "jugador"]
   },
   {
     path: "/my-tournaments",
