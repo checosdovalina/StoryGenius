@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trophy } from "lucide-react";
 import type { Tournament } from "@shared/schema";
 import { TournamentCalendarTab } from "@/components/tournament-calendar-tab";
+import { AllTournamentsCalendar } from "@/components/all-tournaments-calendar";
 import { useAuth } from "@/hooks/use-auth";
 
 export function CalendarView() {
@@ -18,6 +19,7 @@ export function CalendarView() {
   });
 
   const availableTournaments = tournaments;
+  const isAdminOrSuperAdmin = user?.role === "superadmin" || user?.role === "admin";
 
   if (tournamentsLoading) {
     return (
@@ -64,7 +66,12 @@ export function CalendarView() {
                 <SelectValue placeholder="Selecciona un torneo para ver su calendario" />
               </SelectTrigger>
               <SelectContent>
-                {availableTournaments.length === 0 ? (
+                {isAdminOrSuperAdmin && (
+                  <SelectItem value="all" data-testid="option-all-tournaments">
+                    📅 Todos los torneos
+                  </SelectItem>
+                )}
+                {availableTournaments.length === 0 && !isAdminOrSuperAdmin ? (
                   <div className="p-4 text-sm text-muted-foreground text-center">
                     No hay torneos disponibles
                   </div>
@@ -79,8 +86,10 @@ export function CalendarView() {
             </Select>
           </div>
 
-          {/* Show calendar for selected tournament */}
-          {selectedTournament ? (
+          {/* Show calendar based on selection */}
+          {selectedTournamentId === "all" ? (
+            <AllTournamentsCalendar />
+          ) : selectedTournament ? (
             <TournamentCalendarTab tournament={selectedTournament} />
           ) : (
             <div className="flex items-center justify-center h-64 border-2 border-dashed rounded-lg">
