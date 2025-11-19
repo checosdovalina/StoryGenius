@@ -96,6 +96,7 @@ export default function TournamentDetailPage() {
       sport: "padel",
       format: "elimination",
       venue: "",
+      timezone: "America/Mexico_City",
       startDate: undefined,
       endDate: undefined,
       maxPlayers: 8,
@@ -113,6 +114,7 @@ export default function TournamentDetailPage() {
         sport: tournament.sport,
         format: tournament.format,
         venue: clubId,
+        timezone: tournament.timezone || "America/Mexico_City",
         startDate: tournament.startDate as any,
         endDate: tournament.endDate as any,
         maxPlayers: tournament.maxPlayers,
@@ -129,6 +131,7 @@ export default function TournamentDetailPage() {
         ...data,
         clubId: data.venue || undefined,
         venue: selectedClub?.name || data.venue,
+        timezone: data.timezone || "America/Mexico_City",
       };
       const res = await apiRequest("PUT", `/api/tournaments/${tournamentId}`, updateData);
       return res.json();
@@ -359,30 +362,71 @@ export default function TournamentDetailPage() {
                                 )}
                               />
                             </div>
-                            <FormField
-                              control={editForm.control}
-                              name="venue"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Sede/Club</FormLabel>
-                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger data-testid="select-edit-club" className="min-h-[44px]">
-                                        <SelectValue placeholder="Seleccionar club" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {clubs?.map((club) => (
-                                        <SelectItem key={club.id} value={club.id}>
-                                          {club.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                            <div className="grid grid-cols-2 gap-4">
+                              <FormField
+                                control={editForm.control}
+                                name="venue"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Sede/Club</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid="select-edit-club" className="min-h-[44px]">
+                                          <SelectValue placeholder="Seleccionar club" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {clubs?.map((club) => (
+                                          <SelectItem key={club.id} value={club.id}>
+                                            {club.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={editForm.control}
+                                name="timezone"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Zona Horaria</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid="select-edit-timezone" className="min-h-[44px]">
+                                          <SelectValue placeholder="Seleccionar zona horaria" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="America/Mexico_City">Ciudad de México (GMT-6)</SelectItem>
+                                        <SelectItem value="America/Monterrey">Monterrey (GMT-6)</SelectItem>
+                                        <SelectItem value="America/Cancun">Cancún (GMT-5)</SelectItem>
+                                        <SelectItem value="America/Tijuana">Tijuana (GMT-8)</SelectItem>
+                                        <SelectItem value="America/Chihuahua">Chihuahua (GMT-7)</SelectItem>
+                                        <SelectItem value="America/Hermosillo">Hermosillo (GMT-7)</SelectItem>
+                                        <SelectItem value="America/Mazatlan">Mazatlán (GMT-7)</SelectItem>
+                                        <SelectItem value="America/Merida">Mérida (GMT-6)</SelectItem>
+                                        <SelectItem value="America/New_York">Nueva York (GMT-5)</SelectItem>
+                                        <SelectItem value="America/Los_Angeles">Los Ángeles (GMT-8)</SelectItem>
+                                        <SelectItem value="America/Chicago">Chicago (GMT-6)</SelectItem>
+                                        <SelectItem value="America/Denver">Denver (GMT-7)</SelectItem>
+                                        <SelectItem value="America/Phoenix">Phoenix (GMT-7)</SelectItem>
+                                        <SelectItem value="America/Bogota">Bogotá (GMT-5)</SelectItem>
+                                        <SelectItem value="America/Lima">Lima (GMT-5)</SelectItem>
+                                        <SelectItem value="America/Santiago">Santiago (GMT-3)</SelectItem>
+                                        <SelectItem value="America/Buenos_Aires">Buenos Aires (GMT-3)</SelectItem>
+                                        <SelectItem value="America/Sao_Paulo">São Paulo (GMT-3)</SelectItem>
+                                        <SelectItem value="Europe/Madrid">Madrid (GMT+1)</SelectItem>
+                                        <SelectItem value="Europe/London">Londres (GMT+0)</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                               <FormField
                                 control={editForm.control}

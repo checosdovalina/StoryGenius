@@ -23,6 +23,7 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
     sport: "",
     format: "",
     clubId: "",
+    timezone: "America/Mexico_City",
     startDate: "",
     endDate: "",
     maxPlayers: "",
@@ -64,6 +65,7 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
       sport: "",
       format: "",
       clubId: "",
+      timezone: "America/Mexico_City",
       startDate: "",
       endDate: "",
       maxPlayers: "",
@@ -83,6 +85,7 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
       status: "draft" as const,
       venue: selectedClub?.name || "",
       clubId: formData.clubId || undefined,
+      timezone: formData.timezone,
       startDate: new Date(formData.startDate + 'T00:00:00'),
       endDate: new Date(formData.endDate + 'T23:59:59'),
       maxPlayers: parseInt(formData.maxPlayers),
@@ -154,20 +157,52 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="clubId">Sede/Club</Label>
-            <Select value={formData.clubId} onValueChange={(value) => handleInputChange("clubId", value)} required>
-              <SelectTrigger data-testid="select-club">
-                <SelectValue placeholder={clubsLoading ? "Cargando clubes..." : "Seleccionar club"} />
-              </SelectTrigger>
-              <SelectContent>
-                {clubs?.map((club) => (
-                  <SelectItem key={club.id} value={club.id}>
-                    {club.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="clubId">Sede/Club</Label>
+              <Select value={formData.clubId} onValueChange={(value) => handleInputChange("clubId", value)} required>
+                <SelectTrigger data-testid="select-club">
+                  <SelectValue placeholder={clubsLoading ? "Cargando clubes..." : "Seleccionar club"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {clubs?.map((club) => (
+                    <SelectItem key={club.id} value={club.id}>
+                      {club.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Zona Horaria</Label>
+              <Select value={formData.timezone} onValueChange={(value) => handleInputChange("timezone", value)} required>
+                <SelectTrigger data-testid="select-timezone">
+                  <SelectValue placeholder="Seleccionar zona horaria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="America/Mexico_City">Ciudad de México (GMT-6)</SelectItem>
+                  <SelectItem value="America/Monterrey">Monterrey (GMT-6)</SelectItem>
+                  <SelectItem value="America/Cancun">Cancún (GMT-5)</SelectItem>
+                  <SelectItem value="America/Tijuana">Tijuana (GMT-8)</SelectItem>
+                  <SelectItem value="America/Chihuahua">Chihuahua (GMT-7)</SelectItem>
+                  <SelectItem value="America/Hermosillo">Hermosillo (GMT-7)</SelectItem>
+                  <SelectItem value="America/Mazatlan">Mazatlán (GMT-7)</SelectItem>
+                  <SelectItem value="America/Merida">Mérida (GMT-6)</SelectItem>
+                  <SelectItem value="America/New_York">Nueva York (GMT-5)</SelectItem>
+                  <SelectItem value="America/Los_Angeles">Los Ángeles (GMT-8)</SelectItem>
+                  <SelectItem value="America/Chicago">Chicago (GMT-6)</SelectItem>
+                  <SelectItem value="America/Denver">Denver (GMT-7)</SelectItem>
+                  <SelectItem value="America/Phoenix">Phoenix (GMT-7)</SelectItem>
+                  <SelectItem value="America/Bogota">Bogotá (GMT-5)</SelectItem>
+                  <SelectItem value="America/Lima">Lima (GMT-5)</SelectItem>
+                  <SelectItem value="America/Santiago">Santiago (GMT-3)</SelectItem>
+                  <SelectItem value="America/Buenos_Aires">Buenos Aires (GMT-3)</SelectItem>
+                  <SelectItem value="America/Sao_Paulo">São Paulo (GMT-3)</SelectItem>
+                  <SelectItem value="Europe/Madrid">Madrid (GMT+1)</SelectItem>
+                  <SelectItem value="Europe/London">Londres (GMT+0)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
