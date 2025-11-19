@@ -335,10 +335,16 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       return;
     }
 
-    // Double fault gives point to opponent team
+    // Double fault: opponent gets server AND a point
     const isTeam1Player = playerId === match.player1Id || (match.player3Id && playerId === match.player3Id);
+    const opponentId = isTeam1Player ? match.player2Id : match.player1Id;
+    
+    // First, change server to opponent (sideout)
+    const stateAfterSideout = { ...scoreState, serverId: opponentId, serverChanged: true };
+    
+    // Then, opponent (now server) scores a point
     const opponent = isTeam1Player ? "player2" : "player1";
-    const newState = calculateOpenIRTScore(scoreState, opponent);
+    const newState = calculateOpenIRTScore(stateAfterSideout, opponent);
     
     setScoreState(newState);
 
