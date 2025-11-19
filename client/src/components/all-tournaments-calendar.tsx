@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Calendar, Clock, Users, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Clock, Users, MapPin, Trophy } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import type { ScheduledMatch, Court, Tournament } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
+import { Link } from "wouter";
 
 export function AllTournamentsCalendar() {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Fetch all scheduled matches for the selected date
@@ -176,6 +179,23 @@ export function AllTournamentsCalendar() {
                           <p className="text-sm text-muted-foreground italic">
                             {match.notes}
                           </p>
+                        )}
+
+                        {/* Capture stats button for admin */}
+                        {(user?.role === "superadmin" || user?.role === "admin") && match.status !== "completado" && (
+                          <div className="mt-3 pt-3 border-t">
+                            <Link href={`/stats/capture/${match.id}`}>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="w-full"
+                                data-testid={`button-capture-stats-${match.id}`}
+                              >
+                                <Trophy className="h-4 w-4 mr-2" />
+                                Capturar estadísticas
+                              </Button>
+                            </Link>
+                          </div>
                         )}
                       </div>
                     </div>

@@ -885,7 +885,8 @@ export class DatabaseStorage implements IStorage {
       organizerId: row.match.tournamentId, // Use tournament as organizer fallback
       status: row.match.status === "completed" ? "completado" : 
               row.match.status === "in_progress" ? "en_curso" :
-              row.match.status === "confirmed" ? "confirmado" : "programado",
+              row.match.status === "cancelled" ? "cancelado" : "programado",
+      description: null,
       notes: null,
       createdAt: row.match.createdAt,
       updatedAt: row.match.updatedAt
@@ -972,7 +973,8 @@ export class DatabaseStorage implements IStorage {
       organizerId: row.match.tournamentId,
       status: row.match.status === "completed" ? "completado" : 
               row.match.status === "in_progress" ? "en_curso" :
-              row.match.status === "confirmed" ? "confirmado" : "programado",
+              row.match.status === "cancelled" ? "cancelado" : "programado",
+      description: null,
       notes: null,
       createdAt: row.match.createdAt,
       updatedAt: row.match.updatedAt

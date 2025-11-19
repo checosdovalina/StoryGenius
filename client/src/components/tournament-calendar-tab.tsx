@@ -19,6 +19,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { ScheduledMatch, Court, Tournament } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { Link } from "wouter";
+import { Trophy } from "lucide-react";
 
 interface TournamentCalendarTabProps {
   tournament: Tournament & { canManage?: boolean };
@@ -228,7 +230,7 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
   };
 
   const timeSlots = [
-    "09:00", "10:30", "12:00", "13:30", "15:00", "16:30", "18:00", "19:30"
+    "07:00", "08:30", "10:00", "11:30", "13:00", "14:30", "16:00", "17:30", "19:00", "20:30", "22:00"
   ];
 
   const getMatchesForSlot = (courtId: string, time: string) => {
@@ -384,6 +386,21 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
                                 <Badge variant="outline" className="text-xs mt-1">
                                   {match.matchType === "singles" ? "Singles" : "Dobles"}
                                 </Badge>
+
+                                {/* Capture stats button for admin */}
+                                {(user?.role === "superadmin" || user?.role === "admin") && match.status !== "completado" && (
+                                  <Link href={`/stats/capture/${match.id}`}>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full mt-2 text-xs h-7"
+                                      data-testid={`button-capture-stats-${match.id}`}
+                                    >
+                                      <Trophy className="h-3 w-3 mr-1" />
+                                      Capturar
+                                    </Button>
+                                  </Link>
+                                )}
                               </div>
                             );
                           })}
