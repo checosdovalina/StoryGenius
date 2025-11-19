@@ -769,7 +769,8 @@ export class DatabaseStorage implements IStorage {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    return await db
+    // Get scheduled matches from scheduled_matches table
+    const scheduled = await db
       .select()
       .from(scheduledMatches)
       .where(
@@ -779,6 +780,72 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(asc(scheduledMatches.scheduledDate));
+
+    // Get matches from matches table with scheduled_at
+    const tournamentMatches = await db
+      .select({
+        match: matches,
+        player1: users,
+        player2: {
+          id: sql<string>`p2.id`,
+          name: sql<string>`p2.name`,
+        },
+        player3: {
+          id: sql<string | null>`p3.id`,
+          name: sql<string | null>`p3.name`,
+        },
+        player4: {
+          id: sql<string | null>`p4.id`,
+          name: sql<string | null>`p4.name`,
+        }
+      })
+      .from(matches)
+      .leftJoin(users, eq(matches.player1Id, users.id))
+      .leftJoin(sql`users as p2`, sql`${matches.player2Id} = p2.id`)
+      .leftJoin(sql`users as p3`, sql`${matches.player3Id} = p3.id`)
+      .leftJoin(sql`users as p4`, sql`${matches.player4Id} = p4.id`)
+      .where(
+        and(
+          isNotNull(matches.scheduledAt),
+          gte(matches.scheduledAt, startOfDay),
+          lte(matches.scheduledAt, endOfDay)
+        )
+      )
+      .orderBy(asc(matches.scheduledAt));
+
+    // Map tournament matches to ScheduledMatch format
+    const mappedMatches: ScheduledMatch[] = tournamentMatches.map((row) => ({
+      id: row.match.id,
+      title: row.match.round || "Partido",
+      scheduledDate: row.match.scheduledAt!,
+      sport: "racquetball" as const,
+      matchType: row.match.matchType as "singles" | "doubles",
+      courtId: row.match.courtId || "",
+      duration: 90,
+      player1Name: row.player1?.name || null,
+      player2Name: row.player2?.name || null,
+      player3Name: row.player3?.name || null,
+      player4Name: row.player4?.name || null,
+      player1Id: row.match.player1Id,
+      player2Id: row.match.player2Id,
+      player3Id: row.match.player3Id || null,
+      player4Id: row.match.player4Id || null,
+      tournamentId: row.match.tournamentId,
+      organizerId: row.match.tournamentId,
+      status: row.match.status === "completed" ? "completado" : 
+              row.match.status === "in_progress" ? "en_curso" :
+              row.match.status === "cancelled" ? "cancelado" : "programado",
+      description: null,
+      notes: null,
+      createdAt: row.match.createdAt,
+      updatedAt: row.match.updatedAt
+    }));
+
+    // Combine both lists and sort by date
+    const allMatches = [...scheduled, ...mappedMatches];
+    allMatches.sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+
+    return allMatches;
   }
 
   async getScheduledMatchesByDateRange(startDate: Date, endDate: Date): Promise<ScheduledMatch[]> {

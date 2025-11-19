@@ -498,13 +498,15 @@ export const insertCourtSchema = createInsertSchema(courts).omit({
   updatedAt: true
 });
 
-export const insertMatchSchema = createInsertSchema(matches).omit({
+const baseMatchSchema = createInsertSchema(matches).omit({
   id: true,
   createdAt: true,
   updatedAt: true
 }).extend({
   scheduledAt: z.coerce.date().optional().nullable()
-}).refine(
+});
+
+export const insertMatchSchema = baseMatchSchema.refine(
   (data) => {
     // matches table: player1/2 are always IDs (required), player3/4 can be ID or Name
     const hasPlayer1 = !!data.player1Id;
@@ -523,6 +525,8 @@ export const insertMatchSchema = createInsertSchema(matches).omit({
     path: ["matchType"]
   }
 );
+
+export const updateMatchSchema = baseMatchSchema.partial();
 
 export const insertPadelPairSchema = createInsertSchema(padelPairs).omit({
   id: true,

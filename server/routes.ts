@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, updateScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema, excelPlayerSinglesSchema, excelPlayerDoublesSchema, excelMatchSinglesSchema, excelMatchDoublesSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, updateMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, updateScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema, excelPlayerSinglesSchema, excelPlayerDoublesSchema, excelMatchSinglesSchema, excelMatchDoublesSchema } from "@shared/schema";
 import { z } from "zod";
 import { MatchStatsWebSocketServer } from "./websocket";
 import multer from "multer";
@@ -515,7 +515,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
 
-      const validatedData = insertMatchSchema.partial().parse(req.body);
+      const validatedData = updateMatchSchema.parse(req.body);
       const match = await storage.updateMatch(req.params.id, validatedData);
       res.json(match);
     } catch (error) {
@@ -681,6 +681,39 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "Invalid scheduled match data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create scheduled match" });
+    }
+  });
+
+  app.get("/api/scheduled-matches", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { date } = req.query;
+      if (!date) {
+        return res.status(400).json({ message: "Date parameter required" });
+      }
+
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      const allMatches = await storage.getScheduledMatchesByDate(new Date(date as string));
+
+      // SuperAdmins and admins see all matches
+      if (isSuperAdmin || req.user!.role === 'admin') {
+        return res.json(allMatches);
+      }
+
+      // Other users only see matches where they are participants
+      const filteredMatches = allMatches.filter(match => {
+        return match.player1Id === req.user!.id ||
+               match.player2Id === req.user!.id ||
+               match.player3Id === req.user!.id ||
+               match.player4Id === req.user!.id;
+      });
+
+      res.json(filteredMatches);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch scheduled matches" });
     }
   });
 
