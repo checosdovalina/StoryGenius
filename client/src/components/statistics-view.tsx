@@ -269,6 +269,18 @@ export function StatisticsView() {
                         <TableHead className="w-[50px]">#</TableHead>
                         <TableHead>Jugador</TableHead>
                         <TableHead className="text-center">
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="text-xs">V/D</span>
+                            <span className="text-xs text-muted-foreground">Partidos</span>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="text-xs">Sets</span>
+                            <span className="text-xs text-muted-foreground">G/P</span>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             <Target className="h-4 w-4" />
                             <span>Puntos</span>
@@ -294,8 +306,8 @@ export function StatisticsView() {
                         </TableHead>
                         <TableHead className="text-center">
                           <div className="flex flex-col items-center justify-center">
-                            <span className="text-xs">Tipos de</span>
-                            <span className="text-xs text-muted-foreground">Tiro</span>
+                            <span className="text-xs">Tipos de Tiro</span>
+                            <span className="text-xs text-muted-foreground">(% del Total)</span>
                           </div>
                         </TableHead>
                       </TableRow>
@@ -308,6 +320,38 @@ export function StatisticsView() {
                             <div>
                               <div className="font-medium">{player.playerName}</div>
                               <div className="text-xs text-muted-foreground">{player.playerEmail}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="default" className="font-mono text-xs">
+                                  {player.matchesWon}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">/</span>
+                                <Badge variant="destructive" className="font-mono text-xs">
+                                  {player.matchesLost}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Total: {player.matchesPlayed}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="default" className="font-mono text-xs">
+                                  {player.setsWon}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">/</span>
+                                <Badge variant="destructive" className="font-mono text-xs">
+                                  {player.setsLost}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Total: {player.totalSets}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
@@ -353,17 +397,25 @@ export function StatisticsView() {
                             {player.totalShots > 0 ? (
                               <div className="flex flex-col gap-1 text-xs">
                                 <div className="grid grid-cols-2 gap-1">
-                                  <div className="text-muted-foreground">R: {player.shotRecto}</div>
-                                  <div className="text-muted-foreground">E: {player.shotEsquina}</div>
-                                  <div className="text-muted-foreground">C: {player.shotCruzado}</div>
-                                  <div className="text-muted-foreground">P: {player.shotPunto}</div>
+                                  <div className="text-muted-foreground">
+                                    R: {player.shotRecto} ({player.shotRectoPercent}%)
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    E: {player.shotEsquina} ({player.shotEsquinaPercent}%)
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    C: {player.shotCruzado} ({player.shotCruzadoPercent}%)
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    P: {player.shotPunto} ({player.shotPuntoPercent}%)
+                                  </div>
                                 </div>
                                 <div className="font-mono text-muted-foreground">
                                   Total: {player.totalShots}
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </TableCell>
                         </TableRow>

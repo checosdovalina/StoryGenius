@@ -1477,6 +1477,11 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Stats session not found" });
       }
 
+      // Prevent modifications to completed sessions
+      if (session.status === "completed") {
+        return res.status(400).json({ message: "Cannot update a completed session" });
+      }
+
       // Get match to verify tournament
       const match = await storage.getMatch(session.matchId);
       if (!match) {
@@ -1530,16 +1535,61 @@ export function registerRoutes(app: Express): Server {
 
       const completedSession = await storage.completeStatsSession(req.params.sessionId);
       
-      // Update match status to completed
+      // Determine winner and update match status
+      const matchWinner = completedSession.matchWinner;
+      const player1Won = matchWinner === match.player1Id;
+      const player2Won = matchWinner === match.player2Id;
+      
       await storage.updateMatch(session.matchId, {
         status: "completed",
         player1Sets: completedSession.player1Sets || 0,
         player2Sets: completedSession.player2Sets || 0,
         player1Games: completedSession.player1Games || "[]",
-        player2Games: completedSession.player2Games || "[]"
+        player2Games: completedSession.player2Games || "[]",
+        winnerId: matchWinner || null
       });
 
-      res.json(session);
+      // Update player statistics for player 1
+      if (match.player1Id) {
+        const player1StatsArray = await storage.getPlayerStats(match.player1Id, match.tournamentId);
+        const player1Stats = player1StatsArray[0] || {
+          matchesPlayed: 0,
+          matchesWon: 0,
+          matchesLost: 0,
+          setsWon: 0,
+          setsLost: 0
+        };
+        
+        await storage.updatePlayerStats(match.player1Id, match.tournamentId, {
+          matchesPlayed: player1Stats.matchesPlayed + 1,
+          matchesWon: player1Stats.matchesWon + (player1Won ? 1 : 0),
+          matchesLost: player1Stats.matchesLost + (player2Won ? 1 : 0),
+          setsWon: player1Stats.setsWon + (completedSession.player1Sets || 0),
+          setsLost: player1Stats.setsLost + (completedSession.player2Sets || 0)
+        });
+      }
+
+      // Update player statistics for player 2
+      if (match.player2Id) {
+        const player2StatsArray = await storage.getPlayerStats(match.player2Id, match.tournamentId);
+        const player2Stats = player2StatsArray[0] || {
+          matchesPlayed: 0,
+          matchesWon: 0,
+          matchesLost: 0,
+          setsWon: 0,
+          setsLost: 0
+        };
+        
+        await storage.updatePlayerStats(match.player2Id, match.tournamentId, {
+          matchesPlayed: player2Stats.matchesPlayed + 1,
+          matchesWon: player2Stats.matchesWon + (player2Won ? 1 : 0),
+          matchesLost: player2Stats.matchesLost + (player1Won ? 1 : 0),
+          setsWon: player2Stats.setsWon + (completedSession.player2Sets || 0),
+          setsLost: player2Stats.setsLost + (completedSession.player1Sets || 0)
+        });
+      }
+
+      res.json(completedSession);
     } catch (error) {
       res.status(500).json({ message: "Failed to complete session" });
     }
@@ -1556,6 +1606,11 @@ export function registerRoutes(app: Express): Server {
       const session = await storage.getStatsSession(req.params.sessionId);
       if (!session) {
         return res.status(404).json({ message: "Stats session not found" });
+      }
+
+      // Prevent modifications to completed sessions
+      if (session.status === "completed") {
+        return res.status(400).json({ message: "Cannot add events to a completed session" });
       }
 
       // Get match to verify tournament

@@ -1594,11 +1594,12 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(users.isActive, true),
-            eq(matches.tournamentId, tournamentId)
+            eq(matches.tournamentId, tournamentId),
+            eq(matchStatsSessions.status, 'completed')
           )
         );
     } else {
-      // Global stats - no tournament filter
+      // Global stats - no tournament filter, only completed sessions
       events = await db
         .select({
           playerId: matchEvents.playerId,
@@ -1611,7 +1612,13 @@ export class DatabaseStorage implements IStorage {
         })
         .from(matchEvents)
         .leftJoin(users, eq(matchEvents.playerId, users.id))
-        .where(eq(users.isActive, true));
+        .leftJoin(matchStatsSessions, eq(matchEvents.sessionId, matchStatsSessions.id))
+        .where(
+          and(
+            eq(users.isActive, true),
+            eq(matchStatsSessions.status, 'completed')
+          )
+        );
     }
 
     // Group by player and aggregate stats
@@ -1677,16 +1684,48 @@ export class DatabaseStorage implements IStorage {
       }
     });
 
+    // Get playerStats data (wins, losses, sets)
+    const playerStatsData = tournamentId
+      ? await db
+          .select()
+          .from(playerStats)
+          .where(eq(playerStats.tournamentId, tournamentId))
+      : await db
+          .select()
+          .from(playerStats)
+          .where(isNull(playerStats.tournamentId));
+
+    const playerStatsDataMap = new Map(
+      playerStatsData.map(ps => [ps.playerId, ps])
+    );
+
     // Convert map to array, calculate percentages, and sort by total points
     return Array.from(playerStatsMap.values())
-      .map(stats => ({
-        ...stats,
-        // Calculate effectiveness percentages
-        aceEffectiveness: stats.aces + stats.doubleFaults > 0 
-          ? Math.round((stats.aces / (stats.aces + stats.doubleFaults)) * 100)
-          : 0,
-        totalShots: stats.shotRecto + stats.shotEsquina + stats.shotCruzado + stats.shotPunto
-      }))
+      .map(stats => {
+        const psData = playerStatsDataMap.get(stats.playerId);
+        const totalShots = stats.shotRecto + stats.shotEsquina + stats.shotCruzado + stats.shotPunto;
+        
+        return {
+          ...stats,
+          // Calculate effectiveness percentages
+          aceEffectiveness: stats.aces + stats.doubleFaults > 0 
+            ? Math.round((stats.aces / (stats.aces + stats.doubleFaults)) * 100)
+            : 0,
+          totalShots,
+          // Shot type percentages
+          shotRectoPercent: totalShots > 0 ? Math.round((stats.shotRecto / totalShots) * 100) : 0,
+          shotEsquinaPercent: totalShots > 0 ? Math.round((stats.shotEsquina / totalShots) * 100) : 0,
+          shotCruzadoPercent: totalShots > 0 ? Math.round((stats.shotCruzado / totalShots) * 100) : 0,
+          shotPuntoPercent: totalShots > 0 ? Math.round((stats.shotPunto / totalShots) * 100) : 0,
+          // Match stats from playerStats table
+          matchesWon: psData?.matchesWon || 0,
+          matchesLost: psData?.matchesLost || 0,
+          matchesPlayed: psData?.matchesPlayed || 0,
+          setsWon: psData?.setsWon || 0,
+          setsLost: psData?.setsLost || 0,
+          totalSets: (psData?.setsWon || 0) + (psData?.setsLost || 0)
+        };
+      })
       .sort((a, b) => b.totalPoints - a.totalPoints);
   }
 
