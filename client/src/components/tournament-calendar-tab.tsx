@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Clock, Users, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -119,7 +119,7 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
       // Interpret the date in the tournament's timezone
       const tournamentTimezone = tournament.timezone || "America/Mexico_City";
       const localDateString = `${data.scheduledDate}T${data.time}:00`;
-      const scheduledDate = zonedTimeToUtc(localDateString, tournamentTimezone);
+      const scheduledDate = fromZonedTime(localDateString, tournamentTimezone);
       
       const matchData = {
         title: data.title,
@@ -191,7 +191,7 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
     // Convert UTC date to tournament timezone for editing
     const tournamentTimezone = tournament.timezone || "America/Mexico_City";
     const utcDate = new Date(match.scheduledDate);
-    const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+    const zonedDate = toZonedTime(utcDate, tournamentTimezone);
     
     form.reset({
       title: match.title,
@@ -245,7 +245,7 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
     // Create slot times in tournament timezone
     const tournamentTimezone = tournament.timezone || "America/Mexico_City";
     const slotDateString = `${format(selectedDate, "yyyy-MM-dd")}T${time}:00`;
-    const slotStartUtc = zonedTimeToUtc(slotDateString, tournamentTimezone);
+    const slotStartUtc = fromZonedTime(slotDateString, tournamentTimezone);
     const slotEndUtc = new Date(slotStartUtc.getTime() + 90 * 60 * 1000);
 
     return scheduledMatches.filter(match => {
@@ -343,7 +343,7 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
                             // Convert UTC date to tournament timezone for display
                             const tournamentTimezone = tournament.timezone || "America/Mexico_City";
                             const utcDate = new Date(match.scheduledDate);
-                            const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+                            const zonedDate = toZonedTime(utcDate, tournamentTimezone);
                             const matchTime = format(zonedDate, "HH:mm");
                             
                             return (

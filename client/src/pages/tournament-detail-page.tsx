@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Users, Trophy, ArrowLeft, X, UserPlus, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1203,7 +1203,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
       let scheduledAtISO = null;
       if (data.scheduledAt && data.scheduledAt.trim() !== "") {
         const tournamentTimezone = tournament.timezone || "America/Mexico_City";
-        const zonedDate = zonedTimeToUtc(data.scheduledAt, tournamentTimezone);
+        const zonedDate = fromZonedTime(data.scheduledAt, tournamentTimezone);
         scheduledAtISO = zonedDate.toISOString();
       }
       
@@ -1249,7 +1249,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
       let scheduledAtISO = null;
       if (data.scheduledAt && data.scheduledAt.trim() !== "") {
         const tournamentTimezone = tournament.timezone || "America/Mexico_City";
-        const zonedDate = zonedTimeToUtc(data.scheduledAt, tournamentTimezone);
+        const zonedDate = fromZonedTime(data.scheduledAt, tournamentTimezone);
         scheduledAtISO = zonedDate.toISOString();
       }
       
@@ -1385,7 +1385,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                           📅 {(() => {
                             const tournamentTimezone = tournament.timezone || "America/Mexico_City";
                             const utcDate = new Date(match.scheduledAt);
-                            const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+                            const zonedDate = toZonedTime(utcDate, tournamentTimezone);
                             return format(zonedDate, 'dd/MM/yyyy HH:mm');
                           })()}
                         </p>
@@ -1477,7 +1477,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                           if (match.scheduledAt) {
                             const tournamentTimezone = tournament.timezone || "America/Mexico_City";
                             const utcDate = new Date(match.scheduledAt);
-                            const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+                            const zonedDate = toZonedTime(utcDate, tournamentTimezone);
                             scheduledAtLocal = format(zonedDate, "yyyy-MM-dd'T'HH:mm");
                           }
                           
@@ -2123,7 +2123,7 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
                               📅 {(() => {
                                 const tournamentTimezone = tournament.timezone || "America/Mexico_City";
                                 const utcDate = new Date(match.scheduledAt);
-                                const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+                                const zonedDate = toZonedTime(utcDate, tournamentTimezone);
                                 return format(zonedDate, 'dd/MM/yyyy HH:mm');
                               })()}
                             </div>

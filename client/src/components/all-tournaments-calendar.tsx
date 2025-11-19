@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Calendar, Clock, Users, MapPin, Trophy } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
-import { utcToZonedTime } from "date-fns-tz";
+import { toZonedTime } from "date-fns-tz";
 import type { ScheduledMatch, Court, Tournament } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
@@ -177,7 +177,7 @@ export function AllTournamentsCalendar() {
                                 const tournament = getTournament(match.tournamentId);
                                 const timezone = tournament?.timezone || "America/Mexico_City";
                                 const utcDate = new Date(match.scheduledDate);
-                                const zonedDate = utcToZonedTime(utcDate, timezone);
+                                const zonedDate = toZonedTime(utcDate, timezone);
                                 return format(zonedDate, "HH:mm");
                               })()}
                             </span>
