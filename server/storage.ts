@@ -1,12 +1,13 @@
 import { 
-  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents, statShareTokens, tournamentUserRoles,
+  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents, statShareTokens, tournamentUserRoles, irtPointsConfig, playerRankingHistory,
   type User, type InsertUser, type Tournament, type InsertTournament,
   type Court, type InsertCourt, type Match, type InsertMatch,
   type TournamentRegistration, type InsertTournamentRegistration,
   type PlayerStats, type InsertPlayerStats, type PadelPair, type InsertPadelPair,
   type ScheduledMatch, type InsertScheduledMatch, type Club, type InsertClub,
   type MatchStatsSession, type InsertMatchStatsSession, type MatchEvent, type InsertMatchEvent,
-  type StatShareToken, type InsertStatShareToken, type TournamentUserRole, type InsertTournamentUserRole
+  type StatShareToken, type InsertStatShareToken, type TournamentUserRole, type InsertTournamentUserRole,
+  type IrtPointsConfig, type InsertIrtPointsConfig, type PlayerRankingHistory, type InsertPlayerRankingHistory
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, or, count, avg, sum, isNull, isNotNull, gte, lte, between, sql } from "drizzle-orm";
@@ -125,6 +126,12 @@ export interface IStorage {
 
   // Player statistics from match events
   getPlayersEventStats(): Promise<any[]>;
+
+  // IRT Ranking System
+  getIrtPointsConfig(tier: string, matchType: string, round: string): Promise<IrtPointsConfig | undefined>;
+  createPlayerRankingHistory(history: InsertPlayerRankingHistory): Promise<PlayerRankingHistory>;
+  getPlayerRankingHistory(playerId: string, tournamentId?: string): Promise<PlayerRankingHistory[]>;
+  getGlobalRanking(limit?: number): Promise<any[]>;
 
   // Stat share tokens
   createStatShareToken(ownerUserId: string, targetPlayerId: string, expiresAt?: Date): Promise<StatShareToken>;
@@ -382,6 +389,8 @@ export class DatabaseStorage implements IStorage {
         status: tournaments.status,
         venue: tournaments.venue,
         clubId: tournaments.clubId,
+        tier: tournaments.tier,
+        prizePool: tournaments.prizePool,
         startDate: tournaments.startDate,
         endDate: tournaments.endDate,
         maxPlayers: tournaments.maxPlayers,
@@ -1947,6 +1956,8 @@ export class DatabaseStorage implements IStorage {
         status: tournaments.status,
         venue: tournaments.venue,
         clubId: tournaments.clubId,
+        tier: tournaments.tier,
+        prizePool: tournaments.prizePool,
         startDate: tournaments.startDate,
         endDate: tournaments.endDate,
         maxPlayers: tournaments.maxPlayers,
@@ -2237,6 +2248,56 @@ export class DatabaseStorage implements IStorage {
     }
 
     return results;
+  }
+
+  // IRT Ranking System implementations
+  async getIrtPointsConfig(tier: string, matchType: string, round: string): Promise<IrtPointsConfig | undefined> {
+    const result = await db.select().from(irtPointsConfig)
+      .where(and(
+        eq(irtPointsConfig.tier, tier as any),
+        eq(irtPointsConfig.matchType, matchType as any),
+        eq(irtPointsConfig.round, round as any)
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async createPlayerRankingHistory(history: InsertPlayerRankingHistory): Promise<PlayerRankingHistory> {
+    const result = await db.insert(playerRankingHistory).values(history).returning();
+    return result[0];
+  }
+
+  async getPlayerRankingHistory(playerId: string, tournamentId?: string): Promise<PlayerRankingHistory[]> {
+    if (tournamentId) {
+      return await db.select().from(playerRankingHistory)
+        .where(and(
+          eq(playerRankingHistory.playerId, playerId),
+          eq(playerRankingHistory.tournamentId, tournamentId)
+        ))
+        .orderBy(desc(playerRankingHistory.createdAt));
+    }
+    return await db.select().from(playerRankingHistory)
+      .where(eq(playerRankingHistory.playerId, playerId))
+      .orderBy(desc(playerRankingHistory.createdAt));
+  }
+
+  async getGlobalRanking(limit: number = 100): Promise<any[]> {
+    const result = await db
+      .select({
+        playerId: users.id,
+        playerName: users.name,
+        playerEmail: users.email,
+        rankingPoints: playerStats.rankingPoints,
+        matchesPlayed: playerStats.matchesPlayed,
+        matchesWon: playerStats.matchesWon,
+        matchesLost: playerStats.matchesLost
+      })
+      .from(playerStats)
+      .innerJoin(users, eq(playerStats.playerId, users.id))
+      .where(isNull(playerStats.tournamentId))
+      .orderBy(desc(playerStats.rankingPoints))
+      .limit(limit);
+    return result;
   }
 }
 

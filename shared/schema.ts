@@ -21,6 +21,14 @@ export const matchEventTypeEnum = pgEnum("match_event_type", ["point_won", "faul
 export const shotTypeEnum = pgEnum("shot_type", ["recto", "esquina", "cruzado", "punto"]);
 export const aceSideEnum = pgEnum("ace_side", ["derecha", "izquierda"]);
 export const appellationResultEnum = pgEnum("appellation_result", ["ganada", "perdida"]);
+export const tournamentTierEnum = pgEnum("tournament_tier", [
+  "GS-1000", "GS-900", "IRT-800", "IRT-700",
+  "SAT-600", "SAT-500", "SAT-400", "SAT-350", "SAT-250", "SAT-150",
+  "DOB-800", "DOB-700", "DOB-600", "DOB-500"
+]);
+export const tournamentRoundEnum = pgEnum("tournament_round", [
+  "128s", "64s", "32s", "16s", "quarterfinals", "semifinals", "final", "champion"
+]);
 
 export const clubs = pgTable("clubs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -76,6 +84,8 @@ export const tournaments = pgTable("tournaments", {
   status: tournamentStatusEnum("status").notNull().default("draft"),
   venue: text("venue").notNull(),
   clubId: varchar("club_id").references(() => clubs.id),
+  tier: tournamentTierEnum("tier"),
+  prizePool: decimal("prize_pool", { precision: 10, scale: 2 }),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   maxPlayers: integer("max_players").notNull(),
@@ -262,6 +272,33 @@ export const tournamentUserRoles = pgTable("tournament_user_roles", {
   // Composite unique index to prevent duplicate role assignments
   uniqueUserTournamentRole: sql`UNIQUE (${table.tournamentId}, ${table.userId}, ${table.role})`
 }));
+
+export const irtPointsConfig = pgTable("irt_points_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tier: tournamentTierEnum("tier").notNull(),
+  matchType: matchTypeEnum("match_type").notNull().default("singles"),
+  round: tournamentRoundEnum("round").notNull(),
+  points: integer("points").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+}, (table) => ({
+  uniqueTierRound: sql`UNIQUE (${table.tier}, ${table.matchType}, ${table.round})`
+}));
+
+export const playerRankingHistory = pgTable("player_ranking_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id, { onDelete: 'cascade' }),
+  matchId: varchar("match_id").references(() => matches.id, { onDelete: 'set null' }),
+  tier: tournamentTierEnum("tier").notNull(),
+  matchType: matchTypeEnum("match_type").notNull().default("singles"),
+  round: tournamentRoundEnum("round").notNull(),
+  points: integer("points").notNull(),
+  notes: text("notes"),
+  awardedBy: varchar("awarded_by").references(() => users.id, { onDelete: 'set null' }),
+  isManualAdjustment: boolean("is_manual_adjustment").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
 
 // Relations
 export const clubsRelations = relations(clubs, ({ one, many }) => ({
@@ -602,6 +639,17 @@ export const insertTournamentUserRoleSchema = createInsertSchema(tournamentUserR
   updatedAt: true
 });
 
+export const insertIrtPointsConfigSchema = createInsertSchema(irtPointsConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertPlayerRankingHistorySchema = createInsertSchema(playerRankingHistory).omit({
+  id: true,
+  createdAt: true
+});
+
 // Excel Import Schemas
 export const excelPlayerSinglesSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido"),
@@ -663,6 +711,10 @@ export type StatShareToken = typeof statShareTokens.$inferSelect;
 export type InsertStatShareToken = z.infer<typeof insertStatShareTokenSchema>;
 export type TournamentUserRole = typeof tournamentUserRoles.$inferSelect;
 export type InsertTournamentUserRole = z.infer<typeof insertTournamentUserRoleSchema>;
+export type IrtPointsConfig = typeof irtPointsConfig.$inferSelect;
+export type InsertIrtPointsConfig = z.infer<typeof insertIrtPointsConfigSchema>;
+export type PlayerRankingHistory = typeof playerRankingHistory.$inferSelect;
+export type InsertPlayerRankingHistory = z.infer<typeof insertPlayerRankingHistorySchema>;
 export type ExcelPlayerSingles = z.infer<typeof excelPlayerSinglesSchema>;
 export type ExcelPlayerDoubles = z.infer<typeof excelPlayerDoublesSchema>;
 export type ExcelMatchSingles = z.infer<typeof excelMatchSinglesSchema>;
