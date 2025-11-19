@@ -1471,22 +1471,35 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin and escribano can update sessions
-      if (!["admin", "escribano"].includes(req.user!.role)) {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      // Get session to verify existence and get match
+      const session = await storage.getStatsSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Stats session not found" });
       }
 
-      const session = await storage.updateStatsSession(req.params.sessionId, req.body);
+      // Get match to verify tournament
+      const match = await storage.getMatch(session.matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      // Only SuperAdmin or Tournament Admin can update sessions
+      const canManage = await storage.canManageTournament(req.user!.id, match.tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions to update match session" });
+      }
+
+      const updatedSession = await storage.updateStatsSession(req.params.sessionId, req.body);
       
       // Broadcast session update
-      if (session && wsServer) {
-        wsServer.broadcastToMatch(session.matchId, {
+      if (updatedSession && wsServer) {
+        wsServer.broadcastToMatch(updatedSession.matchId, {
           type: "session_update",
-          session
+          session: updatedSession
         });
       }
       
-      res.json(session);
+      res.json(updatedSession);
     } catch (error) {
       res.status(500).json({ message: "Failed to update session" });
     }
