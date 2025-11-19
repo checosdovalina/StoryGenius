@@ -385,6 +385,7 @@ export class DatabaseStorage implements IStorage {
         maxPlayers: tournaments.maxPlayers,
         registrationFee: tournaments.registrationFee,
         organizerId: tournaments.organizerId,
+        timezone: tournaments.timezone,
         createdAt: tournaments.createdAt,
         updatedAt: tournaments.updatedAt
       })
@@ -1819,6 +1820,7 @@ export class DatabaseStorage implements IStorage {
         maxPlayers: tournaments.maxPlayers,
         registrationFee: tournaments.registrationFee,
         organizerId: tournaments.organizerId,
+        timezone: tournaments.timezone,
         createdAt: tournaments.createdAt,
         updatedAt: tournaments.updatedAt
       })

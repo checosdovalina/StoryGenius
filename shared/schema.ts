@@ -81,6 +81,7 @@ export const tournaments = pgTable("tournaments", {
   maxPlayers: integer("max_players").notNull(),
   registrationFee: decimal("registration_fee", { precision: 10, scale: 2 }).default("0"),
   organizerId: varchar("organizer_id").notNull().references(() => users.id),
+  timezone: text("timezone").notNull().default("America/Mexico_City"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
