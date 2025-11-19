@@ -765,10 +765,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getScheduledMatchesByDate(date: Date): Promise<ScheduledMatch[]> {
-    // Work entirely in UTC to avoid timezone issues
-    const startOfDay = new Date(date);
-    const endOfDay = new Date(date);
-    endOfDay.setUTCHours(23, 59, 59, 999);
+    // Expand search range to cover all timezones (UTC-12 to UTC+14)
+    // This ensures we catch matches that fall on the selected date in any tournament's timezone
+    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const startOfDay = new Date(`${dateStr}T00:00:00Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59Z`);
+    
+    // Expand by 14 hours before and 12 hours after to cover all possible timezones
+    const expandedStart = new Date(startOfDay.getTime() - (14 * 60 * 60 * 1000));
+    const expandedEnd = new Date(endOfDay.getTime() + (12 * 60 * 60 * 1000));
 
     // Get scheduled matches from scheduled_matches table
     const scheduled = await db
@@ -776,16 +781,17 @@ export class DatabaseStorage implements IStorage {
       .from(scheduledMatches)
       .where(
         and(
-          gte(scheduledMatches.scheduledDate, startOfDay),
-          lte(scheduledMatches.scheduledDate, endOfDay)
+          gte(scheduledMatches.scheduledDate, expandedStart),
+          lte(scheduledMatches.scheduledDate, expandedEnd)
         )
       )
       .orderBy(asc(scheduledMatches.scheduledDate));
 
-    // Get matches from matches table with scheduled_at
+    // Get matches from matches table with scheduled_at and their tournaments
     const tournamentMatches = await db
       .select({
         match: matches,
+        tournament: tournaments,
         player1: users,
         player2: {
           id: sql<string>`p2.id`,
@@ -801,6 +807,7 @@ export class DatabaseStorage implements IStorage {
         }
       })
       .from(matches)
+      .leftJoin(tournaments, eq(matches.tournamentId, tournaments.id))
       .leftJoin(users, eq(matches.player1Id, users.id))
       .leftJoin(sql`users as p2`, sql`${matches.player2Id} = p2.id`)
       .leftJoin(sql`users as p3`, sql`${matches.player3Id} = p3.id`)
@@ -808,39 +815,51 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           isNotNull(matches.scheduledAt),
-          gte(matches.scheduledAt, startOfDay),
-          lte(matches.scheduledAt, endOfDay)
+          gte(matches.scheduledAt, expandedStart),
+          lte(matches.scheduledAt, expandedEnd)
         )
       )
       .orderBy(asc(matches.scheduledAt));
 
-    // Map tournament matches to ScheduledMatch format
-    const mappedMatches: ScheduledMatch[] = tournamentMatches.map((row) => ({
-      id: row.match.id,
-      title: row.match.round || "Partido",
-      scheduledDate: row.match.scheduledAt!,
-      sport: "racquetball" as const,
-      matchType: row.match.matchType as "singles" | "doubles",
-      courtId: row.match.courtId || "",
-      duration: 90,
-      player1Name: row.player1?.name || null,
-      player2Name: row.player2?.name || null,
-      player3Name: row.player3?.name || null,
-      player4Name: row.player4?.name || null,
-      player1Id: row.match.player1Id,
-      player2Id: row.match.player2Id,
-      player3Id: row.match.player3Id || null,
-      player4Id: row.match.player4Id || null,
-      tournamentId: row.match.tournamentId,
-      organizerId: row.match.tournamentId,
-      status: row.match.status === "completed" ? "completado" : 
-              row.match.status === "in_progress" ? "en_curso" :
-              row.match.status === "cancelled" ? "cancelado" : "programado",
-      description: null,
-      notes: null,
-      createdAt: row.match.createdAt,
-      updatedAt: row.match.updatedAt
-    }));
+    // Map tournament matches to ScheduledMatch format and filter by tournament timezone
+    const mappedMatches: ScheduledMatch[] = tournamentMatches
+      .filter((row) => {
+        if (!row.tournament || !row.match.scheduledAt) return false;
+        
+        // Convert UTC time to tournament's local time
+        const timezone = row.tournament.timezone || "America/Mexico_City";
+        const localDate = toZonedTime(row.match.scheduledAt, timezone);
+        const localDateStr = localDate.toISOString().split('T')[0];
+        
+        // Check if the match falls on the requested date in the tournament's timezone
+        return localDateStr === dateStr;
+      })
+      .map((row) => ({
+        id: row.match.id,
+        title: row.match.round || "Partido",
+        scheduledDate: row.match.scheduledAt!,
+        sport: "racquetball" as const,
+        matchType: row.match.matchType as "singles" | "doubles",
+        courtId: row.match.courtId || "",
+        duration: 90,
+        player1Name: row.player1?.name || null,
+        player2Name: row.player2?.name || null,
+        player3Name: row.player3?.name || null,
+        player4Name: row.player4?.name || null,
+        player1Id: row.match.player1Id,
+        player2Id: row.match.player2Id,
+        player3Id: row.match.player3Id || null,
+        player4Id: row.match.player4Id || null,
+        tournamentId: row.match.tournamentId,
+        organizerId: row.match.tournamentId,
+        status: row.match.status === "completed" ? "completado" : 
+                row.match.status === "in_progress" ? "en_curso" :
+                row.match.status === "cancelled" ? "cancelado" : "programado",
+        description: null,
+        notes: null,
+        createdAt: row.match.createdAt,
+        updatedAt: row.match.updatedAt
+      }));
 
     // Combine both lists and sort by date
     const allMatches = [...scheduled, ...mappedMatches];
