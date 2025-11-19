@@ -63,6 +63,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Match } from "@shared/schema";
 import { TournamentRolesTab } from "@/components/tournament-roles-tab";
 import { ExcelImportDialog } from "@/components/excel-import-dialog";
+import { TournamentCalendarTab } from "@/components/tournament-calendar-tab";
 
 // =======================
 // 1️⃣ Página principal
@@ -522,12 +523,15 @@ export default function TournamentDetailPage() {
 
           {/* Main content tabs */}
           <Tabs defaultValue="players" className="w-full">
-            <TabsList className={`grid w-full ${canManage ? 'grid-cols-4' : 'grid-cols-2'}`}>
+            <TabsList className={`grid w-full ${canManage ? 'grid-cols-5' : 'grid-cols-3'}`}>
               <TabsTrigger value="players" data-testid="tab-players" className="min-h-[44px]">
                 Jugadores
               </TabsTrigger>
               <TabsTrigger value="matches" data-testid="tab-matches" className="min-h-[44px]">
                 Partidos
+              </TabsTrigger>
+              <TabsTrigger value="calendar" data-testid="tab-calendar" className="min-h-[44px]">
+                Calendario
               </TabsTrigger>
               {canManage && (
                 <>
@@ -548,6 +552,10 @@ export default function TournamentDetailPage() {
 
             <TabsContent value="matches" className="mt-4 sm:mt-6">
               <MatchesTab tournament={tournament} canManage={canManage} />
+            </TabsContent>
+
+            <TabsContent value="calendar" className="mt-4 sm:mt-6">
+              <TournamentCalendarTab tournament={tournament} />
             </TabsContent>
 
             {canManage && (
