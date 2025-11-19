@@ -1721,6 +1721,12 @@ export class DatabaseStorage implements IStorage {
           matchesWon: psData?.matchesWon || 0,
           matchesLost: psData?.matchesLost || 0,
           matchesPlayed: psData?.matchesPlayed || 0,
+          singlesPlayed: psData?.singlesPlayed || 0,
+          singlesWon: psData?.singlesWon || 0,
+          singlesLost: psData?.singlesLost || 0,
+          doublesPlayed: psData?.doublesPlayed || 0,
+          doublesWon: psData?.doublesWon || 0,
+          doublesLost: psData?.doublesLost || 0,
           setsWon: psData?.setsWon || 0,
           setsLost: psData?.setsLost || 0,
           totalSets: (psData?.setsWon || 0) + (psData?.setsLost || 0)

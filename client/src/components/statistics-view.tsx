@@ -276,6 +276,18 @@ export function StatisticsView() {
                         </TableHead>
                         <TableHead className="text-center">
                           <div className="flex flex-col items-center justify-center">
+                            <span className="text-xs">Singles</span>
+                            <span className="text-xs text-muted-foreground">V/D</span>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="text-xs">Doubles</span>
+                            <span className="text-xs text-muted-foreground">V/D</span>
+                          </div>
+                        </TableHead>
+                        <TableHead className="text-center">
+                          <div className="flex flex-col items-center justify-center">
                             <span className="text-xs">Sets</span>
                             <span className="text-xs text-muted-foreground">G/P</span>
                           </div>
@@ -335,6 +347,38 @@ export function StatisticsView() {
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 Total: {player.matchesPlayed}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="font-mono text-xs">
+                                  {player.singlesWon}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">/</span>
+                                <Badge variant="outline" className="font-mono text-xs">
+                                  {player.singlesLost}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {player.singlesPlayed} partidos
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="font-mono text-xs">
+                                  {player.doublesWon}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">/</span>
+                                <Badge variant="outline" className="font-mono text-xs">
+                                  {player.doublesLost}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {player.doublesPlayed} partidos
                               </div>
                             </div>
                           </TableCell>

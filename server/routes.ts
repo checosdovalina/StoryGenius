@@ -1556,14 +1556,28 @@ export function registerRoutes(app: Express): Server {
           matchesPlayed: 0,
           matchesWon: 0,
           matchesLost: 0,
+          singlesPlayed: 0,
+          singlesWon: 0,
+          singlesLost: 0,
+          doublesPlayed: 0,
+          doublesWon: 0,
+          doublesLost: 0,
           setsWon: 0,
           setsLost: 0
         };
+        
+        const isSingles = match.matchType === 'singles';
         
         await storage.updatePlayerStats(match.player1Id, match.tournamentId, {
           matchesPlayed: player1Stats.matchesPlayed + 1,
           matchesWon: player1Stats.matchesWon + (player1Won ? 1 : 0),
           matchesLost: player1Stats.matchesLost + (player2Won ? 1 : 0),
+          singlesPlayed: player1Stats.singlesPlayed + (isSingles ? 1 : 0),
+          singlesWon: player1Stats.singlesWon + (isSingles && player1Won ? 1 : 0),
+          singlesLost: player1Stats.singlesLost + (isSingles && player2Won ? 1 : 0),
+          doublesPlayed: player1Stats.doublesPlayed + (!isSingles ? 1 : 0),
+          doublesWon: player1Stats.doublesWon + (!isSingles && player1Won ? 1 : 0),
+          doublesLost: player1Stats.doublesLost + (!isSingles && player2Won ? 1 : 0),
           setsWon: player1Stats.setsWon + (completedSession.player1Sets || 0),
           setsLost: player1Stats.setsLost + (completedSession.player2Sets || 0)
         });
@@ -1576,16 +1590,94 @@ export function registerRoutes(app: Express): Server {
           matchesPlayed: 0,
           matchesWon: 0,
           matchesLost: 0,
+          singlesPlayed: 0,
+          singlesWon: 0,
+          singlesLost: 0,
+          doublesPlayed: 0,
+          doublesWon: 0,
+          doublesLost: 0,
           setsWon: 0,
           setsLost: 0
         };
+        
+        const isSingles = match.matchType === 'singles';
         
         await storage.updatePlayerStats(match.player2Id, match.tournamentId, {
           matchesPlayed: player2Stats.matchesPlayed + 1,
           matchesWon: player2Stats.matchesWon + (player2Won ? 1 : 0),
           matchesLost: player2Stats.matchesLost + (player1Won ? 1 : 0),
+          singlesPlayed: player2Stats.singlesPlayed + (isSingles ? 1 : 0),
+          singlesWon: player2Stats.singlesWon + (isSingles && player2Won ? 1 : 0),
+          singlesLost: player2Stats.singlesLost + (isSingles && player1Won ? 1 : 0),
+          doublesPlayed: player2Stats.doublesPlayed + (!isSingles ? 1 : 0),
+          doublesWon: player2Stats.doublesWon + (!isSingles && player2Won ? 1 : 0),
+          doublesLost: player2Stats.doublesLost + (!isSingles && player1Won ? 1 : 0),
           setsWon: player2Stats.setsWon + (completedSession.player2Sets || 0),
           setsLost: player2Stats.setsLost + (completedSession.player1Sets || 0)
+        });
+      }
+
+      // Update player statistics for player 3 (doubles only)
+      if (match.player3Id && match.matchType === 'doubles') {
+        const player3StatsArray = await storage.getPlayerStats(match.player3Id, match.tournamentId);
+        const player3Stats = player3StatsArray[0] || {
+          matchesPlayed: 0,
+          matchesWon: 0,
+          matchesLost: 0,
+          singlesPlayed: 0,
+          singlesWon: 0,
+          singlesLost: 0,
+          doublesPlayed: 0,
+          doublesWon: 0,
+          doublesLost: 0,
+          setsWon: 0,
+          setsLost: 0
+        };
+        
+        await storage.updatePlayerStats(match.player3Id, match.tournamentId, {
+          matchesPlayed: player3Stats.matchesPlayed + 1,
+          matchesWon: player3Stats.matchesWon + (player1Won ? 1 : 0),
+          matchesLost: player3Stats.matchesLost + (player2Won ? 1 : 0),
+          singlesPlayed: player3Stats.singlesPlayed,
+          singlesWon: player3Stats.singlesWon,
+          singlesLost: player3Stats.singlesLost,
+          doublesPlayed: player3Stats.doublesPlayed + 1,
+          doublesWon: player3Stats.doublesWon + (player1Won ? 1 : 0),
+          doublesLost: player3Stats.doublesLost + (player2Won ? 1 : 0),
+          setsWon: player3Stats.setsWon + (completedSession.player1Sets || 0),
+          setsLost: player3Stats.setsLost + (completedSession.player2Sets || 0)
+        });
+      }
+
+      // Update player statistics for player 4 (doubles only)
+      if (match.player4Id && match.matchType === 'doubles') {
+        const player4StatsArray = await storage.getPlayerStats(match.player4Id, match.tournamentId);
+        const player4Stats = player4StatsArray[0] || {
+          matchesPlayed: 0,
+          matchesWon: 0,
+          matchesLost: 0,
+          singlesPlayed: 0,
+          singlesWon: 0,
+          singlesLost: 0,
+          doublesPlayed: 0,
+          doublesWon: 0,
+          doublesLost: 0,
+          setsWon: 0,
+          setsLost: 0
+        };
+        
+        await storage.updatePlayerStats(match.player4Id, match.tournamentId, {
+          matchesPlayed: player4Stats.matchesPlayed + 1,
+          matchesWon: player4Stats.matchesWon + (player2Won ? 1 : 0),
+          matchesLost: player4Stats.matchesLost + (player1Won ? 1 : 0),
+          singlesPlayed: player4Stats.singlesPlayed,
+          singlesWon: player4Stats.singlesWon,
+          singlesLost: player4Stats.singlesLost,
+          doublesPlayed: player4Stats.doublesPlayed + 1,
+          doublesWon: player4Stats.doublesWon + (player2Won ? 1 : 0),
+          doublesLost: player4Stats.doublesLost + (player1Won ? 1 : 0),
+          setsWon: player4Stats.setsWon + (completedSession.player2Sets || 0),
+          setsLost: player4Stats.setsLost + (completedSession.player1Sets || 0)
         });
       }
 
