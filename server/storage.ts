@@ -769,6 +769,10 @@ export class DatabaseStorage implements IStorage {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
+    console.log('[getScheduledMatchesByDate] Input date:', date);
+    console.log('[getScheduledMatchesByDate] Start of day:', startOfDay.toISOString());
+    console.log('[getScheduledMatchesByDate] End of day:', endOfDay.toISOString());
+
     // Get scheduled matches from scheduled_matches table
     const scheduled = await db
       .select()
@@ -780,6 +784,8 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(asc(scheduledMatches.scheduledDate));
+
+    console.log('[getScheduledMatchesByDate] Scheduled matches found:', scheduled.length);
 
     // Get matches from matches table with scheduled_at
     const tournamentMatches = await db
@@ -812,6 +818,11 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(asc(matches.scheduledAt));
+
+    console.log('[getScheduledMatchesByDate] Tournament matches found:', tournamentMatches.length);
+    if (tournamentMatches.length > 0) {
+      console.log('[getScheduledMatchesByDate] First match scheduled_at:', tournamentMatches[0].match.scheduledAt);
+    }
 
     // Map tournament matches to ScheduledMatch format
     const mappedMatches: ScheduledMatch[] = tournamentMatches.map((row) => ({
