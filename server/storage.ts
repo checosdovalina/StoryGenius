@@ -763,13 +763,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getScheduledMatchesByDate(date: Date): Promise<ScheduledMatch[]> {
+    // Work entirely in UTC to avoid timezone issues
     const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    
     const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setUTCHours(23, 59, 59, 999);
 
-    console.log('[getScheduledMatchesByDate] Input date:', date);
+    console.log('[getScheduledMatchesByDate] Input date:', date.toISOString());
     console.log('[getScheduledMatchesByDate] Start of day:', startOfDay.toISOString());
     console.log('[getScheduledMatchesByDate] End of day:', endOfDay.toISOString());
 
