@@ -66,15 +66,16 @@ export default function StatsCapturePageComponent() {
     }
   }, [user, setLocation, tournamentRoles, match?.tournamentId, rolesLoading]);
 
-  // Fetch users for player names
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/api/users"]
+  // Fetch players for player names
+  const { data: players = [] } = useQuery<User[]>({
+    queryKey: [`/api/tournaments/${match?.tournamentId}/players`],
+    enabled: !!match?.tournamentId
   });
 
-  const player1 = users.find(u => u.id === match?.player1Id);
-  const player2 = users.find(u => u.id === match?.player2Id);
-  const player3 = users.find(u => u.id === match?.player3Id);
-  const player4 = users.find(u => u.id === match?.player4Id);
+  const player1 = players.find(u => u.id === match?.player1Id);
+  const player2 = players.find(u => u.id === match?.player2Id);
+  const player3 = players.find(u => u.id === match?.player3Id);
+  const player4 = players.find(u => u.id === match?.player4Id);
 
   // Start stats session mutation
   const startSessionMutation = useMutation({

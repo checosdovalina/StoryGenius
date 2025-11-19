@@ -1372,18 +1372,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Only admin and escribano can start stats sessions
-      if (!["admin", "escribano"].includes(req.user!.role)) {
-        return res.status(403).json({ message: "Only admin and escribano can capture statistics" });
-      }
-
-      // Check if there's already an active session
-      const activeSession = await storage.getActiveStatsSession(req.params.matchId);
-      if (activeSession) {
-        return res.status(400).json({ message: "There is already an active stats session for this match" });
-      }
-
-      // Get match to determine sport
+      // Get match to determine tournament
       const match = await storage.getMatch(req.params.matchId);
       if (!match) {
         return res.status(404).json({ message: "Match not found" });
@@ -1393,6 +1382,28 @@ export function registerRoutes(app: Express): Server {
       const tournament = await storage.getTournament(match.tournamentId);
       if (!tournament) {
         return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      // Check authorization: global roles or tournament-specific roles
+      const allowedGlobalRoles = ["superadmin", "admin"];
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      const hasGlobalPermission = isSuperAdmin || allowedGlobalRoles.includes(req.user!.role);
+
+      if (!hasGlobalPermission) {
+        // Check tournament-specific roles
+        const tournamentRoles = await storage.getUserTournamentRoles(req.user!.id, match.tournamentId);
+        const allowedTournamentRoles = ["tournament_admin", "organizador", "arbitro", "escrutador"];
+        const hasTournamentPermission = tournamentRoles.some(role => allowedTournamentRoles.includes(role));
+
+        if (!hasTournamentPermission) {
+          return res.status(403).json({ message: "Insufficient permissions to capture statistics" });
+        }
+      }
+
+      // Check if there's already an active session
+      const activeSession = await storage.getActiveStatsSession(req.params.matchId);
+      if (activeSession) {
+        return res.status(400).json({ message: "There is already an active stats session for this match" });
       }
 
       const sessionData: any = {
