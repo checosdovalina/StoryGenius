@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Users, Trophy, ArrowLeft, X, UserPlus, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1198,6 +1199,14 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
 
   const createMatchMutation = useMutation({
     mutationFn: async (data: CreateMatchForm) => {
+      // Convert scheduled date from tournament timezone to UTC
+      let scheduledAtISO = null;
+      if (data.scheduledAt && data.scheduledAt.trim() !== "") {
+        const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+        const zonedDate = zonedTimeToUtc(data.scheduledAt, tournamentTimezone);
+        scheduledAtISO = zonedDate.toISOString();
+      }
+      
       const matchData = {
         matchType: data.matchType,
         player1Id: data.player1Id,
@@ -1205,7 +1214,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
         player3Id: data.matchType === "doubles" ? data.player3Id : null,
         player4Id: data.matchType === "doubles" ? data.player4Id : null,
         tournamentId: tournament.id,
-        scheduledAt: data.scheduledAt && data.scheduledAt.trim() !== "" ? new Date(data.scheduledAt).toISOString() : null,
+        scheduledAt: scheduledAtISO,
         round: data.round && data.round.trim() !== "" ? data.round : "Ronda Manual",
         courtId: !data.courtId || data.courtId === "none" || data.courtId.trim() === "" ? null : data.courtId
       };
@@ -1236,6 +1245,14 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
   // Edit match mutation
   const editMatchMutation = useMutation({
     mutationFn: async (data: CreateMatchForm & { matchId: string }) => {
+      // Convert scheduled date from tournament timezone to UTC
+      let scheduledAtISO = null;
+      if (data.scheduledAt && data.scheduledAt.trim() !== "") {
+        const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+        const zonedDate = zonedTimeToUtc(data.scheduledAt, tournamentTimezone);
+        scheduledAtISO = zonedDate.toISOString();
+      }
+      
       const matchData = {
         matchType: data.matchType,
         player1Id: data.player1Id,
@@ -1243,7 +1260,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
         player3Id: data.matchType === "doubles" ? data.player3Id : null,
         player4Id: data.matchType === "doubles" ? data.player4Id : null,
         round: data.round && data.round.trim() !== "" ? data.round : null,
-        scheduledAt: data.scheduledAt && data.scheduledAt.trim() !== "" ? new Date(data.scheduledAt).toISOString() : null,
+        scheduledAt: scheduledAtISO,
         courtId: !data.courtId || data.courtId === "none" || data.courtId.trim() === "" ? null : data.courtId
       };
       const res = await apiRequest("PUT", `/api/matches/${data.matchId}`, matchData);
@@ -1365,7 +1382,12 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                       </div>
                       {match.scheduledAt && (
                         <p className="text-sm text-muted-foreground">
-                          📅 {format(new Date(match.scheduledAt), 'dd/MM/yyyy HH:mm')}
+                          📅 {(() => {
+                            const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+                            const utcDate = new Date(match.scheduledAt);
+                            const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+                            return format(zonedDate, 'dd/MM/yyyy HH:mm');
+                          })()}
                         </p>
                       )}
                     </div>
@@ -1450,6 +1472,15 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                         size="sm"
                         onClick={() => {
                           setEditingMatch(match);
+                          // Convert UTC to tournament timezone for editing
+                          let scheduledAtLocal = "";
+                          if (match.scheduledAt) {
+                            const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+                            const utcDate = new Date(match.scheduledAt);
+                            const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+                            scheduledAtLocal = format(zonedDate, "yyyy-MM-dd'T'HH:mm");
+                          }
+                          
                           matchForm.reset({
                             matchType: match.matchType || "singles",
                             player1Id: match.player1Id,
@@ -1457,7 +1488,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                             player3Id: match.player3Id || "",
                             player4Id: match.player4Id || "",
                             round: match.round || "",
-                            scheduledAt: match.scheduledAt ? new Date(match.scheduledAt).toISOString().slice(0, 16) : "",
+                            scheduledAt: scheduledAtLocal,
                             courtId: match.courtId || ""
                           });
                         }}
@@ -2089,7 +2120,12 @@ function BracketsTab({ tournament, canManage }: { tournament: Tournament; canMan
 
                           {match.scheduledAt && (
                             <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
-                              📅 {format(new Date(match.scheduledAt), 'dd/MM/yyyy HH:mm')}
+                              📅 {(() => {
+                                const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+                                const utcDate = new Date(match.scheduledAt);
+                                const zonedDate = utcToZonedTime(utcDate, tournamentTimezone);
+                                return format(zonedDate, 'dd/MM/yyyy HH:mm');
+                              })()}
                             </div>
                           )}
                         </CardContent>
