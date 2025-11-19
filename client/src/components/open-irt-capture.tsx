@@ -812,50 +812,6 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
             </Button>
           </div>
 
-          {/* Ace and Fault buttons */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <Button
-              onClick={() => handleAce(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "derecha")}
-              variant="secondary"
-              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
-              disabled={!!scoreState.matchWinner}
-              data-testid="button-receiver-ace-derecha"
-            >
-              <Zap className="h-5 w-5 mr-1" />
-              Derecha
-            </Button>
-            <Button
-              onClick={() => handleAce(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id), "izquierda")}
-              variant="secondary"
-              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
-              disabled={!!scoreState.matchWinner}
-              data-testid="button-receiver-ace-izquierda"
-            >
-              <Zap className="h-5 w-5 mr-1" />
-              Izquierda
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <Button
-              onClick={() => handleFault(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id))}
-              variant="outline"
-              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold border-orange-500 text-orange-600 hover:bg-orange-50"
-              disabled={!!scoreState.matchWinner}
-              data-testid="button-receiver-fault"
-            >
-              Falta
-            </Button>
-            <Button
-              onClick={() => handleDoubleFault(isDoubles ? activeReceivingPlayerId : (isPlayer1Serving ? match.player2Id : match.player1Id))}
-              variant="destructive"
-              className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg font-semibold"
-              disabled={!!scoreState.matchWinner}
-              data-testid="button-receiver-double-fault"
-            >
-              D.F.
-            </Button>
-          </div>
-
           {/* Timeout button */}
           <Button
             onClick={() => handleTimeout(isPlayer1Serving ? match.player2Id : match.player1Id)}
