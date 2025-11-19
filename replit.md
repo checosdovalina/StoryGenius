@@ -34,6 +34,7 @@ The system implements session-based authentication with a hierarchical multi-ten
 -   **Tournament Doubles Integration**: Supports creating, editing, and viewing both singles and doubles matches with conditional player fields, Zod validation for unique players in doubles, modality badges, and team-based formatting. Player lists auto-refresh.
 -   **Excel Import Module**: Bulk import functionality for players and matches (Singles/Doubles) with automatic data processing, player creation, and tournament registration. It includes downloadable templates, Zod validation with detailed error reporting, and a results preview. Authorization is restricted to SuperAdmin and Tournament Admin roles.
 -   **Tournament-Scoped Calendar System**: Integrated calendar module accessible via sidebar menu with role-based filtering. Players view only their scheduled matches, while admins can create, edit, and delete matches within specific tournaments. SuperAdmins and Admins have access to a global "All Tournaments" view showing all scheduled matches for a selected date across all tournaments, grouped by tournament for easy overview.
+-   **Tournament Timezone Support**: Each tournament can have its own timezone setting (configurable by SuperAdmins during tournament creation/editing). Supported timezones include major cities in Mexico, USA, Latin America, and Europe. Default timezone is America/Mexico_City.
 
 # External Dependencies
 -   **Neon PostgreSQL**: Serverless PostgreSQL database.
