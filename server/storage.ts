@@ -13,7 +13,7 @@ import { eq, desc, asc, and, or, count, avg, sum, isNull, isNotNull, gte, lte, b
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
-import { toZonedTime, fromZonedTime } from "date-fns-tz";
+import { toZonedTime, fromZonedTime, formatInTimeZone } from "date-fns-tz";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -826,10 +826,9 @@ export class DatabaseStorage implements IStorage {
       .filter((row) => {
         if (!row.tournament || !row.match.scheduledAt) return false;
         
-        // Convert UTC time to tournament's local time
+        // Format the match date in the tournament's timezone as YYYY-MM-DD
         const timezone = row.tournament.timezone || "America/Mexico_City";
-        const localDate = toZonedTime(row.match.scheduledAt, timezone);
-        const localDateStr = localDate.toISOString().split('T')[0];
+        const localDateStr = formatInTimeZone(row.match.scheduledAt, timezone, 'yyyy-MM-dd');
         
         // Check if the match falls on the requested date in the tournament's timezone
         return localDateStr === dateStr;
