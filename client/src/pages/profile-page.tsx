@@ -12,6 +12,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhotoUploader } from "@/components/photo-uploader";
+import { AppShell } from "@/components/app-shell";
 
 const MATCH_CATEGORIES = [
   { value: "PRO_SINGLES_IRT", label: "PRO Singles IRT" },
@@ -225,11 +226,12 @@ export default function ProfilePage() {
   const isTempEmail = user?.email?.endsWith("@temp.local");
 
   return (
-    <div className="container max-w-4xl py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Mi Perfil</h1>
-        <p className="text-muted-foreground">Administra tu información personal y credenciales</p>
-      </div>
+    <AppShell>
+      <div className="container max-w-4xl py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Mi Perfil</h1>
+          <p className="text-muted-foreground">Administra tu información personal y credenciales</p>
+        </div>
 
       {isTempEmail && (
         <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
@@ -453,6 +455,7 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AppShell>
   );
 }
