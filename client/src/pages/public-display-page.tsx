@@ -517,7 +517,9 @@ export default function PublicDisplayPage() {
   // WebSocket connection for real-time updates
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/public-display${tournamentId ? `?tournamentId=${tournamentId}` : ''}`;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    const host = `${window.location.hostname}${port}`;
+    const wsUrl = `${protocol}//${host}/ws/public-display${tournamentId ? `?tournamentId=${tournamentId}` : ''}`;
     
     let ws: WebSocket | null = null;
     let reconnectTimeout: NodeJS.Timeout;
