@@ -946,36 +946,47 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Upload profile photo endpoint
-  app.post("/api/media/profile-photo", photoUpload.single('photo'), async (req, res) => {
-    try {
-      if (!req.isAuthenticated() || !req.user) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
+  app.post("/api/media/profile-photo", (req, res) => {
+    photoUpload.single('photo')(req, res, async (err) => {
+      try {
+        // Handle Multer errors explicitly
+        if (err) {
+          if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+              return res.status(400).json({ message: "File size exceeds 5MB limit" });
+            }
+            return res.status(400).json({ message: `Upload error: ${err.message}` });
+          }
+          // Custom file filter error
+          if (err.message.includes('Invalid file type')) {
+            return res.status(400).json({ message: err.message });
+          }
+          console.error("Unexpected upload error:", err);
+          return res.status(500).json({ message: "Unexpected error during upload" });
+        }
 
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
+        if (!req.isAuthenticated() || !req.user) {
+          return res.status(401).json({ message: "Authentication required" });
+        }
 
-      // Upload to object storage
-      const result = await uploadProfilePhoto(req.file, req.user.id);
+        if (!req.file) {
+          return res.status(400).json({ message: "No file uploaded" });
+        }
 
-      // Invalidate cache
-      res.json({
-        message: "Photo uploaded successfully",
-        url: result.url,
-        filename: result.filename,
-        size: result.size
-      });
-    } catch (error: any) {
-      console.error("Error uploading profile photo:", error);
-      
-      // Handle multer errors
-      if (error.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ message: "File size exceeds 5MB limit" });
+        // Upload to object storage
+        const result = await uploadProfilePhoto(req.file, req.user.id);
+
+        res.json({
+          message: "Photo uploaded successfully",
+          url: result.url,
+          filename: result.filename,
+          size: result.size
+        });
+      } catch (error: any) {
+        console.error("Error uploading profile photo:", error);
+        res.status(500).json({ message: error.message || "Failed to upload photo" });
       }
-      
-      res.status(500).json({ message: error.message || "Failed to upload photo" });
-    }
+    });
   });
 
   // Update user profile (email, password, photo, nationality, categories)
