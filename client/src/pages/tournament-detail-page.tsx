@@ -1193,6 +1193,8 @@ const getStatusLabel = (status: string) => {
 function MatchesTab({ tournament, canManage }: { tournament: Tournament; canManage?: boolean }) {
   const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -1200,9 +1202,29 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     queryKey: [`/api/tournaments/${tournament.id}/matches`]
   });
   
-  // Sort matches by scheduled date (nearest first), then by status
+  // Sort and filter matches by scheduled date and status
   const matches = useMemo(() => {
-    return [...matchesData].sort((a, b) => {
+    let filtered = [...matchesData];
+    
+    // Filter by date if selected
+    if (selectedDate) {
+      const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+      filtered = filtered.filter(match => {
+        if (!match.scheduledAt) return false;
+        const utcDate = new Date(match.scheduledAt);
+        const zonedDate = toZonedTime(utcDate, tournamentTimezone);
+        const matchDate = format(zonedDate, 'yyyy-MM-dd');
+        return matchDate === selectedDate;
+      });
+    }
+    
+    // Filter by status if selected
+    if (selectedStatus !== "all") {
+      filtered = filtered.filter(match => match.status === selectedStatus);
+    }
+    
+    // Sort by scheduled date (earliest first)
+    return filtered.sort((a, b) => {
       // If both have scheduledAt, sort by date (earliest first)
       if (a.scheduledAt && b.scheduledAt) {
         return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
@@ -1213,7 +1235,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
       // If neither has a date, maintain original order
       return 0;
     });
-  }, [matchesData]);
+  }, [matchesData, selectedDate, selectedStatus, tournament.timezone]);
 
   // Fetch users for displaying player names (needed by all viewers)
   const { data: users = [] } = useQuery<User[]>({
@@ -1419,6 +1441,58 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Filters */}
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="date-filter" className="text-sm font-medium">
+              Filtrar por fecha
+            </label>
+            <Input
+              id="date-filter"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              placeholder="Selecciona una fecha"
+              className="min-h-[44px]"
+              data-testid="input-date-filter"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="status-filter" className="text-sm font-medium">
+              Filtrar por estatus
+            </label>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger id="status-filter" className="min-h-[44px]" data-testid="select-status-filter">
+                <SelectValue placeholder="Selecciona estatus" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="scheduled">Programado</SelectItem>
+                <SelectItem value="in_progress">En Progreso</SelectItem>
+                <SelectItem value="completed">Completado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Reset filters button */}
+        {(selectedDate || selectedStatus !== "all") && (
+          <div className="mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedDate("");
+                setSelectedStatus("all");
+              }}
+              data-testid="button-reset-filters"
+              className="min-h-[44px]"
+            >
+              Limpiar filtros
+            </Button>
+          </div>
+        )}
+
         {matches.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400" data-testid="text-no-matches">
             <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
