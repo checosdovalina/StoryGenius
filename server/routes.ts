@@ -928,7 +928,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update user profile (email and password)
+  // Update user profile (email, password, photo, nationality, category)
   app.patch("/api/user/profile", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
@@ -938,9 +938,26 @@ export function registerRoutes(app: Express): Server {
       const updateSchema = z.object({
         email: z.string().email().optional(),
         password: z.string().min(6).optional(),
-        currentPassword: z.string().optional()
-      }).refine(data => data.email || data.password, {
-        message: "At least one field (email or password) must be provided"
+        currentPassword: z.string().optional(),
+        photoUrl: z.string().url().optional().nullable(),
+        nationality: z.string().optional().nullable(),
+        category: z.enum([
+          "PRO_SINGLES_IRT",
+          "DOBLES_OPEN",
+          "AMATEUR_A",
+          "AMATEUR_B",
+          "AMATEUR_C",
+          "PRINCIPIANTES",
+          "JUVENIL_18_VARONIL",
+          "JUVENIL_18_FEMENIL",
+          "DOBLES_AB",
+          "DOBLES_BC",
+          "MASTER_35",
+          "MASTER_55",
+          "DOBLES_MASTER_35"
+        ]).optional().nullable()
+      }).refine(data => data.email || data.password || data.photoUrl !== undefined || data.nationality !== undefined || data.category !== undefined, {
+        message: "At least one field must be provided"
       });
 
       const validatedData = updateSchema.parse(req.body);
@@ -955,7 +972,10 @@ export function registerRoutes(app: Express): Server {
 
       const updatedUser = await storage.updateUserProfile(req.user!.id, {
         email: validatedData.email,
-        password: validatedData.password
+        password: validatedData.password,
+        photoUrl: validatedData.photoUrl,
+        nationality: validatedData.nationality,
+        category: validatedData.category as any
       });
 
       res.json({ 
@@ -964,7 +984,10 @@ export function registerRoutes(app: Express): Server {
           id: updatedUser.id,
           name: updatedUser.name,
           email: updatedUser.email,
-          username: updatedUser.username
+          username: updatedUser.username,
+          photoUrl: updatedUser.photoUrl,
+          nationality: updatedUser.nationality,
+          category: updatedUser.category
         }
       });
     } catch (error) {

@@ -248,7 +248,13 @@ export class DatabaseStorage implements IStorage {
     return hashedPassword === buf.toString("hex");
   }
 
-  async updateUserProfile(id: string, data: { email?: string; password?: string }): Promise<User> {
+  async updateUserProfile(id: string, data: { 
+    email?: string; 
+    password?: string;
+    photoUrl?: string | null;
+    nationality?: string | null;
+    category?: string | null;
+  }): Promise<User> {
     const updates: any = { updatedAt: new Date() };
     
     if (data.email) {
@@ -257,6 +263,18 @@ export class DatabaseStorage implements IStorage {
     
     if (data.password) {
       updates.password = await this.hashPassword(data.password);
+    }
+
+    if (data.photoUrl !== undefined) {
+      updates.photoUrl = data.photoUrl;
+    }
+
+    if (data.nationality !== undefined) {
+      updates.nationality = data.nationality;
+    }
+
+    if (data.category !== undefined) {
+      updates.category = data.category;
     }
 
     const [user] = await db
