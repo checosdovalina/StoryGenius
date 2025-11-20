@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { UserPlus, Edit, Trash2, Shield } from "lucide-react";
+import { UserPlus, Edit, Trash2, Shield, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { UserFormModal } from "@/components/user-form-modal";
 import type { User } from "@shared/schema";
 
 type UserWithTournamentRoles = User & {
@@ -19,10 +21,55 @@ type UserWithTournamentRoles = User & {
   }>;
 };
 
+const COUNTRIES = [
+  { code: "MX", name: "México", flag: "🇲🇽" },
+  { code: "US", name: "Estados Unidos", flag: "🇺🇸" },
+  { code: "CA", name: "Canadá", flag: "🇨🇦" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷" },
+  { code: "BR", name: "Brasil", flag: "🇧🇷" },
+  { code: "CL", name: "Chile", flag: "🇨🇱" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴" },
+  { code: "ES", name: "España", flag: "🇪🇸" },
+  { code: "PE", name: "Perú", flag: "🇵🇪" },
+  { code: "VE", name: "Venezuela", flag: "🇻🇪" },
+  { code: "EC", name: "Ecuador", flag: "🇪🇨" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾" },
+  { code: "BO", name: "Bolivia", flag: "🇧🇴" },
+  { code: "PY", name: "Paraguay", flag: "🇵🇾" },
+  { code: "CR", name: "Costa Rica", flag: "🇨🇷" },
+  { code: "PA", name: "Panamá", flag: "🇵🇦" },
+  { code: "GT", name: "Guatemala", flag: "🇬🇹" },
+  { code: "DO", name: "República Dominicana", flag: "🇩🇴" },
+  { code: "CU", name: "Cuba", flag: "🇨🇺" },
+  { code: "PR", name: "Puerto Rico", flag: "🇵🇷" },
+];
+
+const MATCH_CATEGORIES_LABELS: Record<string, string> = {
+  "PRO_SINGLES_IRT_VARONIL_CON_CONSOLACION": "PRO Singles IRT",
+  "DOBLES_OPEN": "Dobles Open",
+  "AMATEUR_A": "Amateur A",
+  "AMATEUR_B": "Amateur B",
+  "AMATEUR_C": "Amateur C",
+  "PRINCIPIANTES_AMATEUR": "Principiantes",
+  "JUVENIL_18_VARONIL": "Juvenil 18 (V)",
+  "JUVENIL_18_FEMENIL": "Juvenil 18 (F)",
+  "DOBLES_A_B": "Dobles A/B",
+  "DOBLES_B_C": "Dobles B/C",
+  "MASTER_35": "Master +35",
+  "MASTER_55": "Master +55",
+  "DOBLES_MASTER_35": "Dobles M+35",
+  "DOBLES_MASTER_55": "Dobles M+55",
+  "INFANTILES_10_MENORES": "Infantiles -10",
+  "INFANTILES_8_MENORES": "Infantiles -8",
+  "INFANTILES_2_BOTES": "Infantiles 2B",
+};
+
 export function UserManagementView() {
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [userFormModalOpen, setUserFormModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   const { data: users = [], isLoading } = useQuery<UserWithTournamentRoles[]>({
     queryKey: ["/api/users"]
@@ -114,6 +161,27 @@ export function UserManagementView() {
       return;
     }
     setEditingUserId(user.id);
+  };
+
+  const handleOpenUserForm = (user?: User) => {
+    setEditingUser(user || null);
+    setUserFormModalOpen(true);
+  };
+
+  const handleCloseUserForm = () => {
+    setEditingUser(null);
+    setUserFormModalOpen(false);
+  };
+
+  const getCountryFlag = (countryCode: string | null) => {
+    if (!countryCode) return null;
+    const country = COUNTRIES.find(c => c.code === countryCode);
+    return country?.flag || null;
+  };
+
+  const getCategoryLabel = (category: string | null) => {
+    if (!category) return null;
+    return MATCH_CATEGORIES_LABELS[category] || category;
   };
 
   // Reset editing state when permissions change
@@ -228,11 +296,17 @@ export function UserManagementView() {
           <h3 className="text-lg font-semibold text-card-foreground">Gestión de Usuarios</h3>
           <p className="text-muted-foreground">Administra usuarios y asigna roles</p>
         </div>
-        <Button data-testid="button-new-user">
+        <Button onClick={() => handleOpenUserForm()} data-testid="button-new-user">
           <UserPlus className="mr-2 h-4 w-4" />
           Nuevo Usuario
         </Button>
       </div>
+
+      <UserFormModal 
+        user={editingUser} 
+        open={userFormModalOpen} 
+        onClose={handleCloseUserForm}
+      />
 
       <Card>
         <CardHeader>
@@ -248,20 +322,33 @@ export function UserManagementView() {
               {users.map((user) => (
                 <div key={user.id} className="flex items-center justify-between p-4 border border-border rounded-lg" data-testid={`user-row-${user.id}`}>
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-                      <span className="text-primary-foreground font-medium">
+                    <Avatar className="w-12 h-12">
+                      {user.photoUrl ? (
+                        <AvatarImage src={user.photoUrl} alt={user.name} />
+                      ) : null}
+                      <AvatarFallback className="bg-primary text-primary-foreground">
                         {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </span>
-                    </div>
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 flex-wrap gap-1">
                         <p className="font-medium text-card-foreground" data-testid={`user-name-${user.id}`}>
                           {user.name}
                         </p>
+                        {getCountryFlag(user.nationality) && (
+                          <span className="text-xl" title={COUNTRIES.find(c => c.code === user.nationality)?.name}>
+                            {getCountryFlag(user.nationality)}
+                          </span>
+                        )}
                         <Badge variant={getRoleBadgeVariant(user.role)} data-testid={`user-role-badge-${user.id}`}>
                           {user.role === 'superadmin' && <Shield className="h-3 w-3 mr-1" />}
                           {getRoleLabel(user.role)}
                         </Badge>
+                        {user.category && (
+                          <Badge variant="secondary" className="text-xs">
+                            {getCategoryLabel(user.category)}
+                          </Badge>
+                        )}
                         {user.tournamentRoles?.map((tr, idx) => (
                           <Badge 
                             key={idx} 
@@ -281,6 +368,17 @@ export function UserManagementView() {
                   </div>
 
                   <div className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenUserForm(user)}
+                      disabled={!canEditUser(user)}
+                      data-testid={`button-edit-user-${user.id}`}
+                      title="Editar perfil completo"
+                    >
+                      <UserIcon className="h-4 w-4" />
+                    </Button>
+
                     {editingUserId === user.id ? (
                       <Select 
                         defaultValue={user.role} 
@@ -305,6 +403,7 @@ export function UserManagementView() {
                         onClick={() => handleEditClick(user)}
                         disabled={!canEditUser(user)}
                         data-testid={`button-edit-role-${user.id}`}
+                        title="Editar rol"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
