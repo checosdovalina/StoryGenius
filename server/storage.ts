@@ -1,5 +1,5 @@
 import { 
-  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents, statShareTokens, tournamentUserRoles, irtPointsConfig, playerRankingHistory,
+  users, tournaments, courts, matches, tournamentRegistrations, playerStats, padelPairs, scheduledMatches, clubs, matchStatsSessions, matchEvents, statShareTokens, tournamentUserRoles, irtPointsConfig, playerRankingHistory, tournamentSponsors,
   type User, type InsertUser, type Tournament, type InsertTournament,
   type Court, type InsertCourt, type Match, type InsertMatch,
   type TournamentRegistration, type InsertTournamentRegistration,
@@ -7,7 +7,8 @@ import {
   type ScheduledMatch, type InsertScheduledMatch, type Club, type InsertClub,
   type MatchStatsSession, type InsertMatchStatsSession, type MatchEvent, type InsertMatchEvent,
   type StatShareToken, type InsertStatShareToken, type TournamentUserRole, type InsertTournamentUserRole,
-  type IrtPointsConfig, type InsertIrtPointsConfig, type PlayerRankingHistory, type InsertPlayerRankingHistory
+  type IrtPointsConfig, type InsertIrtPointsConfig, type PlayerRankingHistory, type InsertPlayerRankingHistory,
+  type TournamentSponsor, type InsertTournamentSponsor
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, or, count, avg, sum, isNull, isNotNull, gte, lte, between, sql } from "drizzle-orm";
@@ -148,6 +149,15 @@ export interface IStorage {
   removeTournamentRole(tournamentId: string, userId: string, role: string): Promise<void>;
   getUserTournamentsByRole(userId: string, role?: string): Promise<Tournament[]>;
   getTournamentUserRoles(tournamentId: string): Promise<Array<TournamentUserRole & { user: User }>>;
+
+  // Tournament sponsors
+  createTournamentSponsor(sponsor: InsertTournamentSponsor): Promise<TournamentSponsor>;
+  getTournamentSponsors(tournamentId: string): Promise<TournamentSponsor[]>;
+  updateTournamentSponsor(id: string, updates: Partial<InsertTournamentSponsor>): Promise<TournamentSponsor>;
+  deleteTournamentSponsor(id: string): Promise<void>;
+
+  // Active matches for public display
+  getActiveMatches(tournamentId?: string): Promise<any[]>;
 
   sessionStore: session.Store;
 }
@@ -2412,6 +2422,77 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(limit);
     return result;
+  }
+
+  async createTournamentSponsor(sponsor: InsertTournamentSponsor): Promise<TournamentSponsor> {
+    const [newSponsor] = await db.insert(tournamentSponsors).values(sponsor).returning();
+    return newSponsor;
+  }
+
+  async getTournamentSponsors(tournamentId: string): Promise<TournamentSponsor[]> {
+    return await db
+      .select()
+      .from(tournamentSponsors)
+      .where(and(
+        eq(tournamentSponsors.tournamentId, tournamentId),
+        eq(tournamentSponsors.isActive, true)
+      ))
+      .orderBy(asc(tournamentSponsors.displayOrder), asc(tournamentSponsors.createdAt));
+  }
+
+  async updateTournamentSponsor(id: string, updates: Partial<InsertTournamentSponsor>): Promise<TournamentSponsor> {
+    const [updated] = await db
+      .update(tournamentSponsors)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(tournamentSponsors.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteTournamentSponsor(id: string): Promise<void> {
+    await db.delete(tournamentSponsors).where(eq(tournamentSponsors.id, id));
+  }
+
+  async getActiveMatches(tournamentId?: string): Promise<any[]> {
+    const conditions = [eq(matchStatsSessions.status, 'active')];
+    if (tournamentId) {
+      conditions.push(eq(matches.tournamentId, tournamentId));
+    }
+
+    return await db
+      .select({
+        session: matchStatsSessions,
+        match: matches,
+        tournament: tournaments,
+        player1: users,
+        player2: {
+          id: sql<string>`p2.id`,
+          name: sql<string>`p2.name`,
+          photoUrl: sql<string>`p2.photo_url`,
+          nationality: sql<string>`p2.nationality`
+        },
+        player3: {
+          id: sql<string>`p3.id`,
+          name: sql<string>`p3.name`,
+          photoUrl: sql<string>`p3.photo_url`,
+          nationality: sql<string>`p3.nationality`
+        },
+        player4: {
+          id: sql<string>`p4.id`,
+          name: sql<string>`p4.name`,
+          photoUrl: sql<string>`p4.photo_url`,
+          nationality: sql<string>`p4.nationality`
+        }
+      })
+      .from(matchStatsSessions)
+      .innerJoin(matches, eq(matchStatsSessions.matchId, matches.id))
+      .innerJoin(tournaments, eq(matches.tournamentId, tournaments.id))
+      .innerJoin(users, eq(matchStatsSessions.player1Id, users.id))
+      .leftJoin(sql`users AS p2`, sql`${matchStatsSessions.player2Id} = p2.id`)
+      .leftJoin(sql`users AS p3`, sql`${matchStatsSessions.player3Id} = p3.id`)
+      .leftJoin(sql`users AS p4`, sql`${matchStatsSessions.player4Id} = p4.id`)
+      .where(and(...conditions))
+      .orderBy(desc(matchStatsSessions.startedAt));
   }
 }
 

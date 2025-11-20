@@ -110,6 +110,7 @@ export const tournaments = pgTable("tournaments", {
   registrationFee: decimal("registration_fee", { precision: 10, scale: 2 }).default("0"),
   organizerId: varchar("organizer_id").notNull().references(() => users.id),
   timezone: text("timezone").notNull().default("America/Mexico_City"),
+  matchRotationInterval: integer("match_rotation_interval").notNull().default(40000),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
@@ -322,6 +323,18 @@ export const playerRankingHistory = pgTable("player_ranking_history", {
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
+export const tournamentSponsors = pgTable("tournament_sponsors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id, { onDelete: 'cascade' }),
+  name: text("name").notNull(),
+  logoUrl: text("logo_url").notNull(),
+  websiteUrl: text("website_url"),
+  displayOrder: integer("display_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+});
+
 // Relations
 export const clubsRelations = relations(clubs, ({ one, many }) => ({
   manager: one(users, {
@@ -363,7 +376,8 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   registrations: many(tournamentRegistrations),
   matches: many(matches),
   scheduledMatches: many(scheduledMatches),
-  userRoles: many(tournamentUserRoles)
+  userRoles: many(tournamentUserRoles),
+  sponsors: many(tournamentSponsors)
 }));
 
 export const courtsRelations = relations(courts, ({ one, many }) => ({
@@ -513,6 +527,13 @@ export const tournamentUserRolesRelations = relations(tournamentUserRoles, ({ on
     fields: [tournamentUserRoles.assignedBy],
     references: [users.id],
     relationName: "assigner"
+  })
+}));
+
+export const tournamentSponsorsRelations = relations(tournamentSponsors, ({ one }) => ({
+  tournament: one(tournaments, {
+    fields: [tournamentSponsors.tournamentId],
+    references: [tournaments.id]
   })
 }));
 
@@ -678,6 +699,12 @@ export const insertPlayerRankingHistorySchema = createInsertSchema(playerRanking
   createdAt: true
 });
 
+export const insertTournamentSponsorSchema = createInsertSchema(tournamentSponsors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 // Category mapping for Excel import - accepts both friendly names and enum values
 export const CATEGORY_MAPPING: Record<string, string> = {
   // Friendly names (as they appear in Excel)
@@ -785,6 +812,8 @@ export type IrtPointsConfig = typeof irtPointsConfig.$inferSelect;
 export type InsertIrtPointsConfig = z.infer<typeof insertIrtPointsConfigSchema>;
 export type PlayerRankingHistory = typeof playerRankingHistory.$inferSelect;
 export type InsertPlayerRankingHistory = z.infer<typeof insertPlayerRankingHistorySchema>;
+export type TournamentSponsor = typeof tournamentSponsors.$inferSelect;
+export type InsertTournamentSponsor = z.infer<typeof insertTournamentSponsorSchema>;
 export type ExcelPlayerSingles = z.infer<typeof excelPlayerSinglesSchema>;
 export type ExcelPlayerDoubles = z.infer<typeof excelPlayerDoublesSchema>;
 export type ExcelMatchSingles = z.infer<typeof excelMatchSinglesSchema>;
