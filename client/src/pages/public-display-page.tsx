@@ -491,7 +491,7 @@ function SponsorBanner({ sponsors }: { sponsors: Sponsor[] }) {
 export default function PublicDisplayPage() {
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [tournamentId, setTournamentId] = useState<string | null>(null);
-  const [matches, setMatches] = useState<ActiveMatch[]>([]);
+  const [allMatches, setAllMatches] = useState<ActiveMatch[]>([]);
   const [wsConnected, setWsConnected] = useState(false);
 
   // Extract tournament ID from URL query params
@@ -510,9 +510,16 @@ export default function PublicDisplayPage() {
   // Update matches from polling
   useEffect(() => {
     if (polledMatches.length > 0) {
-      setMatches(polledMatches);
+      setAllMatches(polledMatches);
     }
   }, [polledMatches]);
+
+  // Separate active and completed matches
+  const activeMatches = allMatches.filter(m => m.session.status !== 'completed' && !m.session.matchWinner);
+  const completedMatches = allMatches.filter(m => m.session.status === 'completed' || m.session.matchWinner);
+  
+  // For rotation, prioritize active matches, then completed matches
+  const displayMatches = activeMatches.length > 0 ? activeMatches : completedMatches;
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -541,7 +548,7 @@ export default function PublicDisplayPage() {
               console.log('[Public Display] Connection confirmed:', message.message);
             } else if (message.type === 'match_update') {
               // Update the specific match in the list
-              setMatches((prevMatches) => {
+              setAllMatches((prevMatches) => {
                 const updatedMatch = message.match;
                 const matchId = updatedMatch.session.matchId;
                 
@@ -594,8 +601,15 @@ export default function PublicDisplayPage() {
     };
   }, [tournamentId]);
 
+  // Reset index if currentMatchIndex exceeds available matches
+  useEffect(() => {
+    if (displayMatches.length > 0 && currentMatchIndex >= displayMatches.length) {
+      setCurrentMatchIndex(0);
+    }
+  }, [displayMatches.length]);
+
   // Fetch sponsors for current tournament
-  const currentMatch = matches[currentMatchIndex];
+  const currentMatch = displayMatches[currentMatchIndex];
   const { data: sponsors = [] } = useQuery<Sponsor[]>({
     queryKey: currentMatch ? ["/api/tournaments", currentMatch.tournament.id, "sponsors"] : [],
     enabled: !!currentMatch,
@@ -603,15 +617,15 @@ export default function PublicDisplayPage() {
 
   // Auto-rotate matches
   useEffect(() => {
-    if (matches.length <= 1) return;
+    if (displayMatches.length <= 1) return;
 
     const rotationInterval = currentMatch?.tournament?.matchRotationInterval || 40;
     const interval = setInterval(() => {
-      setCurrentMatchIndex((prev) => (prev + 1) % matches.length);
+      setCurrentMatchIndex((prev) => (prev + 1) % displayMatches.length);
     }, rotationInterval * 1000);
 
     return () => clearInterval(interval);
-  }, [matches.length, currentMatch?.tournament?.matchRotationInterval]);
+  }, [displayMatches.length, currentMatch?.tournament?.matchRotationInterval]);
 
   if (matchesLoading) {
     return (
@@ -621,7 +635,7 @@ export default function PublicDisplayPage() {
     );
   }
 
-  if (matches.length === 0) {
+  if (displayMatches.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900">
         <Card className="p-8 bg-white/10 backdrop-blur-md border-white/20">
@@ -633,7 +647,7 @@ export default function PublicDisplayPage() {
     );
   }
 
-  const match = matches[currentMatchIndex];
+  const match = displayMatches[currentMatchIndex];
   const isDoubles = match.session.matchType === "doubles";
   const isMatchEnded = match.session.status === 'completed' || match.session.matchWinner !== null;
 
@@ -653,9 +667,9 @@ export default function PublicDisplayPage() {
         <div className="text-center mb-4">
           <h1 className="text-3xl font-bold text-white mb-1">{match.tournament.name}</h1>
           <p className="text-base text-white/80">{match.match.round}</p>
-          {matches.length > 1 && (
+          {displayMatches.length > 1 && (
             <div className="mt-2 text-white/60 text-xs">
-              Partido {currentMatchIndex + 1} de {matches.length}
+              Partido {currentMatchIndex + 1} de {displayMatches.length} {activeMatches.length < displayMatches.length ? `(${activeMatches.length} activos)` : ''}
             </div>
           )}
         </div>
