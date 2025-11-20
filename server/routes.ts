@@ -7,6 +7,7 @@ import { z } from "zod";
 import { MatchStatsWebSocketServer } from "./websocket";
 import multer from "multer";
 import * as XLSX from "xlsx";
+import { uploadProfilePhoto } from "./object-storage";
 
 let wsServer: MatchStatsWebSocketServer;
 
@@ -928,7 +929,45 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update user profile (email, password, photo, nationality, category)
+  // Upload profile photo endpoint
+  app.post("/api/media/profile-photo", upload.single('photo'), async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Validate file type
+      const validMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!validMimeTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ message: "Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed." });
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (req.file.size > maxSize) {
+        return res.status(400).json({ message: "File size exceeds 5MB limit" });
+      }
+
+      // Upload to object storage
+      const result = await uploadProfilePhoto(req.file, req.user!.id);
+
+      res.json({
+        message: "Photo uploaded successfully",
+        url: result.url,
+        filename: result.filename,
+        size: result.size
+      });
+    } catch (error: any) {
+      console.error("Error uploading profile photo:", error);
+      res.status(500).json({ message: error.message || "Failed to upload photo" });
+    }
+  });
+
+  // Update user profile (email, password, photo, nationality, categories)
   app.patch("/api/user/profile", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
@@ -941,7 +980,7 @@ export function registerRoutes(app: Express): Server {
         currentPassword: z.string().optional(),
         photoUrl: z.string().url().optional().nullable(),
         nationality: z.string().optional().nullable(),
-        category: z.enum([
+        categories: z.array(z.enum([
           "PRO_SINGLES_IRT",
           "DOBLES_OPEN",
           "AMATEUR_A",
@@ -955,8 +994,8 @@ export function registerRoutes(app: Express): Server {
           "MASTER_35",
           "MASTER_55",
           "DOBLES_MASTER_35"
-        ]).optional().nullable()
-      }).refine(data => data.email || data.password || data.photoUrl !== undefined || data.nationality !== undefined || data.category !== undefined, {
+        ])).max(3, "Máximo 3 categorías permitidas").optional().nullable()
+      }).refine(data => data.email || data.password || data.photoUrl !== undefined || data.nationality !== undefined || data.categories !== undefined, {
         message: "At least one field must be provided"
       });
 
@@ -975,7 +1014,7 @@ export function registerRoutes(app: Express): Server {
         password: validatedData.password,
         photoUrl: validatedData.photoUrl,
         nationality: validatedData.nationality,
-        category: validatedData.category as any
+        categories: validatedData.categories as any
       });
 
       res.json({ 
@@ -987,7 +1026,7 @@ export function registerRoutes(app: Express): Server {
           username: updatedUser.username,
           photoUrl: updatedUser.photoUrl,
           nationality: updatedUser.nationality,
-          category: updatedUser.category
+          categories: updatedUser.categories
         }
       });
     } catch (error) {
