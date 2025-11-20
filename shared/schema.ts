@@ -670,19 +670,61 @@ export const insertPlayerRankingHistorySchema = createInsertSchema(playerRanking
   createdAt: true
 });
 
-// Excel Import Schemas
+// Category mapping for Excel import - accepts both friendly names and enum values
+export const CATEGORY_MAPPING: Record<string, string> = {
+  // Friendly names (as they appear in Excel)
+  "PRO Singles IRT": "PRO_SINGLES_IRT",
+  "Dobles Open": "DOBLES_OPEN",
+  "Amateur A": "AMATEUR_A",
+  "Amateur B": "AMATEUR_B",
+  "Amateur C": "AMATEUR_C",
+  "Principiantes": "PRINCIPIANTES",
+  "Juvenil 18 y menores (Varonil)": "JUVENIL_18_VARONIL",
+  "Juvenil 18 y menores (Femenil)": "JUVENIL_18_FEMENIL",
+  "Dobles AB": "DOBLES_AB",
+  "Dobles BC": "DOBLES_BC",
+  "Master 35+": "MASTER_35",
+  "Master 55+": "MASTER_55",
+  "Dobles Master 35+": "DOBLES_MASTER_35",
+  // Enum values (direct match)
+  "PRO_SINGLES_IRT": "PRO_SINGLES_IRT",
+  "DOBLES_OPEN": "DOBLES_OPEN",
+  "AMATEUR_A": "AMATEUR_A",
+  "AMATEUR_B": "AMATEUR_B",
+  "AMATEUR_C": "AMATEUR_C",
+  "PRINCIPIANTES": "PRINCIPIANTES",
+  "JUVENIL_18_VARONIL": "JUVENIL_18_VARONIL",
+  "JUVENIL_18_FEMENIL": "JUVENIL_18_FEMENIL",
+  "DOBLES_AB": "DOBLES_AB",
+  "DOBLES_BC": "DOBLES_BC",
+  "MASTER_35": "MASTER_35",
+  "MASTER_55": "MASTER_55",
+  "DOBLES_MASTER_35": "DOBLES_MASTER_35",
+};
+
+// Excel Import Schemas - accept string and transform using mapping
 export const excelPlayerSinglesSchema = z.object({
   nombre: z.string().min(1, "Nombre es requerido"),
-  categoria: z.enum(["principiante", "intermedio", "avanzado", "profesional"], {
-    errorMap: () => ({ message: "Categoría inválida" })
+  categoria: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    const mapped = CATEGORY_MAPPING[val];
+    if (!mapped) {
+      throw new Error(`Categoría "${val}" no válida. Categorías válidas: PRO Singles IRT, Dobles Open, Amateur A, Amateur B, Amateur C, Principiantes, Juvenil 18 y menores (Varonil), Juvenil 18 y menores (Femenil), Dobles AB, Dobles BC, Master 35+, Master 55+, Dobles Master 35+`);
+    }
+    return mapped as "PRO_SINGLES_IRT" | "DOBLES_OPEN" | "AMATEUR_A" | "AMATEUR_B" | "AMATEUR_C" | "PRINCIPIANTES" | "JUVENIL_18_VARONIL" | "JUVENIL_18_FEMENIL" | "DOBLES_AB" | "DOBLES_BC" | "MASTER_35" | "MASTER_55" | "DOBLES_MASTER_35";
   })
 });
 
 export const excelPlayerDoublesSchema = z.object({
   nombrePareja1: z.string().min(1, "Nombre Pareja 1 es requerido"),
   nombrePareja2: z.string().min(1, "Nombre Pareja 2 es requerido"),
-  categoria: z.enum(["principiante", "intermedio", "avanzado", "profesional"], {
-    errorMap: () => ({ message: "Categoría inválida" })
+  categoria: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    const mapped = CATEGORY_MAPPING[val];
+    if (!mapped) {
+      throw new Error(`Categoría "${val}" no válida. Categorías válidas: PRO Singles IRT, Dobles Open, Amateur A, Amateur B, Amateur C, Principiantes, Juvenil 18 y menores (Varonil), Juvenil 18 y menores (Femenil), Dobles AB, Dobles BC, Master 35+, Master 55+, Dobles Master 35+`);
+    }
+    return mapped as "PRO_SINGLES_IRT" | "DOBLES_OPEN" | "AMATEUR_A" | "AMATEUR_B" | "AMATEUR_C" | "PRINCIPIANTES" | "JUVENIL_18_VARONIL" | "JUVENIL_18_FEMENIL" | "DOBLES_AB" | "DOBLES_BC" | "MASTER_35" | "MASTER_55" | "DOBLES_MASTER_35";
   })
 });
 

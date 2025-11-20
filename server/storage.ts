@@ -364,6 +364,9 @@ export class DatabaseStorage implements IStorage {
         preferredSport: users.preferredSport,
         padelCategory: users.padelCategory,
         racquetballLevel: users.racquetballLevel,
+        category: users.category,
+        photoUrl: users.photoUrl,
+        nationality: users.nationality,
         isActive: users.isActive,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
@@ -2058,7 +2061,7 @@ export class DatabaseStorage implements IStorage {
               email: player1Name.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
               password: 'temp_password', // Temporary password
               role: 'jugador',
-              racquetballLevel: category,
+              category: category,
               preferredSport: 'racquetball'
             }).returning();
             player1 = newPlayer1;
@@ -2073,7 +2076,7 @@ export class DatabaseStorage implements IStorage {
               email: player2Name.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
               password: 'temp_password',
               role: 'jugador',
-              racquetballLevel: category,
+              category: category,
               preferredSport: 'racquetball'
             }).returning();
             player2 = newPlayer2;
@@ -2124,7 +2127,7 @@ export class DatabaseStorage implements IStorage {
               email: playerName.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
               password: 'temp_password',
               role: 'jugador',
-              racquetballLevel: category,
+              category: category,
               preferredSport: 'racquetball'
             }).returning();
             player = newPlayer;

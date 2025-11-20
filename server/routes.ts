@@ -1105,14 +1105,14 @@ export function registerRoutes(app: Express): Server {
 
       if (type === 'players-singles') {
         templateData = [
-          { nombre: 'Juan Pérez', categoria: 'intermedio' },
-          { nombre: 'María García', categoria: 'avanzado' }
+          { nombre: 'Juan Pérez', categoria: 'PRO Singles IRT' },
+          { nombre: 'María García', categoria: 'Amateur A' }
         ];
         filename = 'plantilla_jugadores_singles.xlsx';
       } else if (type === 'players-doubles') {
         templateData = [
-          { nombrePareja1: 'Juan Pérez', nombrePareja2: 'Carlos López', categoria: 'intermedio' },
-          { nombrePareja1: 'María García', nombrePareja2: 'Ana Rodríguez', categoria: 'avanzado' }
+          { nombrePareja1: 'Juan Pérez', nombrePareja2: 'Carlos López', categoria: 'Dobles Open' },
+          { nombrePareja1: 'María García', nombrePareja2: 'Ana Rodríguez', categoria: 'Dobles AB' }
         ];
         filename = 'plantilla_jugadores_doubles.xlsx';
       } else if (type === 'matches-singles') {
