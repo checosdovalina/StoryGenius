@@ -29,6 +29,25 @@ export const tournamentTierEnum = pgEnum("tournament_tier", [
 export const tournamentRoundEnum = pgEnum("tournament_round", [
   "128s", "64s", "32s", "16s", "quarterfinals", "semifinals", "final", "champion"
 ]);
+export const matchCategoryEnum = pgEnum("match_category", [
+  "PRO_SINGLES_IRT_VARONIL_CON_CONSOLACION",
+  "DOBLES_OPEN",
+  "AMATEUR_A",
+  "AMATEUR_B",
+  "AMATEUR_C",
+  "PRINCIPIANTES_AMATEUR",
+  "JUVENIL_18_VARONIL",
+  "JUVENIL_18_FEMENIL",
+  "DOBLES_A_B",
+  "DOBLES_B_C",
+  "MASTER_35",
+  "MASTER_55",
+  "DOBLES_MASTER_35",
+  "DOBLES_MASTER_55",
+  "INFANTILES_10_MENORES",
+  "INFANTILES_8_MENORES",
+  "INFANTILES_2_BOTES"
+]);
 
 export const clubs = pgTable("clubs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -59,6 +78,9 @@ export const users = pgTable("users", {
   preferredSport: sportEnum("preferred_sport"),
   padelCategory: padelCategoryEnum("padel_category"),
   racquetballLevel: racquetballLevelEnum("racquetball_level"),
+  category: matchCategoryEnum("category"),
+  photoUrl: text("photo_url"),
+  nationality: text("nationality"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
@@ -123,6 +145,7 @@ export const matches = pgTable("matches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
   matchType: matchTypeEnum("match_type").notNull().default("singles"),
+  category: matchCategoryEnum("category"),
   player1Id: varchar("player1_id").notNull().references(() => users.id),
   player2Id: varchar("player2_id").notNull().references(() => users.id),
   player3Id: varchar("player3_id").references(() => users.id), // For doubles - team 1
