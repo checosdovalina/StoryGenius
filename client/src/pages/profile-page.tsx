@@ -11,6 +11,7 @@ import { Loader2, Mail, Lock, User, KeyRound, Camera, Globe } from "lucide-react
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PhotoUploader } from "@/components/photo-uploader";
 
 const MATCH_CATEGORIES = [
   { value: "PRO_SINGLES_IRT", label: "PRO Singles IRT" },
@@ -304,17 +305,12 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="photo-url">URL de Foto</Label>
-            <Input
-              id="photo-url"
-              type="url"
-              placeholder="https://ejemplo.com/foto.jpg"
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              data-testid="input-photo-url"
-            />
-          </div>
+          <PhotoUploader
+            currentPhotoUrl={user?.photoUrl}
+            onPhotoChange={setPhotoUrl}
+            userName={user?.name || "Usuario"}
+            showManualInput={true}
+          />
           <div className="space-y-2">
             <Label htmlFor="nationality">Nacionalidad</Label>
             <Select value={nationality} onValueChange={setNationality}>
