@@ -21,6 +21,7 @@ import AuthPage from "@/pages/auth-page";
 import TournamentDetailPage from "@/pages/tournament-detail-page";
 import StatsCapturePageComponent from "@/pages/stats-capture-page";
 import ProfilePage from "@/pages/profile-page";
+import PublicDisplayPage from "@/pages/public-display-page";
 import NotFound from "@/pages/not-found";
 
 function RootRedirect() {
@@ -46,6 +47,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={RootRedirect} />
+      <Route path="/public-display" component={PublicDisplayPage} />
+      <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/dashboard" component={DashboardPage} />
       <ProtectedRoute path="/users" component={UsersPage} />
       <ProtectedRoute path="/tournaments" component={TournamentsPage} />
@@ -59,7 +62,6 @@ function Router() {
       <ProtectedRoute path="/rankings" component={RankingsPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/stats/capture/:matchId" component={StatsCapturePageComponent} />
-      <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
   );
