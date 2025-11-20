@@ -21,7 +21,6 @@ export class MatchStatsWebSocketServer {
   constructor(httpServer: Server) {
     // Single WebSocket server handling both protected and public channels
     this.wss = new WebSocketServer({ 
-      server: httpServer,
       noServer: true
     });
 
