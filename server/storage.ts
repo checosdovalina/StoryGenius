@@ -2454,12 +2454,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveMatches(tournamentId?: string): Promise<any[]> {
-    const conditions = [eq(matchStatsSessions.status, 'active')];
+    // Get both active and recently completed matches (completed within last 5 minutes for display cycle)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const conditions = [
+      or(
+        eq(matchStatsSessions.status, 'active'),
+        and(
+          eq(matchStatsSessions.status, 'completed'),
+          gte(matchStatsSessions.completedAt, fiveMinutesAgo)
+        )
+      )
+    ];
     if (tournamentId) {
       conditions.push(eq(matches.tournamentId, tournamentId));
     }
 
-    const activeSessions = await db
+    const sessions = await db
       .select({
         session: matchStatsSessions,
         match: matches,
@@ -2482,6 +2492,12 @@ export class DatabaseStorage implements IStorage {
           name: sql<string>`p4.name`,
           photoUrl: sql<string>`p4.photo_url`,
           nationality: sql<string>`p4.nationality`
+        },
+        matchWinner: {
+          id: sql<string>`mw.id`,
+          name: sql<string>`mw.name`,
+          photoUrl: sql<string>`mw.photo_url`,
+          nationality: sql<string>`mw.nationality`
         }
       })
       .from(matchStatsSessions)
@@ -2491,12 +2507,13 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(sql`users AS p2`, sql`${matchStatsSessions.player2Id} = p2.id`)
       .leftJoin(sql`users AS p3`, sql`${matchStatsSessions.player3Id} = p3.id`)
       .leftJoin(sql`users AS p4`, sql`${matchStatsSessions.player4Id} = p4.id`)
+      .leftJoin(sql`users AS mw`, sql`${matchStatsSessions.matchWinner} = mw.id`)
       .where(and(...conditions))
       .orderBy(desc(matchStatsSessions.startedAt));
 
     // Add aggregated statistics for each session
     const sessionsWithStats = await Promise.all(
-      activeSessions.map(async (item) => {
+      sessions.map(async (item) => {
         const events = await db
           .select()
           .from(matchEvents)

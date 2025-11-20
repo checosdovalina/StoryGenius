@@ -40,11 +40,14 @@ interface ActiveMatch {
     player2TimeoutsUsed: string;
     player1AppellationsUsed: string;
     player2AppellationsUsed: string;
+    matchWinner: string | null;
+    completedAt: string | null;
   };
   stats?: {
     team1: MatchStats;
     team2: MatchStats;
   };
+  matchWinner?: PlayerInfo | null;
   match: {
     id: string;
     tournamentId: string;
@@ -246,6 +249,101 @@ function ScoreBoard({ session, stats }: { session: ActiveMatch["session"], stats
   );
 }
 
+function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: PlayerInfo | null }) {
+  const isDoubles = match.session.matchType === "doubles";
+  const team1Won = match.session.matchWinner === match.session.player1Id;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 py-4 px-4 pb-20 flex flex-col items-center justify-center">
+      <div className="container mx-auto max-w-4xl">
+        {/* PARTIDO TERMINADO */}
+        <div className="text-center mb-8 animate-pulse">
+          <h1 className="text-5xl font-bold text-green-400 mb-2">🏆 PARTIDO TERMINADO 🏆</h1>
+          <p className="text-2xl text-white">{match.tournament.name}</p>
+          <p className="text-lg text-white/80">{match.match.round}</p>
+        </div>
+
+        {/* GANADOR */}
+        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 mb-8 shadow-2xl border-4 border-yellow-400">
+          <div className="text-center">
+            <p className="text-white text-2xl font-bold mb-4">EQUIPO GANADOR</p>
+            <div className="flex items-center gap-6 justify-center mb-4">
+              {winner?.photoUrl ? (
+                <img
+                  src={winner.photoUrl}
+                  alt={winner.name}
+                  className="w-20 h-20 rounded-full object-cover border-4 border-white"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-3xl font-bold text-orange-500">
+                  {winner?.name.charAt(0)}
+                </div>
+              )}
+              <div className="text-left">
+                <h2 className="text-4xl font-bold text-white">{winner?.name}</h2>
+                {winner?.nationality && (
+                  <div className="text-5xl mt-2">{getFlagEmoji(winner.nationality)}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PUNTUACIÓN FINAL */}
+        <div className="bg-black/60 backdrop-blur-sm rounded-xl p-6 shadow-2xl mb-8">
+          <h3 className="text-white text-2xl font-bold text-center mb-6">RESULTADO FINAL</h3>
+          
+          <div className="grid grid-cols-2 gap-8 mb-6">
+            {/* Equipo 1 */}
+            <div className="text-center">
+              <p className="text-white/70 text-sm mb-2">Equipo 1</p>
+              <div className="bg-white/10 rounded-lg p-4">
+                <div className="flex justify-center gap-4 items-center mb-3">
+                  <div className="text-5xl font-bold text-yellow-400">{match.session.player1Sets}</div>
+                  <div className="text-3xl text-white/50">-</div>
+                  <div className="text-5xl font-bold text-yellow-400">{match.session.player2Sets}</div>
+                </div>
+                <p className="text-white text-sm">Sets</p>
+              </div>
+            </div>
+
+            {/* Equipo 2 */}
+            <div className="text-center">
+              <p className="text-white/70 text-sm mb-2">Puntuación del Set Final</p>
+              <div className="bg-white/10 rounded-lg p-4">
+                <div className="flex justify-center gap-4 items-center mb-3">
+                  <div className="text-5xl font-bold text-yellow-400">{match.session.player1CurrentScore}</div>
+                  <div className="text-3xl text-white/50">-</div>
+                  <div className="text-5xl font-bold text-yellow-400">{match.session.player2CurrentScore}</div>
+                </div>
+                <p className="text-white text-sm">Puntos</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Players info */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="text-left space-y-2">
+              <p className="text-white/70 text-xs">Equipo 1</p>
+              <p className="text-white font-bold">{match.player1.name}</p>
+              {isDoubles && match.player3 && (
+                <p className="text-white font-bold">{match.player3.name}</p>
+              )}
+            </div>
+            <div className="text-right space-y-2">
+              <p className="text-white/70 text-xs">Equipo 2</p>
+              {match.player2 && <p className="text-white font-bold">{match.player2.name}</p>}
+              {isDoubles && match.player4 && (
+                <p className="text-white font-bold">{match.player4.name}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SponsorBanner({ sponsors }: { sponsors: Sponsor[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -426,6 +524,16 @@ export default function PublicDisplayPage() {
 
   const match = matches[currentMatchIndex];
   const isDoubles = match.session.matchType === "doubles";
+  const isMatchEnded = match.session.status === 'completed' || match.session.matchWinner !== null;
+
+  if (isMatchEnded) {
+    return (
+      <>
+        <MatchEndedDisplay match={match} winner={match.matchWinner || null} />
+        <SponsorBanner sponsors={sponsors} />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 py-4 px-4 pb-20">
