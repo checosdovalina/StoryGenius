@@ -2290,12 +2290,20 @@ export class DatabaseStorage implements IStorage {
         rankingPoints: playerStats.rankingPoints,
         matchesPlayed: playerStats.matchesPlayed,
         matchesWon: playerStats.matchesWon,
-        matchesLost: playerStats.matchesLost
+        matchesLost: playerStats.matchesLost,
+        setsWon: playerStats.setsWon,
+        setsLost: playerStats.setsLost
       })
-      .from(playerStats)
-      .innerJoin(users, eq(playerStats.playerId, users.id))
-      .where(isNull(playerStats.tournamentId))
-      .orderBy(desc(playerStats.rankingPoints))
+      .from(users)
+      .leftJoin(playerStats, and(
+        eq(playerStats.playerId, users.id),
+        isNull(playerStats.tournamentId)
+      ))
+      .where(eq(users.role, 'jugador'))
+      .orderBy(
+        desc(sql`COALESCE(${playerStats.rankingPoints}, 0)`),
+        desc(sql`COALESCE(${playerStats.matchesPlayed}, 0)`)
+      )
       .limit(limit);
     return result;
   }

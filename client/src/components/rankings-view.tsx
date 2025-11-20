@@ -7,11 +7,13 @@ import { Trophy, Medal, Award, Loader2 } from "lucide-react";
 interface RankingPlayer {
   playerId: string;
   playerName: string;
-  playerEmail: string;
-  rankingPoints: number;
-  matchesPlayed: number;
-  matchesWon: number;
-  matchesLost: number;
+  playerEmail?: string;
+  rankingPoints: number | null;
+  matchesPlayed: number | null;
+  matchesWon: number | null;
+  matchesLost: number | null;
+  setsWon?: number | null;
+  setsLost?: number | null;
 }
 
 export function RankingsView() {
@@ -34,8 +36,8 @@ export function RankingsView() {
     return null;
   };
 
-  const getWinRate = (won: number, played: number) => {
-    if (played === 0) return "0%";
+  const getWinRate = (won: number | null, played: number | null) => {
+    if (!played || played === 0 || !won) return "0%";
     return `${Math.round((won / played) * 100)}%`;
   };
 
@@ -103,9 +105,11 @@ export function RankingsView() {
                               </span>
                               {getRankBadge(position)}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {player.playerEmail}
-                            </span>
+                            {player.playerEmail && (
+                              <span className="text-xs text-muted-foreground">
+                                {player.playerEmail}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -114,13 +118,13 @@ export function RankingsView() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right" data-testid={`matches-played-${player.playerId}`}>
-                          {player.matchesPlayed}
+                          {player.matchesPlayed || 0}
                         </TableCell>
                         <TableCell className="text-right text-green-600 dark:text-green-400" data-testid={`matches-won-${player.playerId}`}>
-                          {player.matchesWon}
+                          {player.matchesWon || 0}
                         </TableCell>
                         <TableCell className="text-right text-red-600 dark:text-red-400" data-testid={`matches-lost-${player.playerId}`}>
-                          {player.matchesLost}
+                          {player.matchesLost || 0}
                         </TableCell>
                         <TableCell className="text-right font-medium" data-testid={`win-rate-${player.playerId}`}>
                           {getWinRate(player.matchesWon, player.matchesPlayed)}
