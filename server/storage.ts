@@ -235,6 +235,38 @@ export class DatabaseStorage implements IStorage {
     await db.delete(users).where(eq(users.id, id));
   }
 
+  async verifyPassword(userId: string, password: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user) return false;
+
+    const { scrypt } = await import("crypto");
+    const { promisify } = await import("util");
+    const scryptAsync = promisify(scrypt);
+
+    const [hashedPassword, salt] = user.password.split(".");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return hashedPassword === buf.toString("hex");
+  }
+
+  async updateUserProfile(id: string, data: { email?: string; password?: string }): Promise<User> {
+    const updates: any = { updatedAt: new Date() };
+    
+    if (data.email) {
+      updates.email = data.email.trim().toLowerCase();
+    }
+    
+    if (data.password) {
+      updates.password = await this.hashPassword(data.password);
+    }
+
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
   // Tournament management
   async createTournament(tournament: InsertTournament): Promise<Tournament> {
     const [newTournament] = await db

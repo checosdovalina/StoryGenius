@@ -928,6 +928,53 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Update user profile (email and password)
+  app.patch("/api/user/profile", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const updateSchema = z.object({
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional(),
+        currentPassword: z.string().optional()
+      }).refine(data => data.email || data.password, {
+        message: "At least one field (email or password) must be provided"
+      });
+
+      const validatedData = updateSchema.parse(req.body);
+
+      // If updating password, verify current password
+      if (validatedData.password && validatedData.currentPassword) {
+        const isValid = await storage.verifyPassword(req.user!.id, validatedData.currentPassword);
+        if (!isValid) {
+          return res.status(400).json({ message: "Current password is incorrect" });
+        }
+      }
+
+      const updatedUser = await storage.updateUserProfile(req.user!.id, {
+        email: validatedData.email,
+        password: validatedData.password
+      });
+
+      res.json({ 
+        message: "Profile updated successfully",
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          username: updatedUser.username
+        }
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid profile data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   // Player tournaments
   app.get("/api/players/:id/tournaments", async (req, res) => {
     try {

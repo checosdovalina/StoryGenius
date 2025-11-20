@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, UserCog } from "lucide-react";
 import logoImage from "@assets/gbsport-logo.png";
 import { getRoutesByRole } from "@/lib/routes";
 
@@ -96,19 +96,35 @@ function SidebarContent({
             </div>
           )}
         </div>
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full",
-            collapsed ? "px-2" : "justify-start"
-          )}
-          onClick={() => logoutMutation.mutate()}
-          disabled={logoutMutation.isPending}
-          data-testid="button-logout"
-        >
-          <LogOut className={cn("h-4 w-4", !collapsed && "mr-2")} />
-          {!collapsed && <span>Cerrar Sesión</span>}
-        </Button>
+        <div className="space-y-2">
+          <Link href="/profile">
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full",
+                collapsed ? "px-2" : "justify-start"
+              )}
+              onClick={onItemClick}
+              data-testid="button-profile"
+            >
+              <UserCog className={cn("h-4 w-4", !collapsed && "mr-2")} />
+              {!collapsed && <span>Mi Perfil</span>}
+            </Button>
+          </Link>
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full",
+              collapsed ? "px-2" : "justify-start"
+            )}
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            data-testid="button-logout"
+          >
+            <LogOut className={cn("h-4 w-4", !collapsed && "mr-2")} />
+            {!collapsed && <span>Cerrar Sesión</span>}
+          </Button>
+        </div>
       </div>
     </>
   );

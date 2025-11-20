@@ -20,6 +20,7 @@ import RankingsPage from "@/pages/rankings-page";
 import AuthPage from "@/pages/auth-page";
 import TournamentDetailPage from "@/pages/tournament-detail-page";
 import StatsCapturePageComponent from "@/pages/stats-capture-page";
+import ProfilePage from "@/pages/profile-page";
 import NotFound from "@/pages/not-found";
 
 function RootRedirect() {
@@ -56,6 +57,7 @@ function Router() {
       <ProtectedRoute path="/statistics" component={StatisticsPage} />
       <ProtectedRoute path="/match-results" component={MatchResultsPage} />
       <ProtectedRoute path="/rankings" component={RankingsPage} />
+      <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/stats/capture/:matchId" component={StatsCapturePageComponent} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
