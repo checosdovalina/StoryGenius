@@ -14,6 +14,7 @@ import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import type { User } from "@shared/schema";
 import { Loader2 } from "lucide-react";
+import { PhotoUploader } from "@/components/photo-uploader";
 
 const MATCH_CATEGORIES = [
   { value: "PRO_SINGLES_IRT", label: "PRO Singles IRT" },
@@ -357,11 +358,15 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
               name="photoUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>URL de Foto</FormLabel>
+                  <FormLabel>Foto de Perfil</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="https://ejemplo.com/foto.jpg" data-testid="input-photo-url" />
+                    <PhotoUploader
+                      currentPhotoUrl={field.value}
+                      onPhotoChange={field.onChange}
+                      userName={form.watch("name") || "Usuario"}
+                      showManualInput={true}
+                    />
                   </FormControl>
-                  <FormDescription>URL de la foto del jugador</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
