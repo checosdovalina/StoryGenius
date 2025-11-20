@@ -45,23 +45,19 @@ const COUNTRIES = [
 ];
 
 const MATCH_CATEGORIES_LABELS: Record<string, string> = {
-  "PRO_SINGLES_IRT_VARONIL_CON_CONSOLACION": "PRO Singles IRT",
+  "PRO_SINGLES_IRT": "PRO Singles IRT",
   "DOBLES_OPEN": "Dobles Open",
   "AMATEUR_A": "Amateur A",
   "AMATEUR_B": "Amateur B",
   "AMATEUR_C": "Amateur C",
-  "PRINCIPIANTES_AMATEUR": "Principiantes",
+  "PRINCIPIANTES": "Principiantes",
   "JUVENIL_18_VARONIL": "Juvenil 18 (V)",
   "JUVENIL_18_FEMENIL": "Juvenil 18 (F)",
-  "DOBLES_A_B": "Dobles A/B",
-  "DOBLES_B_C": "Dobles B/C",
-  "MASTER_35": "Master +35",
-  "MASTER_55": "Master +55",
-  "DOBLES_MASTER_35": "Dobles M+35",
-  "DOBLES_MASTER_55": "Dobles M+55",
-  "INFANTILES_10_MENORES": "Infantiles -10",
-  "INFANTILES_8_MENORES": "Infantiles -8",
-  "INFANTILES_2_BOTES": "Infantiles 2B",
+  "DOBLES_AB": "Dobles AB",
+  "DOBLES_BC": "Dobles BC",
+  "MASTER_35": "Master 35+",
+  "MASTER_55": "Master 55+",
+  "DOBLES_MASTER_35": "Dobles M35+",
 };
 
 export function UserManagementView() {

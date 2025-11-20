@@ -15,23 +15,19 @@ import type { User } from "@shared/schema";
 import { Loader2 } from "lucide-react";
 
 const MATCH_CATEGORIES = [
-  { value: "PRO_SINGLES_IRT_VARONIL_CON_CONSOLACION", label: "PRO Singles IRT Varonil con Consolación" },
+  { value: "PRO_SINGLES_IRT", label: "PRO Singles IRT" },
   { value: "DOBLES_OPEN", label: "Dobles Open" },
   { value: "AMATEUR_A", label: "Amateur A" },
   { value: "AMATEUR_B", label: "Amateur B" },
   { value: "AMATEUR_C", label: "Amateur C" },
-  { value: "PRINCIPIANTES_AMATEUR", label: "Principiantes (Amateur)" },
+  { value: "PRINCIPIANTES", label: "Principiantes" },
   { value: "JUVENIL_18_VARONIL", label: "Juvenil 18 y menores (Varonil)" },
   { value: "JUVENIL_18_FEMENIL", label: "Juvenil 18 y menores (Femenil)" },
-  { value: "DOBLES_A_B", label: "Dobles A/B" },
-  { value: "DOBLES_B_C", label: "Dobles B/C" },
-  { value: "MASTER_35", label: "Master +35" },
-  { value: "MASTER_55", label: "Master +55" },
-  { value: "DOBLES_MASTER_35", label: "Dobles Master +35" },
-  { value: "DOBLES_MASTER_55", label: "Dobles Master +55" },
-  { value: "INFANTILES_10_MENORES", label: "Infantiles 10 y menores" },
-  { value: "INFANTILES_8_MENORES", label: "Infantiles 8 y menores" },
-  { value: "INFANTILES_2_BOTES", label: "Infantiles 2 botes" },
+  { value: "DOBLES_AB", label: "Dobles AB" },
+  { value: "DOBLES_BC", label: "Dobles BC" },
+  { value: "MASTER_35", label: "Master 35+" },
+  { value: "MASTER_55", label: "Master 55+" },
+  { value: "DOBLES_MASTER_35", label: "Dobles Master 35+" },
 ];
 
 const COUNTRIES = [

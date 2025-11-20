@@ -30,23 +30,19 @@ export const tournamentRoundEnum = pgEnum("tournament_round", [
   "128s", "64s", "32s", "16s", "quarterfinals", "semifinals", "final", "champion"
 ]);
 export const matchCategoryEnum = pgEnum("match_category", [
-  "PRO_SINGLES_IRT_VARONIL_CON_CONSOLACION",
+  "PRO_SINGLES_IRT",
   "DOBLES_OPEN",
   "AMATEUR_A",
   "AMATEUR_B",
   "AMATEUR_C",
-  "PRINCIPIANTES_AMATEUR",
+  "PRINCIPIANTES",
   "JUVENIL_18_VARONIL",
   "JUVENIL_18_FEMENIL",
-  "DOBLES_A_B",
-  "DOBLES_B_C",
+  "DOBLES_AB",
+  "DOBLES_BC",
   "MASTER_35",
   "MASTER_55",
-  "DOBLES_MASTER_35",
-  "DOBLES_MASTER_55",
-  "INFANTILES_10_MENORES",
-  "INFANTILES_8_MENORES",
-  "INFANTILES_2_BOTES"
+  "DOBLES_MASTER_35"
 ]);
 
 export const clubs = pgTable("clubs", {
