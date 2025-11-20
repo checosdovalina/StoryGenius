@@ -4,16 +4,60 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Lock, User, KeyRound } from "lucide-react";
+import { Loader2, Mail, Lock, User, KeyRound, Camera, Globe } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+const MATCH_CATEGORIES = [
+  { value: "PRO_SINGLES_IRT", label: "PRO Singles IRT" },
+  { value: "DOBLES_OPEN", label: "Dobles Open" },
+  { value: "AMATEUR_A", label: "Amateur A" },
+  { value: "AMATEUR_B", label: "Amateur B" },
+  { value: "AMATEUR_C", label: "Amateur C" },
+  { value: "PRINCIPIANTES", label: "Principiantes" },
+  { value: "JUVENIL_18_VARONIL", label: "Juvenil 18 y menores (Varonil)" },
+  { value: "JUVENIL_18_FEMENIL", label: "Juvenil 18 y menores (Femenil)" },
+  { value: "DOBLES_AB", label: "Dobles AB" },
+  { value: "DOBLES_BC", label: "Dobles BC" },
+  { value: "MASTER_35", label: "Master 35+" },
+  { value: "MASTER_55", label: "Master 55+" },
+  { value: "DOBLES_MASTER_35", label: "Dobles Master 35+" },
+];
+
+const COUNTRIES = [
+  { code: "MX", name: "México", flag: "🇲🇽" },
+  { code: "US", name: "Estados Unidos", flag: "🇺🇸" },
+  { code: "CA", name: "Canadá", flag: "🇨🇦" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷" },
+  { code: "BR", name: "Brasil", flag: "🇧🇷" },
+  { code: "CL", name: "Chile", flag: "🇨🇱" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴" },
+  { code: "ES", name: "España", flag: "🇪🇸" },
+  { code: "PE", name: "Perú", flag: "🇵🇪" },
+  { code: "VE", name: "Venezuela", flag: "🇻🇪" },
+  { code: "EC", name: "Ecuador", flag: "🇪🇨" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾" },
+  { code: "BO", name: "Bolivia", flag: "🇧🇴" },
+  { code: "PY", name: "Paraguay", flag: "🇵🇾" },
+  { code: "CR", name: "Costa Rica", flag: "🇨🇷" },
+  { code: "PA", name: "Panamá", flag: "🇵🇦" },
+  { code: "GT", name: "Guatemala", flag: "🇬🇹" },
+  { code: "DO", name: "República Dominicana", flag: "🇩🇴" },
+  { code: "CU", name: "Cuba", flag: "🇨🇺" },
+  { code: "PR", name: "Puerto Rico", flag: "🇵🇷" },
+];
 
 type User = {
   id: string;
   name: string;
   email: string;
   username: string;
+  photoUrl?: string | null;
+  nationality?: string | null;
+  category?: string | null;
 };
 
 export default function ProfilePage() {
@@ -22,13 +66,23 @@ export default function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [category, setCategory] = useState("");
 
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["/api/user"],
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { email?: string; password?: string; currentPassword?: string }) => {
+    mutationFn: async (data: { 
+      email?: string; 
+      password?: string; 
+      currentPassword?: string;
+      photoUrl?: string | null;
+      nationality?: string | null;
+      category?: string | null;
+    }) => {
       return await apiRequest("PATCH", "/api/user/profile", data);
     },
     onSuccess: (data: any) => {
@@ -41,6 +95,9 @@ export default function ProfilePage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setPhotoUrl("");
+      setNationality("");
+      setCategory("");
     },
     onError: (error: any) => {
       toast({
@@ -50,6 +107,25 @@ export default function ProfilePage() {
       });
     },
   });
+
+  const handleUpdateProfileInfo = () => {
+    const updates: any = {};
+    
+    if (photoUrl) updates.photoUrl = photoUrl;
+    if (nationality) updates.nationality = nationality;
+    if (category) updates.category = category;
+
+    if (Object.keys(updates).length === 0) {
+      toast({
+        title: "Error",
+        description: "Selecciona al menos un campo para actualizar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updateProfileMutation.mutate(updates);
+  };
 
   const handleUpdateEmail = () => {
     if (!email) {
@@ -134,6 +210,28 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-4 mb-4">
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={user?.photoUrl || undefined} alt={user?.name} />
+              <AvatarFallback className="text-lg">
+                {user?.name?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <p className="text-sm font-medium">{user?.name}</p>
+              <p className="text-sm text-muted-foreground">@{user?.username}</p>
+              {user?.nationality && (
+                <p className="text-sm mt-1">
+                  {COUNTRIES.find(c => c.code === user.nationality)?.flag} {COUNTRIES.find(c => c.code === user.nationality)?.name}
+                </p>
+              )}
+              {user?.category && (
+                <p className="text-sm mt-1">
+                  📋 {MATCH_CATEGORIES.find(c => c.value === user.category)?.label}
+                </p>
+              )}
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>Nombre</Label>
             <Input value={user?.name || ""} disabled />
@@ -146,6 +244,73 @@ export default function ProfilePage() {
             <Label>Email Actual</Label>
             <Input value={user?.email || ""} disabled />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Camera className="h-5 w-5" />
+            Actualizar Foto y Datos
+          </CardTitle>
+          <CardDescription>
+            Actualiza tu foto de perfil, nacionalidad y categoría
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="photo-url">URL de Foto</Label>
+            <Input
+              id="photo-url"
+              type="url"
+              placeholder="https://ejemplo.com/foto.jpg"
+              value={photoUrl}
+              onChange={(e) => setPhotoUrl(e.target.value)}
+              data-testid="input-photo-url"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nationality">Nacionalidad</Label>
+            <Select value={nationality} onValueChange={setNationality}>
+              <SelectTrigger id="nationality" data-testid="select-nationality">
+                <SelectValue placeholder="Selecciona tu país" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map((country) => (
+                  <SelectItem key={country.code} value={country.code}>
+                    <div className="flex items-center gap-2">
+                      <span>{country.flag}</span>
+                      <span>{country.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="category">Categoría</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger id="category" data-testid="select-category">
+                <SelectValue placeholder="Selecciona tu categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                {MATCH_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button 
+            onClick={handleUpdateProfileInfo}
+            disabled={updateProfileMutation.isPending}
+            data-testid="button-update-profile-info"
+          >
+            {updateProfileMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Globe className="h-4 w-4 mr-2" />
+            Actualizar Información
+          </Button>
         </CardContent>
       </Card>
 
