@@ -239,7 +239,7 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
                   <FormItem>
                     <FormLabel>Teléfono</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="+52 1234567890" data-testid="input-phone" />
+                      <Input {...field} value={field.value || ""} placeholder="+52 1234567890" data-testid="input-phone" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -270,7 +270,7 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
                   <FormItem>
                     <FormLabel>Club</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="GB Sport" data-testid="input-club" />
+                      <Input {...field} value={field.value || ""} placeholder="GB Sport" data-testid="input-club" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

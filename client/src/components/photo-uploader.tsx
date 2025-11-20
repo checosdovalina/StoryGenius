@@ -1,11 +1,11 @@
-import { useState, useRef, ChangeEvent } from "react";
+import { useState, useRef, ChangeEvent, useEffect } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface PhotoUploaderProps {
   currentPhotoUrl?: string | null;
@@ -25,6 +25,11 @@ export function PhotoUploader({
   const [manualUrl, setManualUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Sincronizar preview con currentPhotoUrl cuando cambia
+  useEffect(() => {
+    setPreviewUrl(currentPhotoUrl || null);
+  }, [currentPhotoUrl]);
 
   const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -69,6 +74,10 @@ export function PhotoUploader({
       setPreviewUrl(data.url);
       onPhotoChange(data.url);
 
+      // Invalidar query del usuario para refrescar datos
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+
       toast({
         title: "Foto subida exitosamente",
         description: `Tamaño: ${(data.size / 1024).toFixed(1)} KB`
@@ -107,6 +116,11 @@ export function PhotoUploader({
       new URL(manualUrl); // Validate URL format
       setPreviewUrl(manualUrl);
       onPhotoChange(manualUrl);
+      
+      // Invalidar query para refrescar
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      
       setManualUrl("");
       toast({
         title: "URL actualizada",

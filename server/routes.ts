@@ -11,8 +11,24 @@ import { uploadProfilePhoto } from "./object-storage";
 
 let wsServer: MatchStatsWebSocketServer;
 
-// Configure multer for file uploads (memory storage for Excel files)
+// Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Configure multer for profile photo uploads with validation
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const validMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (validMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed.'));
+    }
+  }
+});
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
@@ -930,9 +946,9 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Upload profile photo endpoint
-  app.post("/api/media/profile-photo", upload.single('photo'), async (req, res) => {
+  app.post("/api/media/profile-photo", photoUpload.single('photo'), async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
+      if (!req.isAuthenticated() || !req.user) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
@@ -940,21 +956,10 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Validate file type
-      const validMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-      if (!validMimeTypes.includes(req.file.mimetype)) {
-        return res.status(400).json({ message: "Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed." });
-      }
-
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-      if (req.file.size > maxSize) {
-        return res.status(400).json({ message: "File size exceeds 5MB limit" });
-      }
-
       // Upload to object storage
-      const result = await uploadProfilePhoto(req.file, req.user!.id);
+      const result = await uploadProfilePhoto(req.file, req.user.id);
 
+      // Invalidate cache
       res.json({
         message: "Photo uploaded successfully",
         url: result.url,
@@ -963,6 +968,12 @@ export function registerRoutes(app: Express): Server {
       });
     } catch (error: any) {
       console.error("Error uploading profile photo:", error);
+      
+      // Handle multer errors
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ message: "File size exceeds 5MB limit" });
+      }
+      
       res.status(500).json({ message: error.message || "Failed to upload photo" });
     }
   });

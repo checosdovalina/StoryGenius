@@ -253,7 +253,7 @@ export class DatabaseStorage implements IStorage {
     password?: string;
     photoUrl?: string | null;
     nationality?: string | null;
-    category?: string | null;
+    categories?: string[] | null;
   }): Promise<User> {
     const updates: any = { updatedAt: new Date() };
     
@@ -273,8 +273,8 @@ export class DatabaseStorage implements IStorage {
       updates.nationality = data.nationality;
     }
 
-    if (data.category !== undefined) {
-      updates.category = data.category;
+    if (data.categories !== undefined) {
+      updates.categories = data.categories;
     }
 
     const [user] = await db
@@ -414,7 +414,7 @@ export class DatabaseStorage implements IStorage {
         preferredSport: users.preferredSport,
         padelCategory: users.padelCategory,
         racquetballLevel: users.racquetballLevel,
-        category: users.category,
+        categories: users.categories,
         photoUrl: users.photoUrl,
         nationality: users.nationality,
         isActive: users.isActive,
