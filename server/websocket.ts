@@ -3,6 +3,8 @@ import type { Server } from "http";
 import type { IncomingMessage } from "http";
 import url from "url";
 import { storage } from "./storage";
+import { sessionMiddleware } from "./auth";
+import type { Request, Response } from "express";
 
 interface WebSocketClient extends WebSocket {
   isAlive: boolean;
@@ -28,7 +30,25 @@ export class MatchStatsWebSocketServer {
     httpServer.on('upgrade', (req, socket, head) => {
       const pathname = url.parse(req.url || '').pathname;
 
-      if (pathname === '/ws/match-stats' || pathname === '/ws/public-display') {
+      if (pathname === '/ws/match-stats') {
+        // Protected channel - requires authentication
+        this.authenticateWebSocket(req, (err, authenticated, userId) => {
+          if (err || !authenticated) {
+            console.log('[WebSocket] Authentication failed, rejecting connection');
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+          }
+
+          // Store userId in request for access in connection handler
+          (req as any).userId = userId;
+
+          this.wss.handleUpgrade(req, socket, head, (ws) => {
+            this.wss.emit('connection', ws, req);
+          });
+        });
+      } else if (pathname === '/ws/public-display') {
+        // Public channel - no authentication required
         this.wss.handleUpgrade(req, socket, head, (ws) => {
           this.wss.emit('connection', ws, req);
         });
@@ -61,7 +81,7 @@ export class MatchStatsWebSocketServer {
         }));
 
       } else if (pathname === '/ws/match-stats') {
-        // Stats capture channel - requires authentication
+        // Stats capture channel - authentication already verified in upgrade handler
         ws.scope = 'stats';
         const matchId = params.matchId as string;
 
@@ -70,14 +90,8 @@ export class MatchStatsWebSocketServer {
           return;
         }
 
-        // Authentication check
-        const cookieHeader = req.headers.cookie;
-        if (!cookieHeader || !cookieHeader.includes('connect.sid')) {
-          console.log('[WebSocket] No session cookie found, rejecting connection');
-          ws.close(1008, "Authentication required");
-          return;
-        }
-
+        // Attach userId from authentication
+        ws.userId = (req as any).userId;
         ws.matchId = matchId;
 
         // Add client to the match room
@@ -146,6 +160,70 @@ export class MatchStatsWebSocketServer {
 
     this.wss.on("close", () => {
       clearInterval(interval);
+    });
+  }
+
+  // Authenticate WebSocket connection using Express session and verify permissions
+  private async authenticateWebSocket(
+    req: IncomingMessage,
+    callback: (err: Error | null, authenticated: boolean, userId?: string) => void
+  ) {
+    // Create mock response object
+    const res = {
+      getHeader: () => undefined,
+      setHeader: () => {},
+      end: () => {}
+    } as unknown as Response;
+
+    // Cast req to Request type for session middleware
+    const expressReq = req as unknown as Request;
+
+    // Use session middleware to parse session
+    sessionMiddleware(expressReq, res, async (err) => {
+      if (err) {
+        callback(err, false);
+        return;
+      }
+
+      // Check if session exists and has user
+      const session = (expressReq as any).session;
+      if (!session || !session.passport || !session.passport.user) {
+        callback(null, false);
+        return;
+      }
+
+      const userId = session.passport.user as string;
+
+      try {
+        // Load full user from database to verify roles
+        const user = await storage.getUser(userId);
+        if (!user) {
+          callback(null, false);
+          return;
+        }
+
+        // Verify user has permission to access stats capture
+        // Allowed roles: superadmin, admin (global), or any tournament-scoped role
+        const isSuperAdmin = await storage.isSuperAdmin(userId);
+        const isGlobalAdmin = user.role === 'admin';
+
+        // For tournament-scoped permission, we'll check when we have the matchId
+        // For now, allow if user is superadmin, global admin, or has role jugador or above
+        const hasBasicAccess = isSuperAdmin || isGlobalAdmin || 
+          ['jugador', 'escrutador', 'arbitro', 'organizador', 'tournament_admin'].includes(user.role);
+
+        if (!hasBasicAccess) {
+          console.log(`[WebSocket] User ${userId} (role: ${user.role}) denied access - insufficient permissions`);
+          callback(null, false);
+          return;
+        }
+
+        // Session is valid and user has necessary permissions
+        callback(null, true, userId);
+      } catch (error) {
+        console.error('[WebSocket] Error validating user:', error);
+        callback(error as Error, false);
+      }
     });
   }
 
