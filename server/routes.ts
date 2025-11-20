@@ -2130,6 +2130,96 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // ============ TOURNAMENT SPONSORS ============
+  
+  // Get tournament sponsors
+  app.get("/api/tournaments/:tournamentId/sponsors", async (req, res) => {
+    try {
+      const sponsors = await storage.getTournamentSponsors(req.params.tournamentId);
+      res.json(sponsors);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch sponsors" });
+    }
+  });
+
+  // Create tournament sponsor (SuperAdmin and Tournament Admin only)
+  app.post("/api/tournaments/:tournamentId/sponsors", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Check permissions
+      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
+      const canManage = await storage.canManageTournament(req.user!.id, req.params.tournamentId);
+
+      if (!isSuperAdmin && !canManage) {
+        return res.status(403).json({ message: "Only SuperAdmins and Tournament Admins can manage sponsors" });
+      }
+
+      const sponsor = await storage.createTournamentSponsor({
+        ...req.body,
+        tournamentId: req.params.tournamentId
+      });
+
+      res.json(sponsor);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create sponsor" });
+    }
+  });
+
+  // Update sponsor (SuperAdmin and Tournament Admin only)
+  app.patch("/api/sponsors/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // TODO: Add permission check for tournament admin
+      const sponsor = await storage.updateTournamentSponsor(req.params.id, req.body);
+      res.json(sponsor);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update sponsor" });
+    }
+  });
+
+  // Delete sponsor (SuperAdmin and Tournament Admin only)
+  app.delete("/api/sponsors/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // TODO: Add permission check for tournament admin
+      await storage.deleteTournamentSponsor(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete sponsor" });
+    }
+  });
+
+  // ============ PUBLIC DISPLAY ============
+  
+  // Get active matches for public display (no auth required)
+  app.get("/api/tournaments/:tournamentId/active-matches", async (req, res) => {
+    try {
+      const matches = await storage.getActiveMatches(req.params.tournamentId);
+      res.json(matches);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch active matches" });
+    }
+  });
+
+  // Get all active matches across all tournaments (no auth required)
+  app.get("/api/active-matches", async (req, res) => {
+    try {
+      const matches = await storage.getActiveMatches();
+      res.json(matches);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch active matches" });
+    }
+  });
+
 
   const httpServer = createServer(app);
   
