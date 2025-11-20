@@ -1050,6 +1050,15 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                         {player.club}
                       </p>
                     )}
+                    {player.categories && player.categories.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {player.categories.map((cat) => (
+                          <Badge key={cat} variant="secondary" className="text-xs px-1.5 py-0.5" data-testid={`player-category-badge-${cat}`}>
+                            {MATCH_CATEGORIES_LABELS[cat] || cat}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -1230,6 +1239,17 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
   });
 
   const matchType = matchForm.watch("matchType");
+  const selectedCategory = matchForm.watch("category");
+  
+  // Filter players by selected category
+  const filteredPlayers = useMemo(() => {
+    if (!selectedCategory) {
+      return players; // Show all players if no category selected
+    }
+    return players.filter(player => 
+      player.categories && player.categories.includes(selectedCategory as any)
+    );
+  }, [players, selectedCategory]);
 
   const createMatchMutation = useMutation({
     mutationFn: async (data: CreateMatchForm) => {
@@ -1654,7 +1674,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {players.map((player) => (
+                          {filteredPlayers.map((player) => (
                             <SelectItem key={player.id} value={player.id} data-testid={`player1-option-${player.id}`}>
                               {player.name}
                             </SelectItem>
@@ -1679,7 +1699,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {players.map((player) => (
+                          {filteredPlayers.map((player) => (
                             <SelectItem key={player.id} value={player.id} data-testid={`player2-option-${player.id}`}>
                               {player.name}
                             </SelectItem>
@@ -1707,7 +1727,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {players.map((player) => (
+                            {filteredPlayers.map((player) => (
                               <SelectItem key={player.id} value={player.id} data-testid={`player3-option-${player.id}`}>
                                 {player.name}
                               </SelectItem>
@@ -1732,7 +1752,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {players.map((player) => (
+                            {filteredPlayers.map((player) => (
                               <SelectItem key={player.id} value={player.id} data-testid={`player4-option-${player.id}`}>
                                 {player.name}
                               </SelectItem>
