@@ -57,9 +57,9 @@ export async function uploadProfilePhoto(
 
     blobStream.on('finish', async () => {
       try {
-        await blob.makePublic();
-        
-        const publicUrl = `https://storage.googleapis.com/${bucketId}/${filename}`;
+        // Don't call makePublic() - bucket has public access prevention enabled
+        // Instead, serve through our API endpoint
+        const publicUrl = `/api/media/profile-photos/${encodeURIComponent(filename)}`;
 
         resolve({
           url: publicUrl,
@@ -67,7 +67,7 @@ export async function uploadProfilePhoto(
           size: file.size,
         });
       } catch (err: any) {
-        reject(new Error(`Error making file public: ${err.message}`));
+        reject(new Error(`Error processing upload: ${err.message}`));
       }
     });
 
@@ -81,4 +81,19 @@ export async function deleteProfilePhoto(filename: string): Promise<void> {
   } catch (err: any) {
     console.error(`Error deleting file ${filename}:`, err.message);
   }
+}
+
+export async function downloadProfilePhoto(filename: string): Promise<Buffer> {
+  const blob = bucket.file(filename);
+  const [data] = await blob.download();
+  return data;
+}
+
+export async function getProfilePhotoMetadata(filename: string): Promise<{ contentType: string; size: number }> {
+  const blob = bucket.file(filename);
+  const [metadata] = await blob.getMetadata();
+  return {
+    contentType: metadata.contentType || 'image/jpeg',
+    size: parseInt(metadata.size as string, 10),
+  };
 }

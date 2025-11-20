@@ -7,7 +7,7 @@ import { z } from "zod";
 import { MatchStatsWebSocketServer } from "./websocket";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { uploadProfilePhoto } from "./object-storage";
+import { uploadProfilePhoto, downloadProfilePhoto, getProfilePhotoMetadata } from "./object-storage";
 
 let wsServer: MatchStatsWebSocketServer;
 
@@ -989,6 +989,31 @@ export function registerRoutes(app: Express): Server {
     });
   });
 
+  // Serve profile photos
+  app.get("/api/media/profile-photos/:filename(*)", async (req, res) => {
+    try {
+      const filename = decodeURIComponent(req.params.filename);
+      
+      // Get photo metadata and data
+      const [metadata, photoData] = await Promise.all([
+        getProfilePhotoMetadata(filename),
+        downloadProfilePhoto(filename)
+      ]);
+
+      // Set appropriate headers
+      res.set({
+        'Content-Type': metadata.contentType,
+        'Content-Length': metadata.size.toString(),
+        'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+      });
+
+      res.send(photoData);
+    } catch (error: any) {
+      console.error("Error serving profile photo:", error);
+      res.status(404).json({ message: "Photo not found" });
+    }
+  });
+
   // Update user profile (email, password, photo, nationality, categories)
   app.patch("/api/user/profile", async (req, res) => {
     try {
@@ -1000,7 +1025,7 @@ export function registerRoutes(app: Express): Server {
         email: z.string().email().optional(),
         password: z.string().min(6).optional(),
         currentPassword: z.string().optional(),
-        photoUrl: z.string().url().optional().nullable(),
+        photoUrl: z.string().optional().nullable(), // Allow relative URLs for uploaded photos
         nationality: z.string().optional().nullable(),
         categories: z.array(z.enum([
           "PRO_SINGLES_IRT",

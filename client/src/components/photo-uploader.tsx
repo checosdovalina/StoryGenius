@@ -113,7 +113,8 @@ export function PhotoUploader({
     }
 
     try {
-      new URL(manualUrl); // Validate URL format
+      // Validate URL format (allow absolute URLs)
+      new URL(manualUrl);
       setPreviewUrl(manualUrl);
       onPhotoChange(manualUrl);
       
@@ -129,7 +130,7 @@ export function PhotoUploader({
     } catch {
       toast({
         title: "URL inválida",
-        description: "Ingresa una URL válida",
+        description: "Ingresa una URL válida (ej: https://ejemplo.com/foto.jpg)",
         variant: "destructive"
       });
     }
