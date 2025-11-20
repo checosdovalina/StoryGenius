@@ -251,91 +251,200 @@ function ScoreBoard({ session, stats }: { session: ActiveMatch["session"], stats
 
 function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: PlayerInfo | null }) {
   const isDoubles = match.session.matchType === "doubles";
-  const team1Won = match.session.matchWinner === match.session.player1Id;
+  
+  const player1Timeouts = match.session.player1TimeoutsUsed ? JSON.parse(match.session.player1TimeoutsUsed).length : 0;
+  const player2Timeouts = match.session.player2TimeoutsUsed ? JSON.parse(match.session.player2TimeoutsUsed).length : 0;
+  const stats = match.stats;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 py-4 px-4 pb-20 flex flex-col items-center justify-center">
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-5xl">
         {/* PARTIDO TERMINADO */}
-        <div className="text-center mb-8 animate-pulse">
+        <div className="text-center mb-6 animate-pulse">
           <h1 className="text-5xl font-bold text-green-400 mb-2">🏆 PARTIDO TERMINADO 🏆</h1>
           <p className="text-2xl text-white">{match.tournament.name}</p>
           <p className="text-lg text-white/80">{match.match.round}</p>
         </div>
 
         {/* GANADOR */}
-        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 mb-8 shadow-2xl border-4 border-yellow-400">
+        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-6 mb-6 shadow-2xl border-4 border-yellow-400">
           <div className="text-center">
-            <p className="text-white text-2xl font-bold mb-4">EQUIPO GANADOR</p>
-            <div className="flex items-center gap-6 justify-center mb-4">
+            <p className="text-white text-xl font-bold mb-3">EQUIPO GANADOR</p>
+            <div className="flex items-center gap-4 justify-center">
               {winner?.photoUrl ? (
                 <img
                   src={winner.photoUrl}
                   alt={winner.name}
-                  className="w-20 h-20 rounded-full object-cover border-4 border-white"
+                  className="w-16 h-16 rounded-full object-cover border-4 border-white"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-3xl font-bold text-orange-500">
+                <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-orange-500">
                   {winner?.name.charAt(0)}
                 </div>
               )}
               <div className="text-left">
-                <h2 className="text-4xl font-bold text-white">{winner?.name}</h2>
+                <h2 className="text-3xl font-bold text-white">{winner?.name}</h2>
                 {winner?.nationality && (
-                  <div className="text-5xl mt-2">{getFlagEmoji(winner.nationality)}</div>
+                  <div className="text-4xl mt-1">{getFlagEmoji(winner.nationality)}</div>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* PUNTUACIÓN FINAL */}
-        <div className="bg-black/60 backdrop-blur-sm rounded-xl p-6 shadow-2xl mb-8">
-          <h3 className="text-white text-2xl font-bold text-center mb-6">RESULTADO FINAL</h3>
-          
-          <div className="grid grid-cols-2 gap-8 mb-6">
-            {/* Equipo 1 */}
-            <div className="text-center">
-              <p className="text-white/70 text-sm mb-2">Equipo 1</p>
-              <div className="bg-white/10 rounded-lg p-4">
-                <div className="flex justify-center gap-4 items-center mb-3">
-                  <div className="text-5xl font-bold text-yellow-400">{match.session.player1Sets}</div>
-                  <div className="text-3xl text-white/50">-</div>
-                  <div className="text-5xl font-bold text-yellow-400">{match.session.player2Sets}</div>
+        {/* RESULTADO Y ESTADÍSTICAS */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {/* Resultados */}
+          <div className="bg-black/60 backdrop-blur-sm rounded-xl p-4 shadow-2xl">
+            <h3 className="text-white text-lg font-bold text-center mb-4">RESULTADO FINAL</h3>
+            
+            <div className="space-y-3">
+              <div className="text-center">
+                <p className="text-white/70 text-xs mb-1">Sets</p>
+                <div className="flex justify-center gap-3 items-center">
+                  <div className="text-4xl font-bold text-yellow-400">{match.session.player1Sets}</div>
+                  <div className="text-2xl text-white/50">-</div>
+                  <div className="text-4xl font-bold text-yellow-400">{match.session.player2Sets}</div>
                 </div>
-                <p className="text-white text-sm">Sets</p>
               </div>
-            </div>
-
-            {/* Equipo 2 */}
-            <div className="text-center">
-              <p className="text-white/70 text-sm mb-2">Puntuación del Set Final</p>
-              <div className="bg-white/10 rounded-lg p-4">
-                <div className="flex justify-center gap-4 items-center mb-3">
-                  <div className="text-5xl font-bold text-yellow-400">{match.session.player1CurrentScore}</div>
-                  <div className="text-3xl text-white/50">-</div>
-                  <div className="text-5xl font-bold text-yellow-400">{match.session.player2CurrentScore}</div>
+              
+              <div className="text-center">
+                <p className="text-white/70 text-xs mb-1">Puntuación Final</p>
+                <div className="flex justify-center gap-3 items-center">
+                  <div className="text-4xl font-bold text-yellow-400">{match.session.player1CurrentScore}</div>
+                  <div className="text-2xl text-white/50">-</div>
+                  <div className="text-4xl font-bold text-yellow-400">{match.session.player2CurrentScore}</div>
                 </div>
-                <p className="text-white text-sm">Puntos</p>
               </div>
             </div>
           </div>
 
-          {/* Players info */}
+          {/* Estadísticas */}
+          {stats && (
+            <div className="bg-black/60 backdrop-blur-sm rounded-xl p-4 shadow-2xl">
+              <h3 className="text-white text-lg font-bold text-center mb-4">ESTADÍSTICAS</h3>
+              
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="text-left">
+                  <div className="text-white/70 mb-1">Equipo 1</div>
+                  <div className="text-white/90">🎯 Aces: <span className="font-bold text-green-400">{stats.team1.aces}</span></div>
+                  <div className="text-white/90">➡️ Recto: <span className="font-bold">{stats.team1.recto}</span></div>
+                  <div className="text-white/90">📐 Esquina: <span className="font-bold">{stats.team1.esquina}</span></div>
+                  <div className="text-white/90">↗️ Cruzado: <span className="font-bold">{stats.team1.cruzado}</span></div>
+                  <div className="text-white/90">⚡ Punto: <span className="font-bold">{stats.team1.punto}</span></div>
+                </div>
+                <div className="text-right">
+                  <div className="text-white/70 mb-1">Equipo 2</div>
+                  <div className="text-white/90"><span className="font-bold text-green-400">{stats.team2.aces}</span> 🎯 Aces</div>
+                  <div className="text-white/90"><span className="font-bold">{stats.team2.recto}</span> ➡️ Recto</div>
+                  <div className="text-white/90"><span className="font-bold">{stats.team2.esquina}</span> 📐 Esquina</div>
+                  <div className="text-white/90"><span className="font-bold">{stats.team2.cruzado}</span> ↗️ Cruzado</div>
+                  <div className="text-white/90"><span className="font-bold">{stats.team2.punto}</span> ⚡ Punto</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* JUGADORES CON FOTOS */}
+        <div className="bg-black/60 backdrop-blur-sm rounded-xl p-4 shadow-2xl">
+          <h3 className="text-white text-lg font-bold text-center mb-4">EQUIPOS</h3>
+          
           <div className="grid grid-cols-2 gap-6">
-            <div className="text-left space-y-2">
-              <p className="text-white/70 text-xs">Equipo 1</p>
-              <p className="text-white font-bold">{match.player1.name}</p>
+            {/* Equipo 1 */}
+            <div className="space-y-3">
+              <p className="text-white/70 text-xs text-center">EQUIPO 1</p>
+              <div className="flex flex-col items-center">
+                {match.player1.photoUrl ? (
+                  <img
+                    src={match.player1.photoUrl}
+                    alt={match.player1.name}
+                    className="w-20 h-20 rounded-full object-cover border-2 border-white mb-2"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-bold border-2 border-white mb-2">
+                    {match.player1.name.charAt(0)}
+                  </div>
+                )}
+                <p className="text-white font-bold text-sm text-center">{match.player1.name}</p>
+                {match.player1.nationality && (
+                  <p className="text-2xl">{getFlagEmoji(match.player1.nationality)}</p>
+                )}
+              </div>
               {isDoubles && match.player3 && (
-                <p className="text-white font-bold">{match.player3.name}</p>
+                <div className="flex flex-col items-center pt-3 border-t border-white/20">
+                  {match.player3.photoUrl ? (
+                    <img
+                      src={match.player3.photoUrl}
+                      alt={match.player3.name}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-white mb-2"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-bold border-2 border-white mb-2">
+                      {match.player3.name.charAt(0)}
+                    </div>
+                  )}
+                  <p className="text-white font-bold text-sm text-center">{match.player3.name}</p>
+                  {match.player3.nationality && (
+                    <p className="text-2xl">{getFlagEmoji(match.player3.nationality)}</p>
+                  )}
+                </div>
               )}
             </div>
-            <div className="text-right space-y-2">
-              <p className="text-white/70 text-xs">Equipo 2</p>
-              {match.player2 && <p className="text-white font-bold">{match.player2.name}</p>}
-              {isDoubles && match.player4 && (
-                <p className="text-white font-bold">{match.player4.name}</p>
+
+            {/* Equipo 2 */}
+            <div className="space-y-3">
+              <p className="text-white/70 text-xs text-center">EQUIPO 2</p>
+              {match.player2 && (
+                <div className="flex flex-col items-center">
+                  {match.player2.photoUrl ? (
+                    <img
+                      src={match.player2.photoUrl}
+                      alt={match.player2.name}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-white mb-2"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center text-white text-2xl font-bold border-2 border-white mb-2">
+                      {match.player2.name.charAt(0)}
+                    </div>
+                  )}
+                  <p className="text-white font-bold text-sm text-center">{match.player2.name}</p>
+                  {match.player2.nationality && (
+                    <p className="text-2xl">{getFlagEmoji(match.player2.nationality)}</p>
+                  )}
+                </div>
               )}
+              {isDoubles && match.player4 && (
+                <div className="flex flex-col items-center pt-3 border-t border-white/20">
+                  {match.player4.photoUrl ? (
+                    <img
+                      src={match.player4.photoUrl}
+                      alt={match.player4.name}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-white mb-2"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center text-white text-2xl font-bold border-2 border-white mb-2">
+                      {match.player4.name.charAt(0)}
+                    </div>
+                  )}
+                  <p className="text-white font-bold text-sm text-center">{match.player4.name}</p>
+                  {match.player4.nationality && (
+                    <p className="text-2xl">{getFlagEmoji(match.player4.nationality)}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Otros stats */}
+          <div className="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-4 text-xs">
+            <div className="text-left text-white/80">
+              <div>Faltas técnicas: {match.session.player1Technicals}</div>
+              <div>Tiempos usados: {player1Timeouts}</div>
+            </div>
+            <div className="text-right text-white/80">
+              <div>Faltas técnicas: {match.session.player2Technicals}</div>
+              <div>Tiempos usados: {player2Timeouts}</div>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Bell, Settings, Menu } from "lucide-react";
+import { Bell, Settings, Menu, Monitor } from "lucide-react";
 import { useLocation } from "wouter";
 import { getRouteMeta } from "@/lib/routes";
 
@@ -13,6 +13,10 @@ export function Header({ onToggleSidebar }: HeaderProps) {
   
   const title = routeMeta?.title || "GB Sport";
   const subtitle = routeMeta?.subtitle || "Sistema de Gestión de Torneos";
+
+  const openDisplay = () => {
+    window.open("/public-display", "PublicDisplay", "width=1920,height=1080");
+  };
 
   return (
     <header className="bg-card border-b border-border px-6 py-4 sticky top-0 z-10">
@@ -37,6 +41,16 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           </div>
         </div>
         <div className="flex items-center space-x-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={openDisplay}
+            data-testid="button-public-display"
+            className="gap-2"
+          >
+            <Monitor className="h-4 w-4" />
+            <span className="hidden sm:inline">Display</span>
+          </Button>
           <Button variant="ghost" size="sm" data-testid="button-notifications">
             <Bell className="h-4 w-4 text-muted-foreground" />
           </Button>
