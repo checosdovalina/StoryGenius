@@ -1350,7 +1350,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTournamentRankings(tournamentId: string, limit = 50): Promise<any[]> {
-    return this.getRankingEntries(tournamentId, limit);
+    try {
+      // Use player_stats table directly for tournament rankings
+      console.log(`[TOURNAMENT RANKINGS] Fetching rankings for tournament: ${tournamentId}`);
+      
+      const result = await db
+        .select({
+          playerId: users.id,
+          playerName: users.name,
+          playerEmail: users.email,
+          matchesPlayed: playerStats.matchesPlayed,
+          matchesWon: playerStats.matchesWon,
+          matchesLost: playerStats.matchesLost,
+          setsWon: playerStats.setsWon,
+          setsLost: playerStats.setsLost
+        })
+        .from(playerStats)
+        .innerJoin(users, eq(playerStats.playerId, users.id))
+        .where(eq(playerStats.tournamentId, tournamentId))
+        .orderBy(
+          desc(playerStats.matchesWon),
+          desc(sql`${playerStats.setsWon} - ${playerStats.setsLost}`)
+        )
+        .limit(limit);
+      
+      console.log(`[TOURNAMENT RANKINGS] Found ${result.length} players with stats`);
+      return result;
+    } catch (error) {
+      console.error('[TOURNAMENT RANKINGS] Error:', error);
+      throw error;
+    }
   }
 
   // Match stats sessions
