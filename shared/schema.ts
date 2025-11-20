@@ -238,6 +238,8 @@ export const matchStatsSessions = pgTable("match_stats_sessions", {
   player2Games: text("player2_games"), // Team 2 games per set
   // Open IRT fields for racquetball
   serverId: varchar("server_id").references(() => users.id), // Who is currently serving (specific player)
+  initialServers: text("initial_servers").default("[]"), // JSON array of initial server IDs per set [set1ServerId, set2ServerId, set3ServerId]
+  coinFlipWinner: varchar("coin_flip_winner"), // Who won the coin flip (determines set 1 server)
   player1TimeoutsUsed: text("player1_timeouts_used").default("[]"), // JSON array per set [0,0,0] - Team 1
   player2TimeoutsUsed: text("player2_timeouts_used").default("[]"), // JSON array per set - Team 2
   player1AppellationsUsed: text("player1_appellations_used").default("[]"), // JSON array per set - Team 1
