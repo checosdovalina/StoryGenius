@@ -29,7 +29,7 @@ interface ActiveMatch {
     status: string;
     matchType: string;
     currentSet: number;
-    currentServer: string;
+    serverId: string | null;
     player1CurrentScore: string;
     player2CurrentScore: string;
     player1Sets: number;
@@ -82,24 +82,24 @@ function getFlagEmoji(countryCode: string | null): string {
 
 function PlayerDisplay({ player, side }: { player: PlayerInfo; side: "left" | "right" }) {
   return (
-    <div className={`flex items-center gap-4 ${side === "right" ? "flex-row-reverse" : ""}`}>
+    <div className={`flex items-center gap-3 ${side === "right" ? "flex-row-reverse" : ""}`}>
       <div className="flex-shrink-0">
         {player.photoUrl ? (
           <img
             src={player.photoUrl}
             alt={player.name}
-            className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+            className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-lg"
           />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-lg">
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xl font-bold border-2 border-white shadow-lg">
             {player.name.charAt(0)}
           </div>
         )}
       </div>
       <div className={`${side === "right" ? "text-right" : "text-left"}`}>
-        <h3 className="text-2xl font-bold text-white mb-1">{player.name}</h3>
+        <h3 className="text-base font-bold text-white mb-0.5">{player.name}</h3>
         {player.nationality && (
-          <div className="text-4xl">{getFlagEmoji(player.nationality)}</div>
+          <div className="text-2xl">{getFlagEmoji(player.nationality)}</div>
         )}
       </div>
     </div>
@@ -113,47 +113,52 @@ function ScoreBoard({ session, stats }: { session: ActiveMatch["session"], stats
   const player2Timeouts = session.player2TimeoutsUsed ? JSON.parse(session.player2TimeoutsUsed).length : 0;
   const player1Appellations = session.player1AppellationsUsed ? JSON.parse(session.player1AppellationsUsed).length : 0;
   const player2Appellations = session.player2AppellationsUsed ? JSON.parse(session.player2AppellationsUsed).length : 0;
+  
+  // Check if player1 or player3 is serving (team 1)
+  const isTeam1Serving = session.serverId === session.player1Id || session.serverId === session.player3Id;
+  // Check if player2 or player4 is serving (team 2)
+  const isTeam2Serving = session.serverId === session.player2Id || session.serverId === session.player4Id;
 
   return (
-    <div className="bg-black/60 backdrop-blur-sm rounded-xl p-8 shadow-2xl">
-      <div className="flex justify-center items-center gap-12 mb-6">
-        <div className="flex items-center gap-4">
-          <div className={`w-4 h-4 rounded-full ${session.currentServer === session.player1Id ? "bg-green-500 animate-pulse shadow-lg shadow-green-500/50" : "bg-gray-600"}`} />
-          <span className="text-white text-lg">Saque</span>
+    <div className="bg-black/60 backdrop-blur-sm rounded-xl p-4 shadow-2xl">
+      <div className="flex justify-center items-center gap-8 mb-3">
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${isTeam1Serving ? "bg-green-500 animate-pulse shadow-lg shadow-green-500/50" : "bg-gray-600"}`} />
+          <span className="text-white text-sm">Saque</span>
         </div>
         <div className="text-center">
-          <div className="text-white text-sm mb-1">Set {session.currentSet}</div>
-          <div className="text-white text-xs">
+          <div className="text-white text-xs mb-0.5">Set {session.currentSet}</div>
+          <div className="text-white/70 text-xs">
             {isDoubles ? "Dobles" : "Singles"}
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-white text-lg">Saque</span>
-          <div className={`w-4 h-4 rounded-full ${session.currentServer === session.player2Id ? "bg-green-500 animate-pulse shadow-lg shadow-green-500/50" : "bg-gray-600"}`} />
+        <div className="flex items-center gap-2">
+          <span className="text-white text-sm">Saque</span>
+          <div className={`w-3 h-3 rounded-full ${isTeam2Serving ? "bg-green-500 animate-pulse shadow-lg shadow-green-500/50" : "bg-gray-600"}`} />
         </div>
       </div>
 
       {/* Current Score */}
-      <div className="flex justify-center items-center gap-12 mb-8">
-        <div className="text-8xl font-bold text-yellow-400">
+      <div className="flex justify-center items-center gap-8 mb-4">
+        <div className="text-6xl font-bold text-yellow-400">
           {session.player1CurrentScore}
         </div>
-        <div className="text-6xl font-bold text-white/30">-</div>
-        <div className="text-8xl font-bold text-yellow-400">
+        <div className="text-4xl font-bold text-white/30">-</div>
+        <div className="text-6xl font-bold text-yellow-400">
           {session.player2CurrentScore}
         </div>
       </div>
 
       {/* Sets Won */}
-      <div className="flex justify-center items-center gap-6 mb-6">
+      <div className="flex justify-center items-center gap-4 mb-3">
         <div className="text-center">
-          <div className="text-white/70 text-sm mb-1">Sets Ganados</div>
-          <div className="flex gap-4 items-center">
-            <div className="text-3xl font-bold text-white">
+          <div className="text-white/70 text-xs mb-1">Sets Ganados</div>
+          <div className="flex gap-3 items-center">
+            <div className="text-2xl font-bold text-white">
               {session.player1Sets}
             </div>
-            <div className="text-2xl font-bold text-white/30">-</div>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-xl font-bold text-white/30">-</div>
+            <div className="text-2xl font-bold text-white">
               {session.player2Sets}
             </div>
           </div>
@@ -162,62 +167,62 @@ function ScoreBoard({ session, stats }: { session: ActiveMatch["session"], stats
 
       {/* Shot Statistics */}
       {stats && (
-        <div className="mt-6 border-t border-white/20 pt-4">
-          <div className="text-white/70 text-sm text-center mb-3">Estadísticas de Tiro</div>
-          <div className="grid grid-cols-2 gap-6">
+        <div className="mt-3 border-t border-white/20 pt-3">
+          <div className="text-white/70 text-xs text-center mb-2">Estadísticas de Tiro</div>
+          <div className="grid grid-cols-2 gap-4 text-xs">
             {/* Team 1 Stats */}
-            <div className="text-left space-y-1">
-              <div className="text-white/90 text-sm flex justify-between">
+            <div className="text-left space-y-0.5">
+              <div className="text-white/90 flex justify-between">
                 <span>🎯 Aces:</span>
                 <span className="font-bold text-green-400">{stats.team1.aces}</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between">
+              <div className="text-white/90 flex justify-between">
                 <span>➡️ Recto:</span>
                 <span className="font-bold">{stats.team1.recto}</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between">
+              <div className="text-white/90 flex justify-between">
                 <span>📐 Esquina:</span>
                 <span className="font-bold">{stats.team1.esquina}</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between">
+              <div className="text-white/90 flex justify-between">
                 <span>↗️ Cruzado:</span>
                 <span className="font-bold">{stats.team1.cruzado}</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between">
+              <div className="text-white/90 flex justify-between">
                 <span>⚡ Punto:</span>
                 <span className="font-bold">{stats.team1.punto}</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between border-t border-white/20 pt-1 mt-2">
-                <span>Total puntos:</span>
+              <div className="text-white/90 flex justify-between border-t border-white/20 pt-1 mt-1">
+                <span>Total:</span>
                 <span className="font-bold text-yellow-400">{stats.team1.totalPoints}</span>
               </div>
             </div>
 
             {/* Team 2 Stats */}
-            <div className="text-right space-y-1">
-              <div className="text-white/90 text-sm flex justify-between">
+            <div className="text-right space-y-0.5">
+              <div className="text-white/90 flex justify-between">
                 <span className="font-bold text-green-400">{stats.team2.aces}</span>
                 <span>🎯 Aces:</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between">
+              <div className="text-white/90 flex justify-between">
                 <span className="font-bold">{stats.team2.recto}</span>
                 <span>➡️ Recto:</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between">
+              <div className="text-white/90 flex justify-between">
                 <span className="font-bold">{stats.team2.esquina}</span>
                 <span>📐 Esquina:</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between">
+              <div className="text-white/90 flex justify-between">
                 <span className="font-bold">{stats.team2.cruzado}</span>
                 <span>↗️ Cruzado:</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between">
+              <div className="text-white/90 flex justify-between">
                 <span className="font-bold">{stats.team2.punto}</span>
                 <span>⚡ Punto:</span>
               </div>
-              <div className="text-white/90 text-sm flex justify-between border-t border-white/20 pt-1 mt-2">
+              <div className="text-white/90 flex justify-between border-t border-white/20 pt-1 mt-1">
                 <span className="font-bold text-yellow-400">{stats.team2.totalPoints}</span>
-                <span>Total puntos:</span>
+                <span>Total:</span>
               </div>
             </div>
           </div>
@@ -225,14 +230,14 @@ function ScoreBoard({ session, stats }: { session: ActiveMatch["session"], stats
       )}
 
       {/* Additional stats */}
-      <div className="mt-4 grid grid-cols-2 gap-8 text-sm border-t border-white/20 pt-4">
-        <div className="text-left text-white/80 space-y-1">
-          <div>Faltas técnicas: {session.player1Technicals}</div>
+      <div className="mt-3 grid grid-cols-2 gap-4 text-xs border-t border-white/20 pt-2">
+        <div className="text-left text-white/80 space-y-0.5">
+          <div>Faltas: {session.player1Technicals}</div>
           <div>Tiempos: {player1Timeouts}</div>
           <div>Apelaciones: {player1Appellations}</div>
         </div>
-        <div className="text-right text-white/80 space-y-1">
-          <div>Faltas técnicas: {session.player2Technicals}</div>
+        <div className="text-right text-white/80 space-y-0.5">
+          <div>Faltas: {session.player2Technicals}</div>
           <div>Tiempos: {player2Timeouts}</div>
           <div>Apelaciones: {player2Appellations}</div>
         </div>
@@ -423,27 +428,27 @@ export default function PublicDisplayPage() {
   const isDoubles = match.session.matchType === "doubles";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 py-12 px-4">
-      <div className="container mx-auto max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 py-4 px-4 pb-20">
+      <div className="container mx-auto max-w-6xl">
         {/* Tournament header */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-white mb-2">{match.tournament.name}</h1>
-          <p className="text-xl text-white/80">{match.match.round}</p>
+        <div className="text-center mb-4">
+          <h1 className="text-3xl font-bold text-white mb-1">{match.tournament.name}</h1>
+          <p className="text-base text-white/80">{match.match.round}</p>
           {matches.length > 1 && (
-            <div className="mt-4 text-white/60 text-sm">
+            <div className="mt-2 text-white/60 text-xs">
               Partido {currentMatchIndex + 1} de {matches.length}
             </div>
           )}
         </div>
 
         {/* Main content */}
-        <div className="space-y-8">
+        <div className="space-y-4">
           {/* Players */}
-          <div className="grid grid-cols-2 gap-12 mb-8">
+          <div className="grid grid-cols-2 gap-8 mb-4">
             <div>
               <PlayerDisplay player={match.player1} side="left" />
               {isDoubles && match.player3 && (
-                <div className="mt-4">
+                <div className="mt-2">
                   <PlayerDisplay player={match.player3} side="left" />
                 </div>
               )}
@@ -451,7 +456,7 @@ export default function PublicDisplayPage() {
             <div>
               {match.player2 && <PlayerDisplay player={match.player2} side="right" />}
               {isDoubles && match.player4 && (
-                <div className="mt-4">
+                <div className="mt-2">
                   <PlayerDisplay player={match.player4} side="right" />
                 </div>
               )}
