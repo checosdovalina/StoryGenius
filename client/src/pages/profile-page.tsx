@@ -312,6 +312,7 @@ export default function ProfilePage() {
             onPhotoChange={setPhotoUrl}
             userName={user?.name || "Usuario"}
             showManualInput={true}
+            autoSave={true}
           />
           <div className="space-y-2">
             <Label htmlFor="nationality">Nacionalidad</Label>

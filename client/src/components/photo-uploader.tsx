@@ -12,13 +12,15 @@ interface PhotoUploaderProps {
   onPhotoChange: (url: string) => void;
   userName?: string;
   showManualInput?: boolean;
+  autoSave?: boolean; // Auto-save to profile after upload
 }
 
 export function PhotoUploader({ 
   currentPhotoUrl, 
   onPhotoChange, 
   userName = "Usuario",
-  showManualInput = true 
+  showManualInput = true,
+  autoSave = false
 }: PhotoUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentPhotoUrl || null);
@@ -74,13 +76,18 @@ export function PhotoUploader({
       setPreviewUrl(data.url);
       onPhotoChange(data.url);
 
+      // Auto-save to profile if enabled
+      if (autoSave) {
+        await apiRequest("PATCH", "/api/user/profile", { photoUrl: data.url });
+      }
+
       // Invalidar query del usuario para refrescar datos
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
 
       toast({
         title: "Foto subida exitosamente",
-        description: `Tamaño: ${(data.size / 1024).toFixed(1)} KB`
+        description: autoSave ? "Tu foto de perfil ha sido actualizada" : `Tamaño: ${(data.size / 1024).toFixed(1)} KB`
       });
 
       // Clean up object URL
