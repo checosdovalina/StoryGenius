@@ -326,7 +326,7 @@ export default function StatsCapturePageComponent() {
                   size="lg"
                   onClick={() => setShowCoinFlip(true)}
                   disabled={startSessionMutation.isPending}
-                  data-testid="button-start-session"
+                  data-testid="button-start-session-desktop"
                   className="min-h-[56px]"
                 >
                   <Clock className="h-5 w-5 mr-2" />
@@ -340,7 +340,20 @@ export default function StatsCapturePageComponent() {
       )}
 
       {/* Fixed Bottom Action Bar - Mobile */}
-      {session && tournament.sport === "racquetball" ? (
+      {!session ? (
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 md:hidden">
+          <Button
+            size="lg"
+            className="w-full min-h-[56px]"
+            onClick={() => setShowCoinFlip(true)}
+            disabled={startSessionMutation.isPending}
+            data-testid="button-start-session-mobile"
+          >
+            <Clock className="h-5 w-5 mr-2" />
+            {startSessionMutation.isPending ? "Iniciando..." : "Iniciar captura"}
+          </Button>
+        </div>
+      ) : session && tournament.sport === "racquetball" ? (
         <div className="md:hidden">
           <OpenIRTCapture
             match={match}
@@ -822,20 +835,7 @@ export default function StatsCapturePageComponent() {
             Finalizar partido
           </Button>
         </div>
-      ) : (
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 md:hidden">
-          <Button
-            size="lg"
-            className="w-full min-h-[56px]"
-            onClick={() => setShowCoinFlip(true)}
-            disabled={startSessionMutation.isPending}
-            data-testid="button-start-session"
-          >
-            <Clock className="h-5 w-5 mr-2" />
-            {startSessionMutation.isPending ? "Iniciando..." : "Iniciar captura"}
-          </Button>
-        </div>
-      )}
+      ) : null}
 
       {/* Desktop Action Buttons */}
       {session && tournament.sport === "racquetball" ? (
