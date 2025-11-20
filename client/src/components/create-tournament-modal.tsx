@@ -94,9 +94,9 @@ export function CreateTournamentModal({ open, onOpenChange }: CreateTournamentMo
       endDate: new Date(formData.endDate + 'T23:59:59'),
       maxPlayers: parseInt(formData.maxPlayers),
       registrationFee: formData.registrationFee ? formData.registrationFee : "0",
-      tier: formData.tier || undefined,
+      tier: formData.tier ? formData.tier as "GS-1000" | "GS-900" | "IRT-800" | "IRT-700" | "SAT-600" | "SAT-500" | "SAT-400" | "SAT-350" | "SAT-250" | "SAT-150" | "DOB-800" | "DOB-700" | "DOB-600" | "DOB-500" : undefined,
       prizePool: formData.prizePool || undefined,
-      description: formData.description || null
+      description: formData.description || undefined
     };
 
     createTournamentMutation.mutate(tournamentData);

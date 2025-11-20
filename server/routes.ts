@@ -1683,57 +1683,80 @@ export function registerRoutes(app: Express): Server {
 
       // Calculate and assign IRT ranking points
       const tournament = await storage.getTournament(match.tournamentId);
-      if (tournament && tournament.tier && match.round) {
-        // Get IRT points configuration for this tier/matchType/round
-        const pointsConfig = await storage.getIrtPointsConfig(
-          tournament.tier,
-          match.matchType,
-          match.round
-        );
+      
+      // Validate all required fields for IRT point calculation
+      if (tournament && tournament.tier && match.round && match.matchType) {
+        try {
+          // Get IRT points configuration for this tier/matchType/round
+          const pointsConfig = await storage.getIrtPointsConfig(
+            tournament.tier,
+            match.matchType,
+            match.round
+          );
 
-        if (pointsConfig) {
-          // Helper function to assign points to a player
-          const assignPoints = async (playerId: string, won: boolean) => {
-            const points = won ? pointsConfig.winnerPoints : pointsConfig.loserPoints;
-            
-            if (points > 0) {
-              // Create ranking history record
-              await storage.createPlayerRankingHistory({
-                playerId,
-                tournamentId: match.tournamentId,
-                matchId: match.id,
-                points,
-                tier: tournament.tier!,
-                round: match.round!,
-                matchType: match.matchType,
-                result: won ? 'won' : 'lost'
-              });
-
-              // Update global ranking points (tournamentId = null for global stats)
-              const globalStatsArray = await storage.getPlayerStats(playerId, null);
-              const globalStats = globalStatsArray[0];
+          if (pointsConfig) {
+            // Helper function to assign points to a player
+            const assignPoints = async (playerId: string, won: boolean) => {
+              // Points are awarded to winners based on the points config
+              // Losers typically receive 0 points in most IRT rounds
+              const points = won ? pointsConfig.points : 0;
               
-              if (globalStats) {
-                await storage.updatePlayerStats(playerId, null, {
-                  rankingPoints: (globalStats.rankingPoints || 0) + points
+              if (points > 0) {
+                // Create ranking history record
+                await storage.createPlayerRankingHistory({
+                  playerId,
+                  tournamentId: match.tournamentId,
+                  matchId: match.id,
+                  points,
+                  tier: tournament.tier!,
+                  round: match.round!,
+                  matchType: match.matchType,
+                  result: won ? 'won' : 'lost'
                 });
-              }
-            }
-          };
 
-          // Assign points to all players
-          if (match.player1Id) {
-            await assignPoints(match.player1Id, player1Won);
+                // Update global ranking points (tournamentId = null for global stats)
+                const globalStatsArray = await storage.getPlayerStats(playerId, null);
+                const globalStats = globalStatsArray[0];
+                
+                if (globalStats) {
+                  await storage.updatePlayerStats(playerId, null, {
+                    rankingPoints: (globalStats.rankingPoints || 0) + points
+                  });
+                }
+              }
+            };
+
+            // Assign points to all players
+            if (match.player1Id) {
+              await assignPoints(match.player1Id, player1Won);
+            }
+            if (match.player2Id) {
+              await assignPoints(match.player2Id, player2Won);
+            }
+            if (match.player3Id && match.matchType === 'doubles') {
+              await assignPoints(match.player3Id, player1Won);
+            }
+            if (match.player4Id && match.matchType === 'doubles') {
+              await assignPoints(match.player4Id, player2Won);
+            }
+          } else {
+            // Log when points config is not found for this tier/round combination
+            console.warn(`IRT points config not found for tier: ${tournament.tier}, matchType: ${match.matchType}, round: ${match.round}`);
           }
-          if (match.player2Id) {
-            await assignPoints(match.player2Id, player2Won);
-          }
-          if (match.player3Id && match.matchType === 'doubles') {
-            await assignPoints(match.player3Id, player1Won);
-          }
-          if (match.player4Id && match.matchType === 'doubles') {
-            await assignPoints(match.player4Id, player2Won);
-          }
+        } catch (error) {
+          console.error('Error calculating IRT ranking points:', error);
+          // Continue execution - don't fail the session completion if points calculation fails
+        }
+      } else {
+        // Log why IRT points were not calculated
+        if (!tournament) {
+          console.warn('Tournament not found - IRT points not calculated');
+        } else if (!tournament.tier) {
+          console.log('Tournament has no tier assigned - IRT points not calculated');
+        } else if (!match.round) {
+          console.warn(`Match ${match.id} has no round assigned - IRT points not calculated`);
+        } else if (!match.matchType) {
+          console.warn(`Match ${match.id} has no matchType - IRT points not calculated`);
         }
       }
 
@@ -1891,12 +1914,22 @@ export function registerRoutes(app: Express): Server {
 
   // IRT Ranking System Endpoints
   
-  // Get global ranking
+  // Get global ranking (public endpoint, limited to top 100, emails hidden)
   app.get("/api/ranking/global", async (req, res) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      // Always limit to max 100 for performance and privacy
+      const requestedLimit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const limit = Math.min(requestedLimit, 100);
+      
       const ranking = await storage.getGlobalRanking(limit);
-      res.json(ranking);
+      
+      // Remove emails completely for unauthenticated users (don't just set to undefined)
+      const sanitizedRanking = ranking.map(player => {
+        const { playerEmail, ...playerWithoutEmail } = player;
+        return req.isAuthenticated() ? player : playerWithoutEmail;
+      });
+      
+      res.json(sanitizedRanking);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch global ranking" });
     }
