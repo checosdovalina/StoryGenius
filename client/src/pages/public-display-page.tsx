@@ -216,6 +216,8 @@ function SponsorBanner({ sponsors }: { sponsors: Sponsor[] }) {
 export default function PublicDisplayPage() {
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [tournamentId, setTournamentId] = useState<string | null>(null);
+  const [matches, setMatches] = useState<ActiveMatch[]>([]);
+  const [wsConnected, setWsConnected] = useState(false);
 
   // Extract tournament ID from URL query params
   useEffect(() => {
@@ -224,11 +226,96 @@ export default function PublicDisplayPage() {
     setTournamentId(tid);
   }, []);
 
-  // Fetch active matches
-  const { data: matches = [], isLoading: matchesLoading } = useQuery<ActiveMatch[]>({
+  // Fetch active matches (polling fallback)
+  const { data: polledMatches = [], isLoading: matchesLoading } = useQuery<ActiveMatch[]>({
     queryKey: tournamentId ? ["/api/tournaments", tournamentId, "active-matches"] : ["/api/active-matches"],
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: wsConnected ? false : 5000, // Only poll when WebSocket is disconnected
   });
+
+  // Update matches from polling when WebSocket is not connected
+  useEffect(() => {
+    if (!wsConnected && polledMatches.length > 0) {
+      setMatches(polledMatches);
+    }
+  }, [polledMatches, wsConnected]);
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/public-display${tournamentId ? `?tournamentId=${tournamentId}` : ''}`;
+    
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout;
+
+    const connect = () => {
+      try {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('[Public Display] WebSocket connected');
+          setWsConnected(true);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            
+            if (message.type === 'connected') {
+              console.log('[Public Display] Connection confirmed:', message.message);
+            } else if (message.type === 'match_update') {
+              // Update the specific match in the list
+              setMatches((prevMatches) => {
+                const updatedMatch = message.match;
+                const matchId = updatedMatch.session.matchId;
+                
+                const index = prevMatches.findIndex((m) => m.session.matchId === matchId);
+                
+                if (index >= 0) {
+                  // Update existing match
+                  const newMatches = [...prevMatches];
+                  newMatches[index] = updatedMatch;
+                  return newMatches;
+                } else {
+                  // Add new match
+                  return [...prevMatches, updatedMatch];
+                }
+              });
+            }
+          } catch (error) {
+            console.error('[Public Display] Error parsing WebSocket message:', error);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('[Public Display] WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+          console.log('[Public Display] WebSocket disconnected, will reconnect...');
+          setWsConnected(false);
+          
+          // Reconnect after 3 seconds
+          reconnectTimeout = setTimeout(() => {
+            connect();
+          }, 3000);
+        };
+      } catch (error) {
+        console.error('[Public Display] Failed to create WebSocket:', error);
+        setWsConnected(false);
+      }
+    };
+
+    connect();
+
+    return () => {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, [tournamentId]);
 
   // Fetch sponsors for current tournament
   const currentMatch = matches[currentMatchIndex];
