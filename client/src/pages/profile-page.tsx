@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, Lock, User, KeyRound, Camera, Globe } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -57,7 +58,7 @@ type User = {
   username: string;
   photoUrl?: string | null;
   nationality?: string | null;
-  category?: string | null;
+  categories?: string[] | null;
 };
 
 export default function ProfilePage() {
@@ -68,7 +69,7 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [nationality, setNationality] = useState("");
-  const [category, setCategory] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["/api/user"],
@@ -81,7 +82,7 @@ export default function ProfilePage() {
       currentPassword?: string;
       photoUrl?: string | null;
       nationality?: string | null;
-      category?: string | null;
+      categories?: string[] | null;
     }) => {
       return await apiRequest("PATCH", "/api/user/profile", data);
     },
@@ -97,7 +98,7 @@ export default function ProfilePage() {
       setConfirmPassword("");
       setPhotoUrl("");
       setNationality("");
-      setCategory("");
+      setSelectedCategories([]);
     },
     onError: (error: any) => {
       toast({
@@ -113,7 +114,7 @@ export default function ProfilePage() {
     
     if (photoUrl) updates.photoUrl = photoUrl;
     if (nationality) updates.nationality = nationality;
-    if (category) updates.category = category;
+    if (selectedCategories.length > 0) updates.categories = selectedCategories;
 
     if (Object.keys(updates).length === 0) {
       toast({
@@ -124,7 +125,34 @@ export default function ProfilePage() {
       return;
     }
 
+    if (selectedCategories.length > 3) {
+      toast({
+        title: "Error",
+        description: "Solo puedes seleccionar hasta 3 categorías",
+        variant: "destructive",
+      });
+      return;
+    }
+
     updateProfileMutation.mutate(updates);
+  };
+
+  const handleToggleCategory = (categoryValue: string) => {
+    setSelectedCategories((prev) => {
+      if (prev.includes(categoryValue)) {
+        return prev.filter((c) => c !== categoryValue);
+      } else {
+        if (prev.length >= 3) {
+          toast({
+            title: "Límite alcanzado",
+            description: "Solo puedes seleccionar hasta 3 categorías",
+            variant: "destructive",
+          });
+          return prev;
+        }
+        return [...prev, categoryValue];
+      }
+    });
   };
 
   const handleUpdateEmail = () => {
@@ -225,10 +253,17 @@ export default function ProfilePage() {
                   {COUNTRIES.find(c => c.code === user.nationality)?.flag} {COUNTRIES.find(c => c.code === user.nationality)?.name}
                 </p>
               )}
-              {user?.category && (
-                <p className="text-sm mt-1">
-                  📋 {MATCH_CATEGORIES.find(c => c.value === user.category)?.label}
-                </p>
+              {user?.categories && user.categories.length > 0 && (
+                <div className="text-sm mt-1">
+                  <span className="font-medium">Categorías:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {user.categories.map((cat) => (
+                      <span key={cat} className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs">
+                        {MATCH_CATEGORIES.find(c => c.value === cat)?.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -288,19 +323,28 @@ export default function ProfilePage() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="category">Categoría</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger id="category" data-testid="select-category">
-                <SelectValue placeholder="Selecciona tu categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                {MATCH_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
+            <Label>Categorías (máximo 3)</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Seleccionadas: {selectedCategories.length}/3
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border rounded-lg p-4 max-h-64 overflow-y-auto">
+              {MATCH_CATEGORIES.map((cat) => (
+                <div key={cat.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`category-${cat.value}`}
+                    checked={selectedCategories.includes(cat.value)}
+                    onCheckedChange={() => handleToggleCategory(cat.value)}
+                    data-testid={`checkbox-category-${cat.value}`}
+                  />
+                  <label
+                    htmlFor={`category-${cat.value}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
                     {cat.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
           <Button 
             onClick={handleUpdateProfileInfo}

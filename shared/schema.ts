@@ -519,6 +519,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true
+}).extend({
+  categories: z.array(z.enum([
+    "PRO_SINGLES_IRT", "DOBLES_OPEN", "AMATEUR_A", "AMATEUR_B", "AMATEUR_C",
+    "PRINCIPIANTES", "JUVENIL_18_VARONIL", "JUVENIL_18_FEMENIL", "DOBLES_AB",
+    "DOBLES_BC", "MASTER_35", "MASTER_55", "DOBLES_MASTER_35"
+  ])).max(3, "Máximo 3 categorías permitidas").optional().nullable()
 });
 
 export const insertTournamentSchema = createInsertSchema(tournaments).omit({
