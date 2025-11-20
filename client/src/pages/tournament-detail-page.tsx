@@ -1196,9 +1196,24 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { data: matches = [], isLoading: matchesLoading, error: matchesError } = useQuery<Match[]>({
+  const { data: matchesData = [], isLoading: matchesLoading, error: matchesError } = useQuery<Match[]>({
     queryKey: [`/api/tournaments/${tournament.id}/matches`]
   });
+  
+  // Sort matches by scheduled date (nearest first), then by status
+  const matches = useMemo(() => {
+    return [...matchesData].sort((a, b) => {
+      // If both have scheduledAt, sort by date (earliest first)
+      if (a.scheduledAt && b.scheduledAt) {
+        return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+      }
+      // Matches with dates come before those without
+      if (a.scheduledAt && !b.scheduledAt) return -1;
+      if (!a.scheduledAt && b.scheduledAt) return 1;
+      // If neither has a date, maintain original order
+      return 0;
+    });
+  }, [matchesData]);
 
   // Fetch users for displaying player names (needed by all viewers)
   const { data: users = [] } = useQuery<User[]>({
