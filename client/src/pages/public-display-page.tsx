@@ -232,12 +232,12 @@ export default function PublicDisplayPage() {
     refetchInterval: wsConnected ? false : 5000, // Only poll when WebSocket is disconnected
   });
 
-  // Update matches from polling when WebSocket is not connected
+  // Update matches from polling
   useEffect(() => {
-    if (!wsConnected && polledMatches.length > 0) {
+    if (polledMatches.length > 0) {
       setMatches(polledMatches);
     }
-  }, [polledMatches, wsConnected]);
+  }, [polledMatches]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {
