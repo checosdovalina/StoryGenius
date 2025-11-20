@@ -1613,7 +1613,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   )}
 
                   {/* Admin actions */}
-                  {user?.role === "admin" && (
+                  {canManage && (
                     <div className="mt-4 pt-4 border-t flex gap-2 justify-end">
                       <Button
                         variant="outline"
