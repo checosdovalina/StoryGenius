@@ -12,6 +12,7 @@ import { ArrowLeft, Trophy, Clock, Zap, X, AlertTriangle } from "lucide-react";
 import { calculateScore, type ScoreState } from "@/lib/scoring";
 import { format } from "date-fns";
 import { OpenIRTCapture } from "@/components/open-irt-capture";
+import { CoinFlipModal } from "@/components/coin-flip-modal";
 
 export default function StatsCapturePageComponent() {
   const { matchId } = useParams();
@@ -20,6 +21,7 @@ export default function StatsCapturePageComponent() {
   const { toast } = useToast();
   const [session, setSession] = useState<MatchStatsSession | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
+  const [showCoinFlip, setShowCoinFlip] = useState(false);
 
   // Fetch match data
   const { data: match, isLoading: matchLoading } = useQuery<Match>({
@@ -79,12 +81,15 @@ export default function StatsCapturePageComponent() {
 
   // Start stats session mutation
   const startSessionMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/matches/${matchId}/stats/start`);
+    mutationFn: async (coinFlipWinnerId: string) => {
+      const response = await apiRequest("POST", `/api/matches/${matchId}/stats/start`, {
+        coinFlipWinner: coinFlipWinnerId
+      });
       return await response.json();
     },
     onSuccess: (data: MatchStatsSession) => {
       setSession(data);
+      setShowCoinFlip(false);
       toast({ title: "Sesión iniciada", description: "Puedes comenzar a capturar estadísticas" });
     },
     onError: (error: any) => {
@@ -319,7 +324,7 @@ export default function StatsCapturePageComponent() {
               <div className="text-center py-6 md:block hidden">
                 <Button
                   size="lg"
-                  onClick={() => startSessionMutation.mutate()}
+                  onClick={() => setShowCoinFlip(true)}
                   disabled={startSessionMutation.isPending}
                   data-testid="button-start-session"
                   className="min-h-[56px]"
@@ -822,7 +827,7 @@ export default function StatsCapturePageComponent() {
           <Button
             size="lg"
             className="w-full min-h-[56px]"
-            onClick={() => startSessionMutation.mutate()}
+            onClick={() => setShowCoinFlip(true)}
             disabled={startSessionMutation.isPending}
             data-testid="button-start-session"
           >
@@ -1317,6 +1322,19 @@ export default function StatsCapturePageComponent() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Coin Flip Modal - Only for racquetball */}
+      {tournament?.sport === "racquetball" && player1 && player2 && (
+        <CoinFlipModal
+          open={showCoinFlip}
+          player1={player1}
+          player2={player2}
+          player3={player3}
+          player4={player4}
+          isDoubles={match?.matchType === "doubles"}
+          onSelectServer={(serverId) => startSessionMutation.mutate(serverId)}
+        />
       )}
     </div>
   );

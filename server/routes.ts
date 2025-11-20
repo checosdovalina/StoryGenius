@@ -1576,7 +1576,11 @@ export function registerRoutes(app: Express): Server {
 
       // Initialize Open IRT fields for racquetball
       if (tournament.sport === "racquetball") {
-        sessionData.serverId = match.player1Id; // Player 1 starts serving
+        // Get coin flip winner from request body (defaults to player1 if not provided)
+        const coinFlipWinner = req.body.coinFlipWinner || match.player1Id;
+        sessionData.serverId = coinFlipWinner; // Coin flip winner starts serving Set 1
+        sessionData.coinFlipWinner = coinFlipWinner; // Track who won the coin flip
+        sessionData.initialServers = JSON.stringify([coinFlipWinner]); // Track initial server for each set
         sessionData.player1TimeoutsUsed = "[]";
         sessionData.player2TimeoutsUsed = "[]";
         sessionData.player1AppellationsUsed = "[]";
