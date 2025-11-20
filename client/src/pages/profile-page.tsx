@@ -105,7 +105,7 @@ export default function ProfilePage() {
       setConfirmPassword("");
       setPhotoUrl("");
       setNationality("");
-      setSelectedCategories([]);
+      // No resetear selectedCategories aquí - se actualizará automáticamente con useEffect cuando se refresquen los datos del usuario
     },
     onError: (error: any) => {
       toast({
@@ -121,7 +121,11 @@ export default function ProfilePage() {
     
     if (photoUrl) updates.photoUrl = photoUrl;
     if (nationality) updates.nationality = nationality;
-    if (selectedCategories.length > 0) updates.categories = selectedCategories;
+    // Siempre incluir categories si hay cambios (incluso si está vacío para permitir limpiar)
+    const categoriesChanged = JSON.stringify(selectedCategories) !== JSON.stringify(user?.categories || []);
+    if (categoriesChanged) {
+      updates.categories = selectedCategories;
+    }
 
     if (Object.keys(updates).length === 0) {
       toast({

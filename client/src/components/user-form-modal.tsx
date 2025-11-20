@@ -115,11 +115,19 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
       onClose();
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+      // Verificar si el error es por exceso de categorías
+      if (error.message.includes("Máximo 3 categorías") || error.message.includes("max")) {
+        form.setError("categories", { 
+          type: "manual", 
+          message: "Solo se permiten hasta 3 categorías" 
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
     }
   });
 
@@ -140,11 +148,19 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
       onClose();
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+      // Verificar si el error es por exceso de categorías
+      if (error.message.includes("Máximo 3 categorías") || error.message.includes("max")) {
+        form.setError("categories", { 
+          type: "manual", 
+          message: "Solo se permiten hasta 3 categorías" 
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
     }
   });
 
