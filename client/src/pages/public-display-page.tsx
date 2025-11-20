@@ -9,6 +9,15 @@ interface PlayerInfo {
   nationality: string | null;
 }
 
+interface MatchStats {
+  aces: number;
+  recto: number;
+  esquina: number;
+  cruzado: number;
+  punto: number;
+  totalPoints: number;
+}
+
 interface ActiveMatch {
   session: {
     id: string;
@@ -31,6 +40,10 @@ interface ActiveMatch {
     player2TimeoutsUsed: string;
     player1AppellationsUsed: string;
     player2AppellationsUsed: string;
+  };
+  stats?: {
+    team1: MatchStats;
+    team2: MatchStats;
   };
   match: {
     id: string;
@@ -93,7 +106,7 @@ function PlayerDisplay({ player, side }: { player: PlayerInfo; side: "left" | "r
   );
 }
 
-function ScoreBoard({ session }: { session: ActiveMatch["session"] }) {
+function ScoreBoard({ session, stats }: { session: ActiveMatch["session"], stats?: { team1: MatchStats; team2: MatchStats } }) {
   const isDoubles = session.matchType === "doubles";
   
   const player1Timeouts = session.player1TimeoutsUsed ? JSON.parse(session.player1TimeoutsUsed).length : 0;
@@ -105,7 +118,7 @@ function ScoreBoard({ session }: { session: ActiveMatch["session"] }) {
     <div className="bg-black/60 backdrop-blur-sm rounded-xl p-8 shadow-2xl">
       <div className="flex justify-center items-center gap-12 mb-6">
         <div className="flex items-center gap-4">
-          <div className={`w-4 h-4 rounded-full ${session.currentServer === session.player1Id ? "bg-yellow-400 animate-pulse" : "bg-gray-600"}`} />
+          <div className={`w-4 h-4 rounded-full ${session.currentServer === session.player1Id ? "bg-green-500 animate-pulse shadow-lg shadow-green-500/50" : "bg-gray-600"}`} />
           <span className="text-white text-lg">Saque</span>
         </div>
         <div className="text-center">
@@ -116,7 +129,7 @@ function ScoreBoard({ session }: { session: ActiveMatch["session"] }) {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-white text-lg">Saque</span>
-          <div className={`w-4 h-4 rounded-full ${session.currentServer === session.player2Id ? "bg-yellow-400 animate-pulse" : "bg-gray-600"}`} />
+          <div className={`w-4 h-4 rounded-full ${session.currentServer === session.player2Id ? "bg-green-500 animate-pulse shadow-lg shadow-green-500/50" : "bg-gray-600"}`} />
         </div>
       </div>
 
@@ -147,14 +160,78 @@ function ScoreBoard({ session }: { session: ActiveMatch["session"] }) {
         </div>
       </div>
 
+      {/* Shot Statistics */}
+      {stats && (
+        <div className="mt-6 border-t border-white/20 pt-4">
+          <div className="text-white/70 text-sm text-center mb-3">Estadísticas de Tiro</div>
+          <div className="grid grid-cols-2 gap-6">
+            {/* Team 1 Stats */}
+            <div className="text-left space-y-1">
+              <div className="text-white/90 text-sm flex justify-between">
+                <span>🎯 Aces:</span>
+                <span className="font-bold text-green-400">{stats.team1.aces}</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between">
+                <span>➡️ Recto:</span>
+                <span className="font-bold">{stats.team1.recto}</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between">
+                <span>📐 Esquina:</span>
+                <span className="font-bold">{stats.team1.esquina}</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between">
+                <span>↗️ Cruzado:</span>
+                <span className="font-bold">{stats.team1.cruzado}</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between">
+                <span>⚡ Punto:</span>
+                <span className="font-bold">{stats.team1.punto}</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between border-t border-white/20 pt-1 mt-2">
+                <span>Total puntos:</span>
+                <span className="font-bold text-yellow-400">{stats.team1.totalPoints}</span>
+              </div>
+            </div>
+
+            {/* Team 2 Stats */}
+            <div className="text-right space-y-1">
+              <div className="text-white/90 text-sm flex justify-between">
+                <span className="font-bold text-green-400">{stats.team2.aces}</span>
+                <span>🎯 Aces:</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between">
+                <span className="font-bold">{stats.team2.recto}</span>
+                <span>➡️ Recto:</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between">
+                <span className="font-bold">{stats.team2.esquina}</span>
+                <span>📐 Esquina:</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between">
+                <span className="font-bold">{stats.team2.cruzado}</span>
+                <span>↗️ Cruzado:</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between">
+                <span className="font-bold">{stats.team2.punto}</span>
+                <span>⚡ Punto:</span>
+              </div>
+              <div className="text-white/90 text-sm flex justify-between border-t border-white/20 pt-1 mt-2">
+                <span className="font-bold text-yellow-400">{stats.team2.totalPoints}</span>
+                <span>Total puntos:</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Additional stats */}
-      <div className="mt-6 grid grid-cols-2 gap-8 text-sm border-t border-white/20 pt-4">
-        <div className="text-left text-white/80">
+      <div className="mt-4 grid grid-cols-2 gap-8 text-sm border-t border-white/20 pt-4">
+        <div className="text-left text-white/80 space-y-1">
           <div>Faltas técnicas: {session.player1Technicals}</div>
           <div>Tiempos: {player1Timeouts}</div>
           <div>Apelaciones: {player1Appellations}</div>
         </div>
-        <div className="text-right text-white/80">
+        <div className="text-right text-white/80 space-y-1">
           <div>Faltas técnicas: {session.player2Technicals}</div>
           <div>Tiempos: {player2Timeouts}</div>
           <div>Apelaciones: {player2Appellations}</div>
@@ -382,7 +459,7 @@ export default function PublicDisplayPage() {
           </div>
 
           {/* Scoreboard */}
-          <ScoreBoard session={match.session} />
+          <ScoreBoard session={match.session} stats={match.stats} />
         </div>
       </div>
 

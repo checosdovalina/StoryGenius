@@ -2459,7 +2459,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(matches.tournamentId, tournamentId));
     }
 
-    return await db
+    const activeSessions = await db
       .select({
         session: matchStatsSessions,
         match: matches,
@@ -2493,6 +2493,42 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(sql`users AS p4`, sql`${matchStatsSessions.player4Id} = p4.id`)
       .where(and(...conditions))
       .orderBy(desc(matchStatsSessions.startedAt));
+
+    // Add aggregated statistics for each session
+    const sessionsWithStats = await Promise.all(
+      activeSessions.map(async (item) => {
+        const events = await db
+          .select()
+          .from(matchEvents)
+          .where(eq(matchEvents.sessionId, item.session.id));
+
+        // Calculate stats for team 1 (player1 + player3)
+        const team1Ids = [item.session.player1Id, item.session.player3Id].filter(Boolean);
+        const team2Ids = [item.session.player2Id, item.session.player4Id].filter(Boolean);
+
+        const team1Events = events.filter(e => team1Ids.includes(e.playerId || ''));
+        const team2Events = events.filter(e => team2Ids.includes(e.playerId || ''));
+
+        const calculateStats = (teamEvents: any[]) => ({
+          aces: teamEvents.filter(e => e.eventType === 'ace').length,
+          recto: teamEvents.filter(e => e.shotType === 'recto').length,
+          esquina: teamEvents.filter(e => e.shotType === 'esquina').length,
+          cruzado: teamEvents.filter(e => e.shotType === 'cruzado').length,
+          punto: teamEvents.filter(e => e.shotType === 'punto').length,
+          totalPoints: teamEvents.filter(e => e.eventType === 'point').length
+        });
+
+        return {
+          ...item,
+          stats: {
+            team1: calculateStats(team1Events),
+            team2: calculateStats(team2Events)
+          }
+        };
+      })
+    );
+
+    return sessionsWithStats;
   }
 }
 
