@@ -1080,6 +1080,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
 
 const createMatchSchema = z.object({
   matchType: z.enum(["singles", "doubles"]),
+  category: z.string().optional(),
   player1Id: z.string().min(1, "Selecciona el primer jugador"),
   player2Id: z.string().min(1, "Selecciona el segundo jugador"),
   player3Id: z.string().optional(),
@@ -1124,6 +1125,46 @@ const createMatchSchema = z.object({
 });
 
 type CreateMatchForm = z.infer<typeof createMatchSchema>;
+
+const MATCH_CATEGORIES = [
+  { value: "PRO_SINGLES_IRT_VARONIL_CON_CONSOLACION", label: "PRO Singles IRT Varonil con Consolación" },
+  { value: "DOBLES_OPEN", label: "Dobles Open" },
+  { value: "AMATEUR_A", label: "Amateur A" },
+  { value: "AMATEUR_B", label: "Amateur B" },
+  { value: "AMATEUR_C", label: "Amateur C" },
+  { value: "PRINCIPIANTES_AMATEUR", label: "Principiantes (Amateur)" },
+  { value: "JUVENIL_18_VARONIL", label: "Juvenil 18 y menores (Varonil)" },
+  { value: "JUVENIL_18_FEMENIL", label: "Juvenil 18 y menores (Femenil)" },
+  { value: "DOBLES_A_B", label: "Dobles A/B" },
+  { value: "DOBLES_B_C", label: "Dobles B/C" },
+  { value: "MASTER_35", label: "Master +35" },
+  { value: "MASTER_55", label: "Master +55" },
+  { value: "DOBLES_MASTER_35", label: "Dobles Master +35" },
+  { value: "DOBLES_MASTER_55", label: "Dobles Master +55" },
+  { value: "INFANTILES_10_MENORES", label: "Infantiles 10 y menores" },
+  { value: "INFANTILES_8_MENORES", label: "Infantiles 8 y menores" },
+  { value: "INFANTILES_2_BOTES", label: "Infantiles 2 botes" },
+];
+
+const MATCH_CATEGORIES_LABELS: Record<string, string> = {
+  "PRO_SINGLES_IRT_VARONIL_CON_CONSOLACION": "PRO Singles IRT",
+  "DOBLES_OPEN": "Dobles Open",
+  "AMATEUR_A": "Amateur A",
+  "AMATEUR_B": "Amateur B",
+  "AMATEUR_C": "Amateur C",
+  "PRINCIPIANTES_AMATEUR": "Principiantes",
+  "JUVENIL_18_VARONIL": "Juvenil 18 (V)",
+  "JUVENIL_18_FEMENIL": "Juvenil 18 (F)",
+  "DOBLES_A_B": "Dobles A/B",
+  "DOBLES_B_C": "Dobles B/C",
+  "MASTER_35": "Master +35",
+  "MASTER_55": "Master +55",
+  "DOBLES_MASTER_35": "Dobles M+35",
+  "DOBLES_MASTER_55": "Dobles M+55",
+  "INFANTILES_10_MENORES": "Infantiles -10",
+  "INFANTILES_8_MENORES": "Infantiles -8",
+  "INFANTILES_2_BOTES": "Infantiles 2B",
+};
 
 // Helper functions moved outside component for performance
 const getUserById = (users: User[], id: string) => {
@@ -1185,6 +1226,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     resolver: zodResolver(createMatchSchema),
     defaultValues: {
       matchType: "singles",
+      category: "",
       player1Id: "",
       player2Id: "",
       player3Id: "",
@@ -1379,6 +1421,11 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                         <Badge variant="secondary" data-testid={`match-type-badge-${match.id}`}>
                           {isDoubles ? "Doubles" : "Singles"}
                         </Badge>
+                        {match.category && (
+                          <Badge variant="default" className="text-xs" data-testid={`match-category-badge-${match.id}`}>
+                            {MATCH_CATEGORIES_LABELS[match.category] || match.category}
+                          </Badge>
+                        )}
                       </div>
                       {match.scheduledAt && (
                         <p className="text-sm text-muted-foreground">
@@ -1569,6 +1616,31 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                       <SelectContent>
                         <SelectItem value="singles">Singles</SelectItem>
                         <SelectItem value="doubles">Doubles</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={matchForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categoría (Opcional)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-match-category" className="min-h-[44px]">
+                          <SelectValue placeholder="Selecciona categoría" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {MATCH_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
