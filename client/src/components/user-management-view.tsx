@@ -340,11 +340,11 @@ export function UserManagementView() {
                           {user.role === 'superadmin' && <Shield className="h-3 w-3 mr-1" />}
                           {getRoleLabel(user.role)}
                         </Badge>
-                        {user.category && (
-                          <Badge variant="secondary" className="text-xs">
-                            {getCategoryLabel(user.category)}
+                        {user.categories && user.categories.length > 0 && user.categories.map((cat, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            {getCategoryLabel(cat)}
                           </Badge>
-                        )}
+                        ))}
                         {user.tournamentRoles?.map((tr, idx) => (
                           <Badge 
                             key={idx} 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -56,7 +57,6 @@ const COUNTRIES = [
 const userFormSchema = insertUserSchema.extend({
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").optional().or(z.literal("")),
   photoUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
-  category: z.string().optional(),
   nationality: z.string().optional(),
 });
 
@@ -81,7 +81,7 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
       phone: user.phone || "",
       club: user.club || "",
       preferredSport: user.preferredSport || undefined,
-      category: user.category || undefined,
+      categories: user.categories || [],
       photoUrl: user.photoUrl || "",
       nationality: user.nationality || undefined,
       password: "",
@@ -92,7 +92,7 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
       phone: "",
       club: "",
       preferredSport: "racquetball",
-      category: undefined,
+      categories: [],
       photoUrl: "",
       nationality: undefined,
       password: "",
@@ -291,24 +291,46 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
 
             <FormField
               control={form.control}
-              name="category"
+              name="categories"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-category">
-                        <SelectValue placeholder="Selecciona categoría" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {MATCH_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
+                  <FormLabel>Categorías (máximo 3)</FormLabel>
+                  <FormDescription>
+                    Seleccionadas: {field.value?.length || 0}/3
+                  </FormDescription>
+                  <div className="grid grid-cols-2 gap-3 border rounded-lg p-4 max-h-48 overflow-y-auto">
+                    {MATCH_CATEGORIES.map((cat) => (
+                      <div key={cat.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`category-${cat.value}`}
+                          checked={field.value?.includes(cat.value as any)}
+                          onCheckedChange={(checked) => {
+                            const current = field.value || [];
+                            if (checked) {
+                              if (current.length >= 3) {
+                                toast({
+                                  title: "Límite alcanzado",
+                                  description: "Solo puedes seleccionar hasta 3 categorías",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              field.onChange([...current, cat.value as any]);
+                            } else {
+                              field.onChange(current.filter((v) => v !== cat.value));
+                            }
+                          }}
+                          data-testid={`checkbox-category-${cat.value}`}
+                        />
+                        <label
+                          htmlFor={`category-${cat.value}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
                           {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
