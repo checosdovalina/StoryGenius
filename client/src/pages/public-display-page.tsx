@@ -21,18 +21,16 @@ interface ActiveMatch {
     matchType: string;
     currentSet: number;
     currentServer: string;
-    player1Set1Score: number;
-    player2Set1Score: number;
-    player1Set2Score: number | null;
-    player2Set2Score: number | null;
-    player1Set3Score: number | null;
-    player2Set3Score: number | null;
-    player1TechnicalFouls: number;
-    player2TechnicalFouls: number;
-    player1Timeouts: number;
-    player2Timeouts: number;
-    player1Appellations: number;
-    player2Appellations: number;
+    player1CurrentScore: string;
+    player2CurrentScore: string;
+    player1Sets: number;
+    player2Sets: number;
+    player1Technicals: number;
+    player2Technicals: number;
+    player1TimeoutsUsed: string;
+    player2TimeoutsUsed: string;
+    player1AppellationsUsed: string;
+    player2AppellationsUsed: string;
   };
   match: {
     id: string;
@@ -97,6 +95,11 @@ function PlayerDisplay({ player, side }: { player: PlayerInfo; side: "left" | "r
 
 function ScoreBoard({ session }: { session: ActiveMatch["session"] }) {
   const isDoubles = session.matchType === "doubles";
+  
+  const player1Timeouts = session.player1TimeoutsUsed ? JSON.parse(session.player1TimeoutsUsed).length : 0;
+  const player2Timeouts = session.player2TimeoutsUsed ? JSON.parse(session.player2TimeoutsUsed).length : 0;
+  const player1Appellations = session.player1AppellationsUsed ? JSON.parse(session.player1AppellationsUsed).length : 0;
+  const player2Appellations = session.player2AppellationsUsed ? JSON.parse(session.player2AppellationsUsed).length : 0;
 
   return (
     <div className="bg-black/60 backdrop-blur-sm rounded-xl p-8 shadow-2xl">
@@ -108,7 +111,7 @@ function ScoreBoard({ session }: { session: ActiveMatch["session"] }) {
         <div className="text-center">
           <div className="text-white text-sm mb-1">Set {session.currentSet}</div>
           <div className="text-white text-xs">
-            {isDoubles ? "Dobles" : "Singles"} - {session.matchType.toUpperCase()}
+            {isDoubles ? "Dobles" : "Singles"}
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -117,61 +120,44 @@ function ScoreBoard({ session }: { session: ActiveMatch["session"] }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-8 text-center">
-        {/* Set 1 */}
-        <div>
-          <div className="text-white/70 text-sm mb-2">Set 1</div>
-          <div className="flex justify-center gap-6">
-            <div className={`text-5xl font-bold ${session.currentSet === 1 ? "text-yellow-400" : "text-white"}`}>
-              {session.player1Set1Score}
-            </div>
-            <div className="text-5xl font-bold text-white/30">-</div>
-            <div className={`text-5xl font-bold ${session.currentSet === 1 ? "text-yellow-400" : "text-white"}`}>
-              {session.player2Set1Score}
-            </div>
-          </div>
+      {/* Current Score */}
+      <div className="flex justify-center items-center gap-12 mb-8">
+        <div className="text-8xl font-bold text-yellow-400">
+          {session.player1CurrentScore}
         </div>
-
-        {/* Set 2 */}
-        <div>
-          <div className="text-white/70 text-sm mb-2">Set 2</div>
-          <div className="flex justify-center gap-6">
-            <div className={`text-5xl font-bold ${session.currentSet === 2 ? "text-yellow-400" : session.player1Set2Score !== null ? "text-white" : "text-white/20"}`}>
-              {session.player1Set2Score ?? "-"}
-            </div>
-            <div className="text-5xl font-bold text-white/30">-</div>
-            <div className={`text-5xl font-bold ${session.currentSet === 2 ? "text-yellow-400" : session.player2Set2Score !== null ? "text-white" : "text-white/20"}`}>
-              {session.player2Set2Score ?? "-"}
-            </div>
-          </div>
+        <div className="text-6xl font-bold text-white/30">-</div>
+        <div className="text-8xl font-bold text-yellow-400">
+          {session.player2CurrentScore}
         </div>
+      </div>
 
-        {/* Set 3 */}
-        <div>
-          <div className="text-white/70 text-sm mb-2">Set 3</div>
-          <div className="flex justify-center gap-6">
-            <div className={`text-5xl font-bold ${session.currentSet === 3 ? "text-yellow-400" : session.player1Set3Score !== null ? "text-white" : "text-white/20"}`}>
-              {session.player1Set3Score ?? "-"}
+      {/* Sets Won */}
+      <div className="flex justify-center items-center gap-6 mb-6">
+        <div className="text-center">
+          <div className="text-white/70 text-sm mb-1">Sets Ganados</div>
+          <div className="flex gap-4 items-center">
+            <div className="text-3xl font-bold text-white">
+              {session.player1Sets}
             </div>
-            <div className="text-5xl font-bold text-white/30">-</div>
-            <div className={`text-5xl font-bold ${session.currentSet === 3 ? "text-yellow-400" : session.player2Set3Score !== null ? "text-white" : "text-white/20"}`}>
-              {session.player2Set3Score ?? "-"}
+            <div className="text-2xl font-bold text-white/30">-</div>
+            <div className="text-3xl font-bold text-white">
+              {session.player2Sets}
             </div>
           </div>
         </div>
       </div>
 
       {/* Additional stats */}
-      <div className="mt-6 grid grid-cols-2 gap-8 text-sm">
+      <div className="mt-6 grid grid-cols-2 gap-8 text-sm border-t border-white/20 pt-4">
         <div className="text-left text-white/80">
-          <div>Faltas técnicas: {session.player1TechnicalFouls}</div>
-          <div>Tiempos: {session.player1Timeouts}</div>
-          <div>Apelaciones: {session.player1Appellations}</div>
+          <div>Faltas técnicas: {session.player1Technicals}</div>
+          <div>Tiempos: {player1Timeouts}</div>
+          <div>Apelaciones: {player1Appellations}</div>
         </div>
         <div className="text-right text-white/80">
-          <div>Faltas técnicas: {session.player2TechnicalFouls}</div>
-          <div>Tiempos: {session.player2Timeouts}</div>
-          <div>Apelaciones: {session.player2Appellations}</div>
+          <div>Faltas técnicas: {session.player2Technicals}</div>
+          <div>Tiempos: {player2Timeouts}</div>
+          <div>Apelaciones: {player2Appellations}</div>
         </div>
       </div>
     </div>
