@@ -58,17 +58,9 @@ export function SponsorsManagement({ tournamentId }: SponsorsManagementProps) {
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (editingSponsor) {
-        return apiRequest(`/api/sponsors/${editingSponsor.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(data),
-          headers: { "Content-Type": "application/json" },
-        });
+        return apiRequest("PATCH", `/api/sponsors/${editingSponsor.id}`, data);
       } else {
-        return apiRequest(`/api/tournaments/${tournamentId}/sponsors`, {
-          method: "POST",
-          body: JSON.stringify(data),
-          headers: { "Content-Type": "application/json" },
-        });
+        return apiRequest("POST", `/api/tournaments/${tournamentId}/sponsors`, data);
       }
     },
     onSuccess: () => {
@@ -95,9 +87,7 @@ export function SponsorsManagement({ tournamentId }: SponsorsManagementProps) {
   // Delete sponsor mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/sponsors/${id}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/sponsors/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
