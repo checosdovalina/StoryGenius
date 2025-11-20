@@ -2054,32 +2054,40 @@ export class DatabaseStorage implements IStorage {
 
           // Create or find player 1
           let player1 = await db.select().from(users).where(eq(users.name, player1Name)).limit(1);
+          let player1Credentials: { email: string; password: string } | null = null;
           if (player1.length === 0) {
+            const tempEmail = player1Name.toLowerCase().replace(/\s+/g, '.') + '@temp.local';
+            const tempPassword = player1Name.split(' ')[0].toLowerCase() + '123';
             const newPlayer1 = await db.insert(users).values({
               name: player1Name,
-              username: player1Name.toLowerCase().replace(/\s+/g, '_') + '_' + Math.random().toString(36).substring(7),
-              email: player1Name.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
-              password: 'temp_password', // Temporary password
+              username: player1Name.toLowerCase().replace(/\s+/g, '_'),
+              email: tempEmail,
+              password: tempPassword,
               role: 'jugador',
               category: category,
               preferredSport: 'racquetball'
             }).returning();
             player1 = newPlayer1;
+            player1Credentials = { email: tempEmail, password: tempPassword };
           }
 
           // Create or find player 2
           let player2 = await db.select().from(users).where(eq(users.name, player2Name)).limit(1);
+          let player2Credentials: { email: string; password: string } | null = null;
           if (player2.length === 0) {
+            const tempEmail = player2Name.toLowerCase().replace(/\s+/g, '.') + '@temp.local';
+            const tempPassword = player2Name.split(' ')[0].toLowerCase() + '123';
             const newPlayer2 = await db.insert(users).values({
               name: player2Name,
-              username: player2Name.toLowerCase().replace(/\s+/g, '_') + '_' + Math.random().toString(36).substring(7),
-              email: player2Name.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
-              password: 'temp_password',
+              username: player2Name.toLowerCase().replace(/\s+/g, '_'),
+              email: tempEmail,
+              password: tempPassword,
               role: 'jugador',
               category: category,
               preferredSport: 'racquetball'
             }).returning();
             player2 = newPlayer2;
+            player2Credentials = { email: tempEmail, password: tempPassword };
           }
 
           // Register both players for the tournament
@@ -2109,7 +2117,15 @@ export class DatabaseStorage implements IStorage {
             });
           }
 
-          results.created.push({ player1: player1[0].name, player2: player2[0].name, category });
+          results.created.push({ 
+            player1: player1[0].name, 
+            player2: player2[0].name, 
+            category,
+            credentials: {
+              player1: player1Credentials,
+              player2: player2Credentials
+            }
+          });
           results.success++;
 
         } else {
@@ -2120,17 +2136,21 @@ export class DatabaseStorage implements IStorage {
 
           // Check if player exists or create
           let player = await db.select().from(users).where(eq(users.name, playerName)).limit(1);
+          let playerCredentials: { email: string; password: string } | null = null;
           if (player.length === 0) {
+            const tempEmail = playerName.toLowerCase().replace(/\s+/g, '.') + '@temp.local';
+            const tempPassword = playerName.split(' ')[0].toLowerCase() + '123';
             const newPlayer = await db.insert(users).values({
               name: playerName,
-              username: playerName.toLowerCase().replace(/\s+/g, '_') + '_' + Math.random().toString(36).substring(7),
-              email: playerName.toLowerCase().replace(/\s+/g, '_') + '@temp.local',
-              password: 'temp_password',
+              username: playerName.toLowerCase().replace(/\s+/g, '_'),
+              email: tempEmail,
+              password: tempPassword,
               role: 'jugador',
               category: category,
               preferredSport: 'racquetball'
             }).returning();
             player = newPlayer;
+            playerCredentials = { email: tempEmail, password: tempPassword };
           }
 
           // Register player for tournament
@@ -2147,7 +2167,11 @@ export class DatabaseStorage implements IStorage {
             });
           }
 
-          results.created.push({ name: player[0].name, category });
+          results.created.push({ 
+            name: player[0].name, 
+            category,
+            credentials: playerCredentials
+          });
           results.success++;
         }
 

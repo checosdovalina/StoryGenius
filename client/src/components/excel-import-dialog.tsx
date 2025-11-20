@@ -170,14 +170,14 @@ export function ExcelImportDialog({ tournamentId }: ExcelImportDialogProps) {
                   {importType === 'players-singles' && (
                     <div className="space-y-1">
                       <div>• <strong>nombre</strong>: Nombre del jugador</div>
-                      <div>• <strong>categoria</strong>: principiante | intermedio | avanzado | profesional</div>
+                      <div>• <strong>categoria</strong> (opcional): PRO Singles IRT | Dobles Open | Amateur A | Amateur B | Amateur C | Principiantes | Juvenil 18 y menores (Varonil) | Juvenil 18 y menores (Femenil) | Dobles AB | Dobles BC | Master 35+ | Master 55+ | Dobles Master 35+</div>
                     </div>
                   )}
                   {importType === 'players-doubles' && (
                     <div className="space-y-1">
                       <div>• <strong>nombrePareja1</strong>: Nombre del primer jugador</div>
                       <div>• <strong>nombrePareja2</strong>: Nombre del segundo jugador</div>
-                      <div>• <strong>categoria</strong>: principiante | intermedio | avanzado | profesional</div>
+                      <div>• <strong>categoria</strong> (opcional): PRO Singles IRT | Dobles Open | Amateur A | Amateur B | Amateur C | Principiantes | Juvenil 18 y menores (Varonil) | Juvenil 18 y menores (Femenil) | Dobles AB | Dobles BC | Master 35+ | Master 55+ | Dobles Master 35+</div>
                     </div>
                   )}
                   {importType === 'matches-singles' && (
@@ -272,15 +272,46 @@ export function ExcelImportDialog({ tournamentId }: ExcelImportDialogProps) {
                     <CardTitle className="text-sm">Registros creados</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {importResults.created.slice(0, 10).map((item, idx) => (
-                        <div key={idx} className="text-xs p-2 bg-muted rounded flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {idx + 1}
-                          </Badge>
-                          <span className="flex-1">
-                            {JSON.stringify(item)}
-                          </span>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {importResults.created.slice(0, 10).map((item: any, idx) => (
+                        <div key={idx} className="text-xs p-3 bg-muted rounded space-y-1">
+                          <div className="flex items-center gap-2 font-medium">
+                            <Badge variant="outline" className="text-xs">
+                              {idx + 1}
+                            </Badge>
+                            <span className="flex-1">
+                              {item.name || `${item.player1} & ${item.player2}`}
+                            </span>
+                            {item.category && (
+                              <Badge variant="secondary" className="text-xs">
+                                {item.category}
+                              </Badge>
+                            )}
+                          </div>
+                          {item.credentials && (
+                            <div className="ml-8 pl-3 border-l-2 border-blue-200 dark:border-blue-800 space-y-1">
+                              {item.credentials.player1 && (
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                                  <div className="font-semibold text-blue-700 dark:text-blue-300">{item.player1}</div>
+                                  <div>📧 {item.credentials.player1.email}</div>
+                                  <div>🔑 {item.credentials.player1.password}</div>
+                                </div>
+                              )}
+                              {item.credentials.player2 && (
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                                  <div className="font-semibold text-blue-700 dark:text-blue-300">{item.player2}</div>
+                                  <div>📧 {item.credentials.player2.email}</div>
+                                  <div>🔑 {item.credentials.player2.password}</div>
+                                </div>
+                              )}
+                              {item.credentials.email && (
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                                  <div>📧 {item.credentials.email}</div>
+                                  <div>🔑 {item.credentials.password}</div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                       {importResults.created.length > 10 && (
