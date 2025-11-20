@@ -23,6 +23,34 @@ interface OpenIRTCaptureProps {
 export function OpenIRTCapture({ match, session, player1, player2, player3, player4, onSessionUpdate, onEndSession }: OpenIRTCaptureProps) {
   const { toast } = useToast();
   
+  // Calculate who should serve the next set based on IRT rules
+  const calculateNextSetServer = (currentSet: number, player1TotalPoints: number, player2TotalPoints: number): string => {
+    // Set 1: coin flip winner (already set when session starts)
+    // Set 2: opposite of who served Set 1
+    // Set 3: player with higher total points from Sets 1 and 2
+    
+    const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
+    const coinFlipWinner = session.coinFlipWinner || match.player1Id;
+    
+    if (currentSet === 2) {
+      // Set 2: opposite of Set 1 server
+      const set1Server = initialServers[0] || coinFlipWinner;
+      return set1Server === match.player1Id ? match.player2Id : match.player1Id;
+    } else if (currentSet === 3) {
+      // Set 3: player with higher total points
+      if (player1TotalPoints > player2TotalPoints) {
+        return match.player1Id;
+      } else if (player2TotalPoints > player1TotalPoints) {
+        return match.player2Id;
+      } else {
+        // If tied, use coin flip winner
+        return coinFlipWinner;
+      }
+    }
+    
+    return coinFlipWinner; // Fallback
+  };
+  
   // Active player state for doubles (tracks which of the 4 players is currently acting)
   const [activeServingPlayerId, setActiveServingPlayerId] = useState<string>(session.serverId || match.player1Id);
   const [activeReceivingPlayerId, setActiveReceivingPlayerId] = useState<string>(
@@ -209,17 +237,43 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       shotType
     });
 
-    // Update session
+    // Prepare session update parameters
+    let serverId = newState.serverId;
+    let initialServersUpdate = session.initialServers;
+    let nextServerName = "";
+    
+    // If a set was won (but match not finished), calculate next set server
+    if (newState.setWinner && !newState.matchWinner) {
+      const player1Games = session.player1Games ? JSON.parse(session.player1Games) : [];
+      const player2Games = session.player2Games ? JSON.parse(session.player2Games) : [];
+      
+      // Add current set scores to the totals
+      const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
+      const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
+      
+      const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
+      nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+      
+      // Update initialServers array
+      const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
+      initialServers.push(nextSetServer);
+      initialServersUpdate = JSON.stringify(initialServers);
+      serverId = nextSetServer;
+    }
+
+    // Update session (single call)
     updateSessionMutation.mutate({
       player1CurrentScore: newState.player1Score.toString(),
       player2CurrentScore: newState.player2Score.toString(),
       player1Sets: newState.player1Sets,
       player2Sets: newState.player2Sets,
       currentSet: newState.currentSet,
-      serverId: newState.serverId,
+      serverId: serverId,
+      initialServers: initialServersUpdate,
       matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
     });
 
+    // Show appropriate toasts
     if (newState.serverChanged) {
       toast({ 
         title: "Cambio de saque", 
@@ -231,18 +285,20 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       const winnerTeamName = newState.setWinner === "player1" 
         ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
         : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
-      toast({ 
-        title: "¡Set ganado!", 
-        description: `${winnerTeamName} gana el set` 
-      });
-    }
-
-    if (newState.matchWinner) {
-      toast({ 
-        title: "¡Partido terminado!", 
-        description: `${newState.matchWinner === "player1" ? player1.name : player2.name} gana el partido`,
-        duration: 5000
-      });
+      
+      if (newState.matchWinner) {
+        toast({ 
+          title: "¡Partido terminado!", 
+          description: `${winnerTeamName} gana el partido`,
+          duration: 5000
+        });
+      } else {
+        toast({ 
+          title: "¡Set ganado!", 
+          description: `${winnerTeamName} gana el set. ${nextServerName} sacará el próximo set.`,
+          duration: 5000
+        });
+      }
     }
   };
 
@@ -274,17 +330,61 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       aceSide: side
     });
 
+    // Prepare session update parameters
+    let serverId = newState.serverId;
+    let initialServersUpdate = session.initialServers;
+    let nextServerName = "";
+    
+    // If a set was won (but match not finished), calculate next set server
+    if (newState.setWinner && !newState.matchWinner) {
+      const player1Games = session.player1Games ? JSON.parse(session.player1Games) : [];
+      const player2Games = session.player2Games ? JSON.parse(session.player2Games) : [];
+      
+      const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
+      const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
+      
+      const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
+      nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+      
+      const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
+      initialServers.push(nextSetServer);
+      initialServersUpdate = JSON.stringify(initialServers);
+      serverId = nextSetServer;
+    }
+
     updateSessionMutation.mutate({
       player1CurrentScore: newState.player1Score.toString(),
       player2CurrentScore: newState.player2Score.toString(),
       player1Sets: newState.player1Sets,
       player2Sets: newState.player2Sets,
       currentSet: newState.currentSet,
-      serverId: newState.serverId,
+      serverId: serverId,
+      initialServers: initialServersUpdate,
       matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
     });
 
+    // Show appropriate toasts
     toast({ title: `Ace ${side}!` });
+    
+    if (newState.setWinner) {
+      const winnerTeamName = newState.setWinner === "player1" 
+        ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
+        : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
+      
+      if (newState.matchWinner) {
+        toast({ 
+          title: "¡Partido terminado!", 
+          description: `${winnerTeamName} gana el partido`,
+          duration: 5000
+        });
+      } else {
+        toast({ 
+          title: "¡Set ganado!", 
+          description: `${winnerTeamName} gana el set. ${nextServerName} sacará el próximo set.`,
+          duration: 5000
+        });
+      }
+    }
   };
 
   // Handle fault (simple fault - no score change)
@@ -353,17 +453,61 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       playerId
     });
 
+    // Prepare session update parameters
+    let serverId = newState.serverId;
+    let initialServersUpdate = session.initialServers;
+    let nextServerName = "";
+    
+    // If a set was won (but match not finished), calculate next set server
+    if (newState.setWinner && !newState.matchWinner) {
+      const player1Games = session.player1Games ? JSON.parse(session.player1Games) : [];
+      const player2Games = session.player2Games ? JSON.parse(session.player2Games) : [];
+      
+      const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
+      const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
+      
+      const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
+      nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+      
+      const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
+      initialServers.push(nextSetServer);
+      initialServersUpdate = JSON.stringify(initialServers);
+      serverId = nextSetServer;
+    }
+
     updateSessionMutation.mutate({
       player1CurrentScore: newState.player1Score.toString(),
       player2CurrentScore: newState.player2Score.toString(),
       player1Sets: newState.player1Sets,
       player2Sets: newState.player2Sets,
       currentSet: newState.currentSet,
-      serverId: newState.serverId,
+      serverId: serverId,
+      initialServers: initialServersUpdate,
       matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
     });
 
+    // Show appropriate toasts
     toast({ title: "Doble falta", variant: "destructive" });
+    
+    if (newState.setWinner) {
+      const winnerTeamName = newState.setWinner === "player1" 
+        ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
+        : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
+      
+      if (newState.matchWinner) {
+        toast({ 
+          title: "¡Partido terminado!", 
+          description: `${winnerTeamName} gana el partido`,
+          duration: 5000
+        });
+      } else {
+        toast({ 
+          title: "¡Set ganado!", 
+          description: `${winnerTeamName} gana el set. ${nextServerName} sacará el próximo set.`,
+          duration: 5000
+        });
+      }
+    }
   };
 
   // Handle timeout
