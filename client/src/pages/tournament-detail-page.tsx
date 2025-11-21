@@ -69,6 +69,29 @@ import { TournamentConfigurationTab } from "@/components/tournament-configuratio
 import { PhotoUploader } from "@/components/photo-uploader";
 import { Separator } from "@/components/ui/separator";
 
+const COUNTRIES = [
+  { code: "MX", name: "México", flag: "🇲🇽" },
+  { code: "US", name: "Estados Unidos", flag: "🇺🇸" },
+  { code: "CA", name: "Canadá", flag: "🇨🇦" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷" },
+  { code: "BR", name: "Brasil", flag: "🇧🇷" },
+  { code: "CL", name: "Chile", flag: "🇨🇱" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴" },
+  { code: "ES", name: "España", flag: "🇪🇸" },
+  { code: "PE", name: "Perú", flag: "🇵🇪" },
+  { code: "VE", name: "Venezuela", flag: "🇻🇪" },
+  { code: "EC", name: "Ecuador", flag: "🇪🇨" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾" },
+  { code: "BO", name: "Bolivia", flag: "🇧🇴" },
+  { code: "PY", name: "Paraguay", flag: "🇵🇾" },
+  { code: "CR", name: "Costa Rica", flag: "🇨🇷" },
+  { code: "PA", name: "Panamá", flag: "🇵🇦" },
+  { code: "GT", name: "Guatemala", flag: "🇬🇹" },
+  { code: "DO", name: "República Dominicana", flag: "🇩🇴" },
+  { code: "CU", name: "Cuba", flag: "🇨🇺" },
+  { code: "PR", name: "Puerto Rico", flag: "🇵🇷" },
+];
+
 // =======================
 // 1️⃣ Página principal
 // =======================
@@ -1367,13 +1390,21 @@ function EditPlayerForm({
 
         <div>
           <Label htmlFor="nationality">Nacionalidad</Label>
-          <Input
-            id="nationality"
-            value={formData.nationality}
-            onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-            placeholder="ej: Chile, México, etc"
-            data-testid="input-edit-player-nationality"
-          />
+          <Select value={formData.nationality} onValueChange={(val) => setFormData({ ...formData, nationality: val })}>
+            <SelectTrigger id="nationality" data-testid="select-edit-player-nationality">
+              <SelectValue placeholder="Selecciona un país" />
+            </SelectTrigger>
+            <SelectContent>
+              {COUNTRIES.map((country) => (
+                <SelectItem key={country.code} value={country.code}>
+                  <div className="flex items-center gap-2">
+                    <span>{country.flag}</span>
+                    <span>{country.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
