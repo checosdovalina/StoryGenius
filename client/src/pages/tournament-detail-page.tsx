@@ -1641,10 +1641,14 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
   );
 
   // Query all active stats sessions to check which matches have ongoing capture
+  // Users who can capture stats should see if there are active sessions
+  const canCaptureStats = user?.role === "superadmin" || user?.role === "admin" || 
+    user?.role === "organizador" || user?.role === "arbitro" || user?.role === "escribano";
+    
   const { data: allStatsSessions = [] } = useQuery<any[]>({
     queryKey: ["/api/stats/sessions"],
-    // Only fetch if user has permission (admin/escribano)
-    enabled: user?.role === "admin" || user?.role === "escribano",
+    // Fetch if user has permission to capture stats or manage tournament
+    enabled: canCaptureStats || canManage,
     // Don't show errors if user doesn't have permission
     retry: false
   });

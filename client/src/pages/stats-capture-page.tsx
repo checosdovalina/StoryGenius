@@ -82,14 +82,25 @@ export default function StatsCapturePageComponent() {
   // Start stats session mutation
   const startSessionMutation = useMutation({
     mutationFn: async (coinFlipWinnerId: string) => {
+      // Start the stats session
       const response = await apiRequest("POST", `/api/matches/${matchId}/stats/start`, {
         coinFlipWinner: coinFlipWinnerId
       });
-      return await response.json();
+      const sessionData = await response.json();
+      
+      // Update match status to in_progress
+      await apiRequest("PATCH", `/api/matches/${matchId}`, {
+        status: "in_progress"
+      });
+      
+      return sessionData;
     },
     onSuccess: (data: MatchStatsSession) => {
       setSession(data);
       setShowCoinFlip(false);
+      // Invalidate matches query to reflect the new status
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${match?.tournamentId}/matches`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats/sessions"] });
       toast({ title: "Sesión iniciada", description: "Puedes comenzar a capturar estadísticas" });
     },
     onError: (error: any) => {
