@@ -49,6 +49,8 @@ The interface is designed to be racquetball-only, hiding all Padel-related eleme
 - Tournament reset feature: Button in configuration section to clear players (except those with roles) and all matches
 - Tournament deletion: Fixed cascade deletion to properly remove all associated data (matches, sessions, roles, stats)
 - External database: Connected to Neon PostgreSQL via DATABASE_URL secret for persistent data storage
+- SuperAdmin user creation: Created default superadmin (admin@example.com) for system bootstrap
+- Documentation: Created funcionalidades.md with complete list of 50+ features
 
 # External Dependencies
 -   **Neon PostgreSQL**: Serverless PostgreSQL database.
