@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 export function AllTournamentsCalendar() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [editingMatch, setEditingMatch] = useState<any>(null);
   const [resultWinnerId, setResultWinnerId] = useState("");
@@ -126,7 +127,13 @@ export function AllTournamentsCalendar() {
     onSuccess: () => {
       toast({ title: "Éxito", description: "Partido finalizado correctamente" });
       setEditingMatch(null);
-      window.location.reload();
+      // Invalidate all relevant queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/scheduled-matches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments/all/matches"] });
+      // Also invalidate specific tournament matches
+      for (const tournament of Object.values({}) as any[]) {
+        queryClient.invalidateQueries({ queryKey: ["/api/tournaments"] });
+      }
     },
     onError: () => {
       toast({ title: "Error", description: "No se pudo finalizar el partido", variant: "destructive" });
