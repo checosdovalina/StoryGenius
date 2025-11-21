@@ -23,8 +23,14 @@ export function AllTournamentsCalendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [editingMatch, setEditingMatch] = useState<any>(null);
   const [resultWinnerId, setResultWinnerId] = useState("");
-  const [resultPlayer1Sets, setResultPlayer1Sets] = useState("0");
-  const [resultPlayer2Sets, setResultPlayer2Sets] = useState("0");
+  
+  // Set-based structure
+  const [set1Player1, setSet1Player1] = useState("0");
+  const [set1Player2, setSet1Player2] = useState("0");
+  const [set2Player1, setSet2Player1] = useState("0");
+  const [set2Player2, setSet2Player2] = useState("0");
+  const [set3Player1, setSet3Player1] = useState("0");
+  const [set3Player2, setSet3Player2] = useState("0");
 
   // Fetch all scheduled matches for the selected date
   const { data: scheduledMatches = [], isLoading: matchesLoading } = useQuery<ScheduledMatch[]>({
@@ -78,6 +84,26 @@ export function AllTournamentsCalendar() {
     }
   });
 
+  // Calculate sets won
+  const calculateSetsWon = () => {
+    let player1Sets = 0;
+    let player2Sets = 0;
+    
+    if (parseInt(set1Player1) > parseInt(set1Player2)) player1Sets++;
+    else if (parseInt(set1Player2) > parseInt(set1Player1)) player2Sets++;
+    
+    if (parseInt(set2Player1) > parseInt(set2Player2)) player1Sets++;
+    else if (parseInt(set2Player2) > parseInt(set2Player1)) player2Sets++;
+    
+    if (parseInt(set3Player1) > parseInt(set3Player2)) player1Sets++;
+    else if (parseInt(set3Player2) > parseInt(set3Player1)) player2Sets++;
+    
+    return { player1Sets, player2Sets };
+  };
+
+  const { player1Sets, player2Sets } = calculateSetsWon();
+  const isSet3Disabled = player1Sets === 2 || player2Sets === 2;
+
   // Mutation to save match result
   const saveResultMutation = useMutation({
     mutationFn: async (data: { matchId: string; winnerId: string; player1Sets: number; player2Sets: number }) => {
@@ -89,21 +115,21 @@ export function AllTournamentsCalendar() {
           winnerId: data.winnerId,
           player1Sets: data.player1Sets,
           player2Sets: data.player2Sets,
-          player1Games: "0,0",
-          player2Games: "0,0"
+          player1Games: JSON.stringify([set1Player1, set2Player1, set3Player1]),
+          player2Games: JSON.stringify([set1Player2, set2Player2, set3Player2]),
+          status: "completed"
         })
       });
       if (!response.ok) throw new Error("Failed to save result");
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Éxito", description: "Resultado guardado correctamente" });
+      toast({ title: "Éxito", description: "Partido finalizado correctamente" });
       setEditingMatch(null);
-      // Refetch matches
       window.location.reload();
     },
     onError: () => {
-      toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
+      toast({ title: "Error", description: "No se pudo finalizar el partido", variant: "destructive" });
     }
   });
 
@@ -173,157 +199,154 @@ export function AllTournamentsCalendar() {
         player2Id: match.player2Id,
         player3Id: match.player3Id,
         player4Id: match.player4Id,
-        player1Name: match.player1Name || "",
-        player2Name: match.player2Name || "",
-        player3Name: match.player3Name || "",
-        player4Name: match.player4Name || "",
-        notes: ""
-      })) as any;
-
+        player1Name: match.player1Name,
+        player2Name: match.player2Name,
+        player3Name: match.player3Name,
+        player4Name: match.player4Name,
+        organizerId: match.organizerId,
+        status: match.status,
+        winnerId: match.winnerId,
+        player1Sets: match.player1Sets,
+        player2Sets: match.player2Sets
+      }));
+    
     return [...scheduledOnly, ...tournamentMatchesForDate];
   }, [scheduledMatches, allTournamentMatches, selectedDate, tournaments]);
 
   // Group matches by tournament
-  const matchesByTournament = combinedMatches.reduce((acc, match) => {
-    const tournamentId = match.tournamentId || "no-tournament";
-    if (!acc[tournamentId]) {
-      acc[tournamentId] = [];
+  const matchesByTournament = useMemo(() => {
+    const grouped: { [key: string]: any[] } = {};
+    combinedMatches.forEach(match => {
+      const tournamentName = getTournamentName(match.tournamentId);
+      if (!grouped[tournamentName]) {
+        grouped[tournamentName] = [];
+      }
+      grouped[tournamentName].push(match);
+    });
+    return grouped;
+  }, [combinedMatches]);
+
+  const handleOpenEditDialog = (match: any) => {
+    setEditingMatch(match);
+    setResultWinnerId(match.winnerId || match.player1Id || "");
+    
+    // Parse existing game scores if available
+    try {
+      if (match.player1Games && match.player2Games) {
+        const p1Games = JSON.parse(match.player1Games);
+        const p2Games = JSON.parse(match.player2Games);
+        setSet1Player1(p1Games[0]?.toString() || "0");
+        setSet1Player2(p2Games[0]?.toString() || "0");
+        setSet2Player1(p1Games[1]?.toString() || "0");
+        setSet2Player2(p2Games[1]?.toString() || "0");
+        setSet3Player1(p1Games[2]?.toString() || "0");
+        setSet3Player2(p2Games[2]?.toString() || "0");
+      } else {
+        setSet1Player1("0");
+        setSet1Player2("0");
+        setSet2Player1("0");
+        setSet2Player2("0");
+        setSet3Player1("0");
+        setSet3Player2("0");
+      }
+    } catch {
+      setSet1Player1("0");
+      setSet1Player2("0");
+      setSet2Player1("0");
+      setSet2Player2("0");
+      setSet3Player1("0");
+      setSet3Player2("0");
     }
-    acc[tournamentId].push(match);
-    return acc;
-  }, {} as Record<string, ScheduledMatch[]>);
-
-  // Sort matches within each tournament by time
-  Object.keys(matchesByTournament).forEach(tournamentId => {
-    matchesByTournament[tournamentId].sort((a, b) => 
-      new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
-    );
-  });
-
-  if (matchesLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
-  }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Date Navigator */}
-      <div className="flex items-center justify-between bg-muted/50 p-4 rounded-lg">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-          data-testid="button-prev-day"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-muted-foreground" />
-          <span className="text-lg font-semibold">
-            {format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+      {/* Date Navigation */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold">📅 Todos los Torneos</h2>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium min-w-[200px] text-center">
+            {format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })}
           </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-          data-testid="button-next-day"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
       </div>
 
-      {/* Matches list */}
-      {combinedMatches.length === 0 ? (
+      {/* Matches by Tournament */}
+      {matchesLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-48" />)}
+        </div>
+      ) : Object.keys(matchesByTournament).length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
-            <Calendar className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-lg">
-              No hay partidos programados para este día
-            </p>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">No hay partidos para esta fecha</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {Object.entries(matchesByTournament).map(([tournamentId, matches]) => (
-            <Card key={tournamentId}>
+        <div className="space-y-4">
+          {Object.entries(matchesByTournament).map(([tournamentName, matches]) => (
+            <Card key={tournamentName}>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  {getTournamentName(tournamentId === "no-tournament" ? null : tournamentId)}
-                  <Badge variant="secondary" className="ml-2">
-                    {matches.length} {matches.length === 1 ? "partido" : "partidos"}
-                  </Badge>
-                </CardTitle>
+                <CardTitle className="text-lg">{tournamentName}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {matches.map((match) => (
                     <div
                       key={match.id}
-                      className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                      data-testid={`match-${match.id}`}
+                      className="p-3 border rounded-lg hover:bg-accent/50 transition"
                     >
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-medium text-base">{match.title}</h4>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                              <Users className="h-4 w-4" />
-                              <span>{getPlayerDisplay(match)}</span>
-                              <Badge variant="outline" className="ml-2">
-                                {match.matchType === "singles" ? "Singles" : "Dobles"}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold">{getPlayerDisplay(match)}</span>
+                            {match.category && (
+                              <Badge variant="outline" className="text-xs">
+                                {match.category}
                               </Badge>
-                              {match.category && (
-                                <Badge variant="secondary" className="ml-1">
-                                  {match.category}
-                                </Badge>
-                              )}
-                            </div>
+                            )}
+                            {match.status === "completado" && (
+                              <Badge className="bg-green-600 text-xs">Completado</Badge>
+                            )}
                           </div>
-                          <Badge
-                            variant={
-                              match.status === "completado" ? "default" :
-                              match.status === "en_curso" ? "secondary" :
-                              match.status === "confirmado" ? "outline" : "secondary"
-                            }
-                          >
-                            {match.status}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            <span>
-                              {(() => {
-                                const tournament = getTournament(match.tournamentId);
-                                const timezone = tournament?.timezone || "America/Mexico_City";
-                                const utcDate = new Date(match.scheduledDate);
-                                const zonedDate = toZonedTime(utcDate, timezone);
-                                return format(zonedDate, "HH:mm");
-                              })()}
-                            </span>
-                            <span>({match.duration} min)</span>
+
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            {match.courtId && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {getCourtName(match.courtId)}
+                              </div>
+                            )}
+                            {match.scheduledDate && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(match.scheduledDate), "HH:mm")}
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            <span>{getCourtName(match.courtId)}</span>
+
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Sets: </span>
+                            <span className="font-semibold">{match.player1Sets || 0} - {match.player2Sets || 0}</span>
                           </div>
                         </div>
 
-                        {match.notes && (
-                          <p className="text-sm text-muted-foreground italic">
-                            {match.notes}
-                          </p>
-                        )}
-
-                        {/* Action buttons for admin */}
                         {(user?.role === "superadmin" || user?.role === "admin") && (
-                          <div className="mt-3 pt-3 border-t space-y-2">
+                          <div className="mt-3 pt-3 border-t space-y-2 w-full">
                             {match.status !== "completado" && (
                               <Link href={`/stats/capture/${match.id}`}>
                                 <Button
@@ -341,12 +364,7 @@ export function AllTournamentsCalendar() {
                               variant="outline"
                               size="sm"
                               className="w-full"
-                              onClick={() => {
-                                setEditingMatch(match);
-                                setResultWinnerId(match.winnerId || match.player1Id || "");
-                                setResultPlayer1Sets(match.player1Sets?.toString() || "0");
-                                setResultPlayer2Sets(match.player2Sets?.toString() || "0");
-                              }}
+                              onClick={() => handleOpenEditDialog(match)}
                             >
                               <Edit className="h-4 w-4 mr-2" />
                               Editar resultado
@@ -365,64 +383,160 @@ export function AllTournamentsCalendar() {
 
       {/* Edit Result Dialog */}
       <Dialog open={!!editingMatch} onOpenChange={(open) => !open && setEditingMatch(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar resultado del partido</DialogTitle>
           </DialogHeader>
           {editingMatch && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium mb-2">{getPlayerDisplay(editingMatch)}</p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Ganador</Label>
-                <Select value={resultWinnerId} onValueChange={setResultWinnerId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {editingMatch.matchType === "singles" ? (
-                      <>
-                        <SelectItem value={editingMatch.player1Id || ""}>
-                          {getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)}
-                        </SelectItem>
-                        <SelectItem value={editingMatch.player2Id || ""}>
-                          {getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)}
-                        </SelectItem>
-                      </>
-                    ) : (
-                      <>
-                        <SelectItem value={`${editingMatch.player1Id}-${editingMatch.player3Id}`}>
-                          {getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)} & {getPlayerName(editingMatch.player3Id, editingMatch.player3Name, 3)}
-                        </SelectItem>
-                        <SelectItem value={`${editingMatch.player2Id}-${editingMatch.player4Id}`}>
-                          {getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)} & {getPlayerName(editingMatch.player4Id, editingMatch.player4Name, 4)}
-                        </SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
+            <div className="grid grid-cols-2 gap-6">
+              {/* Formulario de edición */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium mb-2">{getPlayerDisplay(editingMatch)}</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Ganador</Label>
+                  <Select value={resultWinnerId} onValueChange={setResultWinnerId}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editingMatch.matchType === "singles" ? (
+                        <>
+                          <SelectItem value={editingMatch.player1Id || ""}>
+                            {getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)}
+                          </SelectItem>
+                          <SelectItem value={editingMatch.player2Id || ""}>
+                            {getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)}
+                          </SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value={`${editingMatch.player1Id}-${editingMatch.player3Id}`}>
+                            {getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)} & {getPlayerName(editingMatch.player3Id, editingMatch.player3Name, 3)}
+                          </SelectItem>
+                          <SelectItem value={`${editingMatch.player2Id}-${editingMatch.player4Id}`}>
+                            {getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)} & {getPlayerName(editingMatch.player4Id, editingMatch.player4Name, 4)}
+                          </SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Sets editor */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="font-bold mb-3 block">Set 1</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={set1Player1}
+                          onChange={(e) => setSet1Player1(e.target.value)}
+                          placeholder={getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)}
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={set1Player2}
+                          onChange={(e) => setSet1Player2(e.target.value)}
+                          placeholder={getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="font-bold mb-3 block">Set 2</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={set2Player1}
+                          onChange={(e) => setSet2Player1(e.target.value)}
+                          placeholder={getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)}
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={set2Player2}
+                          onChange={(e) => setSet2Player2(e.target.value)}
+                          placeholder={getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className={`font-bold mb-3 block ${isSet3Disabled ? "opacity-50" : ""}`}>
+                      Set 3 {isSet3Disabled && "(Deshabilitado)"}
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={set3Player1}
+                          onChange={(e) => setSet3Player1(e.target.value)}
+                          placeholder={getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)}
+                          disabled={isSet3Disabled}
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={set3Player2}
+                          onChange={(e) => setSet3Player2(e.target.value)}
+                          placeholder={getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)}
+                          disabled={isSet3Disabled}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-blue-50 rounded-lg text-sm">
+                    <p className="font-semibold mb-1">Sets ganados:</p>
+                    <p>Equipo 1: <span className="font-bold">{player1Sets}</span> | Equipo 2: <span className="font-bold">{player2Sets}</span></p>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Sets {editingMatch.matchType === "singles" ? "Jugador 1" : "Equipo 1"}</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={resultPlayer1Sets}
-                    onChange={(e) => setResultPlayer1Sets(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Sets {editingMatch.matchType === "singles" ? "Jugador 2" : "Equipo 2"}</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={resultPlayer2Sets}
-                    onChange={(e) => setResultPlayer2Sets(e.target.value)}
-                  />
+              {/* Preview del partido terminado */}
+              <div className="border-l pl-6 max-h-[500px] overflow-y-auto">
+                <p className="text-sm font-semibold mb-3 text-center">Vista previa</p>
+                <div className="bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 p-4 rounded-lg text-white space-y-3 text-sm">
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-green-400">🏆 PARTIDO TERMINADO</p>
+                    <p className="text-yellow-300 font-semibold">{getTournamentName(editingMatch.tournamentId)}</p>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-3 rounded-lg text-white text-center">
+                    <p className="text-xs font-bold mb-1">GANADOR</p>
+                    <p className="font-bold">
+                      {resultWinnerId === editingMatch.player1Id 
+                        ? getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)
+                        : getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)}
+                    </p>
+                  </div>
+
+                  <div className="bg-black/60 p-3 rounded-lg space-y-2">
+                    <p className="text-xs font-bold text-center">RESULTADO FINAL</p>
+                    <p className="text-center text-lg font-bold">
+                      <span className="text-yellow-400">{player1Sets}</span> - <span className="text-yellow-400">{player2Sets}</span> Sets
+                    </p>
+                    <p className="text-center text-xs text-yellow-300">
+                      {set1Player1} - {set1Player2} | {set2Player1} - {set2Player2} {!isSet3Disabled && `| ${set3Player1} - ${set3Player2}`}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -437,16 +551,20 @@ export function AllTournamentsCalendar() {
                   toast({ title: "Error", description: "Selecciona el ganador", variant: "destructive" });
                   return;
                 }
+                if ((player1Sets !== 2 && player2Sets !== 2) || (player1Sets === 2 && player2Sets === 2)) {
+                  toast({ title: "Error", description: "El resultado debe ser 2-0 o 2-1", variant: "destructive" });
+                  return;
+                }
                 saveResultMutation.mutate({
                   matchId: editingMatch.id,
                   winnerId: resultWinnerId,
-                  player1Sets: parseInt(resultPlayer1Sets) || 0,
-                  player2Sets: parseInt(resultPlayer2Sets) || 0
+                  player1Sets,
+                  player2Sets
                 });
               }}
               disabled={saveResultMutation.isPending}
             >
-              {saveResultMutation.isPending ? "Guardando..." : "Guardar"}
+              {saveResultMutation.isPending ? "Finalizando..." : "🏁 Terminar Game"}
             </Button>
           </DialogFooter>
         </DialogContent>
