@@ -26,7 +26,7 @@ export function RankingsView() {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | undefined>();
   const [selectedTournamentCategory, setSelectedTournamentCategory] = useState<string | undefined>();
 
-  const irtUrl = `/api/rankings/global`;
+  const irtUrl = `/api/rankings/global?category=PRO_SINGLES_IRT`;
   const tournamentUrl = selectedTournamentId 
     ? `/api/tournaments/${selectedTournamentId}/rankings${selectedTournamentCategory ? `?category=${selectedTournamentCategory}` : ""}`
     : null;

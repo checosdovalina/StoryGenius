@@ -1458,7 +1458,7 @@ export class DatabaseStorage implements IStorage {
       .slice(0, limit);
   }
 
-  async getGlobalRankings(limit = 50, category?: string): Promise<any[]> {
+  async getGlobalRankings(limit = 50, category: string = "PRO_SINGLES_IRT"): Promise<any[]> {
     return this.getRankingEntries(undefined, limit, category);
   }
 
