@@ -1640,6 +1640,26 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     [allCourts, tournament.clubId, tournament.sport]
   );
 
+  // Query all active stats sessions to check which matches have ongoing capture
+  const { data: allStatsSessions = [] } = useQuery<any[]>({
+    queryKey: ["/api/stats/sessions"],
+    // Only fetch if user has permission (admin/escribano)
+    enabled: user?.role === "admin" || user?.role === "escribano",
+    // Don't show errors if user doesn't have permission
+    retry: false
+  });
+
+  // Create a Set of match IDs that have active sessions for O(1) lookup
+  const activeSessionMatchIds = useMemo(() => {
+    const ids = new Set<string>();
+    allStatsSessions.forEach((session: any) => {
+      if (session.status !== "completed") {
+        ids.add(session.matchId);
+      }
+    });
+    return ids;
+  }, [allStatsSessions]);
+
   const matchForm = useForm<CreateMatchForm>({
     resolver: zodResolver(createMatchSchema),
     defaultValues: {
@@ -1890,11 +1910,8 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
               const team1Won = match.winnerId === match.player1Id || (isDoubles && match.winnerId === match.player3Id);
               const team2Won = match.winnerId === match.player2Id || (isDoubles && match.winnerId === match.player4Id);
               
-              // Check if there's an active stats session for this match
-              const { data: activeSession } = useQuery({
-                queryKey: [`/api/stats/active/${match.id}`],
-                refetchInterval: 5000 // Refetch every 5 seconds to check for active sessions
-              });
+              // Check if this match has an active stats session
+              const hasActiveSession = activeSessionMatchIds.has(match.id);
 
               return (
                 <Card key={match.id} className="p-3 sm:p-4" data-testid={`match-item-${match.id}`}>
@@ -1983,7 +2000,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   {/* Capture stats button for admin, superadmin, organizador, arbitro, escribano */}
                   {(user?.role === "superadmin" || user?.role === "admin" || user?.role === "organizador" || user?.role === "arbitro" || user?.role === "escribano") && match.status !== "completed" && (
                     <div className="mt-4 pt-4 border-t">
-                      {activeSession ? (
+                      {hasActiveSession ? (
                         <Button
                           variant="secondary"
                           size="sm"
