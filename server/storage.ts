@@ -106,7 +106,7 @@ export interface IStorage {
   getPlayerStats(playerId: string, tournamentId?: string): Promise<PlayerStats[]>;
   updatePlayerStats(playerId: string, tournamentId: string | null, stats: Partial<InsertPlayerStats>): Promise<PlayerStats>;
   getGlobalRankings(limit?: number): Promise<any[]>;
-  getTournamentRankings(tournamentId: string, limit?: number): Promise<any[]>;
+  getTournamentRankings(tournamentId: string, limit?: number, category?: string): Promise<any[]>;
   getRankingEntries(tournamentId?: string, limit?: number): Promise<any[]>;
   getPlayerMatchOutcomes(tournamentId?: string): Promise<any[]>;
   getPlayersEventStats(tournamentId?: string): Promise<any[]>;
@@ -1459,32 +1459,67 @@ export class DatabaseStorage implements IStorage {
     return this.getRankingEntries(undefined, limit, category);
   }
 
-  async getTournamentRankings(tournamentId: string, limit = 50): Promise<any[]> {
+  async getTournamentRankings(tournamentId: string, limit = 50, category?: string): Promise<any[]> {
     try {
-      // Use player_stats table directly for tournament rankings
-      console.log(`[TOURNAMENT RANKINGS] Fetching rankings for tournament: ${tournamentId}`);
+      console.log(`[TOURNAMENT RANKINGS] Fetching rankings for tournament: ${tournamentId}, category: ${category || 'all'}`);
       
-      const result = await db
+      // Get all registered players first
+      let registeredPlayers = await db
         .select({
           playerId: users.id,
           playerName: users.name,
           playerEmail: users.email,
-          matchesPlayed: playerStats.matchesPlayed,
-          matchesWon: playerStats.matchesWon,
-          matchesLost: playerStats.matchesLost,
-          setsWon: playerStats.setsWon,
-          setsLost: playerStats.setsLost
+          categories: users.categories
         })
-        .from(playerStats)
-        .innerJoin(users, eq(playerStats.playerId, users.id))
-        .where(eq(playerStats.tournamentId, tournamentId))
-        .orderBy(
-          desc(playerStats.matchesWon),
-          desc(sql`${playerStats.setsWon} - ${playerStats.setsLost}`)
-        )
-        .limit(limit);
+        .from(tournamentRegistrations)
+        .innerJoin(users, eq(tournamentRegistrations.playerId, users.id))
+        .where(eq(tournamentRegistrations.tournamentId, tournamentId));
       
-      console.log(`[TOURNAMENT RANKINGS] Found ${result.length} players with stats`);
+      // Filter by category if specified
+      if (category) {
+        registeredPlayers = registeredPlayers.filter(p => 
+          p.categories && p.categories.includes(category)
+        );
+      }
+      
+      // Get stats for these players
+      const playerIds = registeredPlayers.map(p => p.playerId);
+      const stats = await db
+        .select()
+        .from(playerStats)
+        .where(
+          and(
+            eq(playerStats.tournamentId, tournamentId),
+            sql`${playerStats.playerId} = ANY(${playerIds}::varchar[])`
+          )
+        );
+      
+      const statsMap = new Map(stats.map(s => [s.playerId, s]));
+      
+      // Combine: all registered players with their stats (or zeros if no stats)
+      const result = registeredPlayers.map(player => {
+        const playerStat = statsMap.get(player.playerId);
+        return {
+          playerId: player.playerId,
+          playerName: player.playerName,
+          playerEmail: player.playerEmail,
+          matchesPlayed: playerStat?.matchesPlayed || 0,
+          matchesWon: playerStat?.matchesWon || 0,
+          matchesLost: playerStat?.matchesLost || 0,
+          setsWon: playerStat?.setsWon || 0,
+          setsLost: playerStat?.setsLost || 0
+        };
+      }).sort((a, b) => {
+        // Sort by wins first, then by sets difference
+        if ((b.matchesWon || 0) !== (a.matchesWon || 0)) {
+          return (b.matchesWon || 0) - (a.matchesWon || 0);
+        }
+        const aDiff = (a.setsWon || 0) - (a.setsLost || 0);
+        const bDiff = (b.setsWon || 0) - (b.setsLost || 0);
+        return bDiff - aDiff;
+      }).slice(0, limit);
+      
+      console.log(`[TOURNAMENT RANKINGS] Found ${result.length} players total (${registeredPlayers.length} registered, category: ${category || 'all'})`);
       return result;
     } catch (error) {
       console.error('[TOURNAMENT RANKINGS] Error:', error);
