@@ -454,35 +454,54 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
 }
 
 function SponsorBanner({ sponsors }: { sponsors: Sponsor[] }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (sponsors.length === 0) return;
-
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % sponsors.length);
-    }, 5000); // Change sponsor every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [sponsors.length]);
-
   if (sponsors.length === 0) return null;
 
-  const currentSponsor = sponsors[currentIndex];
+  // Duplicate sponsors for infinite scroll effect
+  const sponsorsList = [...sponsors, ...sponsors];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-lg py-4">
-      <div className="container mx-auto flex items-center justify-center gap-4">
-        <span className="text-gray-600 text-sm">Patrocinado por:</span>
-        {currentSponsor.logoUrl ? (
-          <img
-            src={currentSponsor.logoUrl}
-            alt={currentSponsor.name}
-            className="h-12 max-w-xs object-contain"
-          />
-        ) : (
-          <span className="text-xl font-bold text-gray-800">{currentSponsor.name}</span>
-        )}
+    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-purple-900 via-purple-800 to-purple-900 backdrop-blur-sm shadow-lg py-6">
+      <style>{`
+        @keyframes scrollSponsors {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+        .sponsor-scroll {
+          animation: scrollSponsors 20s linear infinite;
+        }
+        .sponsor-scroll:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+      
+      <div className="overflow-hidden">
+        <div className="sponsor-scroll flex gap-12 whitespace-nowrap py-2">
+          {sponsorsList.map((sponsor, index) => (
+            <div
+              key={`${sponsor.id}-${index}`}
+              className="flex-shrink-0 h-12 flex items-center justify-center px-6 hover:opacity-80 transition-opacity"
+            >
+              {sponsor.logoUrl ? (
+                <img
+                  src={sponsor.logoUrl}
+                  alt={sponsor.name}
+                  className="h-full max-w-[150px] object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <span className="text-sm font-bold text-white px-4 whitespace-nowrap">
+                  {sponsor.name}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
