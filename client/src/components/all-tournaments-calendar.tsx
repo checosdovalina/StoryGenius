@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, Calendar, Clock, Users, MapPin, Trophy } fro
 import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from "date-fns-tz";
-import type { ScheduledMatch, Court, Tournament } from "@shared/schema";
+import type { ScheduledMatch, Court, Tournament, Match } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 
@@ -24,7 +24,7 @@ export function AllTournamentsCalendar() {
         `/api/scheduled-matches?date=${format(selectedDate, "yyyy-MM-dd")}`,
         { credentials: "include" }
       );
-      if (!response.ok) throw new Error("Failed to fetch matches");
+      if (!response.ok) return [];
       return response.json();
     }
   });
@@ -37,6 +37,25 @@ export function AllTournamentsCalendar() {
   // Fetch tournaments for display
   const { data: tournaments = [] } = useQuery<Tournament[]>({
     queryKey: ["/api/tournaments"]
+  });
+
+  // Fetch all tournament matches (from all tournaments)
+  const { data: allTournamentMatches = [] } = useQuery<Match[]>({
+    queryKey: ["/api/tournaments/all/matches"],
+    queryFn: async () => {
+      const allMatches: Match[] = [];
+      for (const tournament of tournaments) {
+        const response = await fetch(`/api/tournaments/${tournament.id}/matches`, {
+          credentials: "include"
+        });
+        if (response.ok) {
+          const matches = await response.json();
+          allMatches.push(...matches);
+        }
+      }
+      return allMatches;
+    },
+    enabled: tournaments.length > 0
   });
 
   const getCourtName = (courtId: string) => {
@@ -55,15 +74,49 @@ export function AllTournamentsCalendar() {
     return tournaments.find(t => t.id === tournamentId) || null;
   };
 
-  const getPlayerDisplay = (match: ScheduledMatch) => {
+  const getPlayerDisplay = (match: ScheduledMatch | any) => {
     if (match.matchType === "doubles") {
       return `${match.player1Name || "J1"} & ${match.player3Name || "J3"} vs ${match.player2Name || "J2"} & ${match.player4Name || "J4"}`;
     }
     return `${match.player1Name || "Jugador 1"} vs ${match.player2Name || "Jugador 2"}`;
   };
 
+  // Combine scheduled matches and tournament matches
+  const combinedMatches = useMemo(() => {
+    const selected = format(selectedDate, "yyyy-MM-dd");
+    const scheduledOnly = [...scheduledMatches];
+    
+    // Add tournament matches that match the selected date
+    const tournamentMatchesForDate = allTournamentMatches
+      .filter(match => {
+        if (!match.scheduledAt) return false;
+        const utcDate = new Date(match.scheduledAt);
+        const timezone = tournaments.find(t => t.id === match.tournamentId)?.timezone || "America/Mexico_City";
+        const zonedDate = toZonedTime(utcDate, timezone);
+        return format(zonedDate, "yyyy-MM-dd") === selected;
+      })
+      .map(match => ({
+        id: match.id,
+        title: `${match.round || "Partido"} (Bracket)`,
+        scheduledDate: match.scheduledAt || new Date().toISOString(),
+        sport: "racquetball" as const,
+        matchType: match.matchType as "singles" | "doubles",
+        courtId: match.courtId || "",
+        duration: 90,
+        tournamentId: match.tournamentId,
+        status: "scheduled" as const,
+        player1Name: "",
+        player2Name: "",
+        player3Name: "",
+        player4Name: "",
+        notes: ""
+      })) as ScheduledMatch[];
+
+    return [...scheduledOnly, ...tournamentMatchesForDate];
+  }, [scheduledMatches, allTournamentMatches, selectedDate, tournaments]);
+
   // Group matches by tournament
-  const matchesByTournament = scheduledMatches.reduce((acc, match) => {
+  const matchesByTournament = combinedMatches.reduce((acc, match) => {
     const tournamentId = match.tournamentId || "no-tournament";
     if (!acc[tournamentId]) {
       acc[tournamentId] = [];
@@ -117,7 +170,7 @@ export function AllTournamentsCalendar() {
       </div>
 
       {/* Matches list */}
-      {scheduledMatches.length === 0 ? (
+      {combinedMatches.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <Calendar className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
