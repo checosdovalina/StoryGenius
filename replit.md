@@ -14,7 +14,7 @@ The frontend is a React 18 application built with TypeScript, using Vite, Tailwi
 The backend is a modular Express.js application with TypeScript. It uses `Passport.js` with a Local Strategy for session-based authentication, `scrypt` for password hashing, and PostgreSQL for session storage. `Zod` provides type-safe data validation, and a centralized error handling system offers Spanish translations for common HTTP errors.
 
 ## Database Design
-The system uses PostgreSQL with Drizzle ORM. The schema includes tables for `Users`, `Tournaments`, `Courts`, `Matches`, `Tournament Registrations`, and `Player Statistics`, all interconnected through defined relationships.
+The system uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for `Users`, `Tournaments`, `Courts`, `Matches`, `Tournament Registrations`, and `Player Statistics`, all interconnected through defined relationships. The DATABASE_URL is configured as a Replit Secret for secure connection to the external Neon database.
 
 ## Authentication & Authorization
 The system employs session-based authentication with a hierarchical multi-tenant role-based access control (RBAC). Passwords are hashed using Node.js `crypto.scrypt`. RBAC includes global roles (`superadmin`) and tournament-scoped roles (`tournament_admin`, `organizador`, `arbitro`, `escrutador`, `jugador`). Authorization checks on all backend endpoints verify authentication, resource existence, and permissions based on both global and tournament-specific roles.
@@ -39,6 +39,16 @@ The interface is designed to be racquetball-only, hiding all Padel-related eleme
 
 ## System Design Choices
 -   **WebSocket Architecture**: A unified WebSocket server with two channels: a protected stats capture channel and a public display channel. All match state changes broadcast to both channels with appropriate throttling and sanitization for public views. Heartbeat mechanism ensures connection health.
+-   **Tournament Management**: Supports tournament creation, editing, deletion, and resetting (removes unrolled players and matches while preserving those with assigned roles).
+-   **Permission Control**: Only the user who initiated stats capture can modify or reopen recording sessions (except admins).
+-   **Calendar System**: Unified calendar for scheduled and bracket matches with timezone support and completed match filtering.
+
+# Recent Additions (Session: Nov 21, 2025)
+- Fixed calendar display: Completed matches now properly hidden; duplicate match deduplication implemented
+- Permission control: Added startedBy validation for stats session reopening  
+- Tournament reset feature: Button in configuration section to clear players (except those with roles) and all matches
+- Tournament deletion: Fixed cascade deletion to properly remove all associated data (matches, sessions, roles, stats)
+- External database: Connected to Neon PostgreSQL via DATABASE_URL secret for persistent data storage
 
 # External Dependencies
 -   **Neon PostgreSQL**: Serverless PostgreSQL database.
