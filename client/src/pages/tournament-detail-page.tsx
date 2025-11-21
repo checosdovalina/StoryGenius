@@ -53,6 +53,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -890,7 +891,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     
     // Filter by category if selected
     if (selectedCategory !== "all") {
-      filtered = filtered.filter(p => p.categories?.includes(selectedCategory));
+      filtered = filtered.filter(p => p.categories?.includes(selectedCategory as any));
     }
     
     // Sort alphabetically by name
@@ -1202,7 +1203,7 @@ function EditPlayerForm({
     phone: player.phone || "",
     club: player.club || "",
     nationality: player.nationality || "",
-    categories: player.categories || []
+    categories: (player.categories || []) as string[]
   });
 
   const handleCategoryToggle = (category: string) => {
@@ -1211,7 +1212,7 @@ function EditPlayerForm({
       categories: prev.categories.includes(category)
         ? prev.categories.filter(c => c !== category)
         : prev.categories.length < 3 
-          ? [...prev.categories, category]
+          ? [...prev.categories, category as any]
           : prev.categories
     }));
   };
