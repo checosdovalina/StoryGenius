@@ -24,11 +24,15 @@ interface RankingPlayer {
 
 export function RankingsView() {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | undefined>();
-  const [selectedIRTCategory] = useState<string>("PRO_SINGLES_IRT");
   const [selectedTournamentCategory, setSelectedTournamentCategory] = useState<string | undefined>();
 
+  const irtUrl = `/api/rankings/global?category=PRO_SINGLES_IRT`;
+  const tournamentUrl = selectedTournamentId 
+    ? `/api/tournaments/${selectedTournamentId}/rankings${selectedTournamentCategory ? `?category=${selectedTournamentCategory}` : ""}`
+    : null;
+
   const { data: irtRanking, isLoading: isLoadingIRT } = useQuery<RankingPlayer[]>({
-    queryKey: ["/api/ranking/global", selectedIRTCategory],
+    queryKey: [irtUrl],
   });
 
   const { data: tournaments } = useQuery<Tournament[]>({
@@ -36,8 +40,8 @@ export function RankingsView() {
   });
 
   const { data: tournamentRanking, isLoading: isLoadingTournament } = useQuery<RankingPlayer[]>({
-    queryKey: [`/api/tournaments/${selectedTournamentId}/rankings`, selectedTournamentCategory],
-    enabled: !!selectedTournamentId,
+    queryKey: [tournamentUrl],
+    enabled: !!tournamentUrl,
   });
 
   const getRankIcon = (position: number) => {
