@@ -2611,14 +2611,18 @@ export class DatabaseStorage implements IStorage {
         const team2Events = events.filter(e => team2Ids.includes(e.playerId || ''));
 
         const calculateStats = (teamEvents: any[]) => {
-          const pointEvents = teamEvents.filter(e => e.eventType === 'point');
+          const aces = teamEvents.filter(e => e.eventType === 'ace').length;
+          const recto = teamEvents.filter(e => e.shotType === 'recto').length;
+          const esquina = teamEvents.filter(e => e.shotType === 'esquina').length;
+          const cruzado = teamEvents.filter(e => e.shotType === 'cruzado').length;
+          const punto = teamEvents.filter(e => e.shotType === 'punto').length;
           return {
-            aces: teamEvents.filter(e => e.eventType === 'ace').length,
-            recto: teamEvents.filter(e => e.shotType === 'recto').length,
-            esquina: teamEvents.filter(e => e.shotType === 'esquina').length,
-            cruzado: teamEvents.filter(e => e.shotType === 'cruzado').length,
-            punto: teamEvents.filter(e => e.shotType === 'punto').length,
-            totalPoints: pointEvents.length
+            aces,
+            recto,
+            esquina,
+            cruzado,
+            punto,
+            totalPoints: aces + recto + esquina + cruzado + punto
           };
         };
 
