@@ -445,6 +445,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(tournamentRegistrations.tournamentId, tournamentId));
   }
 
+  async getTournamentRegistration(tournamentId: string, playerId: string): Promise<TournamentRegistration | undefined> {
+    const [registration] = await db
+      .select()
+      .from(tournamentRegistrations)
+      .where(and(eq(tournamentRegistrations.tournamentId, tournamentId), eq(tournamentRegistrations.playerId, playerId)));
+    return registration || undefined;
+  }
+
   async getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date }>> {
     const result = await db
       .select({
