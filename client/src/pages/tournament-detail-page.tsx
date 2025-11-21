@@ -66,6 +66,8 @@ import { Match } from "@shared/schema";
 import { TournamentRolesTab } from "@/components/tournament-roles-tab";
 import { ExcelImportDialog } from "@/components/excel-import-dialog";
 import { TournamentConfigurationTab } from "@/components/tournament-configuration-tab";
+import { PhotoUploader } from "@/components/photo-uploader";
+import { Separator } from "@/components/ui/separator";
 
 // =======================
 // 1️⃣ Página principal
@@ -1200,9 +1202,13 @@ function EditPlayerForm({
 }) {
   const [formData, setFormData] = useState({
     name: player.name || "",
+    email: player.email || "",
     phone: player.phone || "",
     club: player.club || "",
     nationality: player.nationality || "",
+    photoUrl: player.photoUrl || "",
+    role: player.role || "jugador",
+    password: "",
     categories: (player.categories || []) as string[]
   });
 
@@ -1217,60 +1223,166 @@ function EditPlayerForm({
     }));
   };
 
+  const handlePhotoChange = (url: string) => {
+    setFormData(prev => ({ ...prev, photoUrl: url }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      club: formData.club,
+      nationality: formData.nationality,
+      photoUrl: formData.photoUrl,
+      role: formData.role as any,
+      ...(formData.password && { password: formData.password }),
+      categories: formData.categories as any
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Foto del Perfil */}
       <div>
-        <Label htmlFor="name">Nombre Completo</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Nombre completo"
-          data-testid="input-edit-player-name"
+        <Label className="mb-3 block font-semibold">Foto de Perfil</Label>
+        <PhotoUploader
+          currentPhotoUrl={formData.photoUrl}
+          onPhotoChange={handlePhotoChange}
+          userName={formData.name}
+          showManualInput={true}
+          autoSave={false}
         />
       </div>
 
-      <div>
-        <Label htmlFor="phone">Teléfono</Label>
-        <Input
-          id="phone"
-          value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          placeholder="+56912345678"
-          data-testid="input-edit-player-phone"
-        />
+      <Separator />
+
+      {/* Información Básica */}
+      <div className="space-y-4">
+        <h3 className="font-semibold text-sm">Información Básica</h3>
+        
+        <div>
+          <Label htmlFor="name">Nombre Completo *</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Nombre completo"
+            data-testid="input-edit-player-name"
+            required
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="email">Email *</Label>
+          <Input
+            id="email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            placeholder="email@ejemplo.com"
+            data-testid="input-edit-player-email"
+            required
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="username">Usuario (no editable)</Label>
+          <Input
+            id="username"
+            value={player.username}
+            disabled
+            data-testid="input-player-username"
+          />
+        </div>
       </div>
 
-      <div>
-        <Label htmlFor="club">Club</Label>
-        <Input
-          id="club"
-          value={formData.club}
-          onChange={(e) => setFormData({ ...formData, club: e.target.value })}
-          placeholder="Club del jugador"
-          data-testid="input-edit-player-club"
-        />
+      <Separator />
+
+      {/* Credenciales */}
+      <div className="space-y-4">
+        <h3 className="font-semibold text-sm">Seguridad</h3>
+        
+        <div>
+          <Label htmlFor="password">Nueva Contraseña (déjalo en blanco para no cambiar)</Label>
+          <Input
+            id="password"
+            type="password"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            placeholder="Nueva contraseña (opcional)"
+            data-testid="input-edit-player-password"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Si dejas este campo vacío, la contraseña no se modificará
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="role">Rol del Usuario</Label>
+          <Select value={formData.role} onValueChange={(val) => setFormData({ ...formData, role: val })}>
+            <SelectTrigger id="role" data-testid="select-player-role">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="jugador">Jugador</SelectItem>
+              <SelectItem value="organizador">Organizador</SelectItem>
+              <SelectItem value="arbitro">Árbitro</SelectItem>
+              <SelectItem value="escrutador">Escrutador</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="superadmin">SuperAdmin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div>
-        <Label htmlFor="nationality">Nacionalidad</Label>
-        <Input
-          id="nationality"
-          value={formData.nationality}
-          onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-          placeholder="ej: Chile, México, etc"
-          data-testid="input-edit-player-nationality"
-        />
+      <Separator />
+
+      {/* Información de Contacto */}
+      <div className="space-y-4">
+        <h3 className="font-semibold text-sm">Información de Contacto</h3>
+        
+        <div>
+          <Label htmlFor="phone">Teléfono</Label>
+          <Input
+            id="phone"
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            placeholder="+56912345678"
+            data-testid="input-edit-player-phone"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="club">Club</Label>
+          <Input
+            id="club"
+            value={formData.club}
+            onChange={(e) => setFormData({ ...formData, club: e.target.value })}
+            placeholder="Club del jugador"
+            data-testid="input-edit-player-club"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="nationality">Nacionalidad</Label>
+          <Input
+            id="nationality"
+            value={formData.nationality}
+            onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+            placeholder="ej: Chile, México, etc"
+            data-testid="input-edit-player-nationality"
+          />
+        </div>
       </div>
 
+      <Separator />
+
+      {/* Categorías */}
       <div>
-        <Label className="mb-3 block">Categorías (máximo 3)</Label>
-        <div className="grid grid-cols-2 gap-2">
+        <Label className="mb-3 block font-semibold">Categorías (máximo 3)</Label>
+        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-lg p-3">
           {MATCH_CATEGORIES.map((cat) => (
             <div key={cat.value} className="flex items-center space-x-2">
               <input
@@ -1290,6 +1402,9 @@ function EditPlayerForm({
         </div>
       </div>
 
+      <Separator />
+
+      {/* Botones */}
       <div className="flex justify-end gap-2 pt-4">
         <Button
           type="button"
@@ -1305,7 +1420,7 @@ function EditPlayerForm({
           disabled={isPending}
           data-testid="button-save-edit-player"
         >
-          {isPending ? "Guardando..." : "Guardar"}
+          {isPending ? "Guardando..." : "Guardar Cambios"}
         </Button>
       </div>
     </form>
