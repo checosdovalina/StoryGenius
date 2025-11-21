@@ -1482,19 +1482,18 @@ export class DatabaseStorage implements IStorage {
         );
       }
       
-      // Get stats for these players
-      const playerIds = registeredPlayers.map(p => p.playerId);
-      const stats = await db
+      if (registeredPlayers.length === 0) {
+        console.log(`[TOURNAMENT RANKINGS] No registered players found`);
+        return [];
+      }
+      
+      // Get all stats for this tournament
+      const allStats = await db
         .select()
         .from(playerStats)
-        .where(
-          and(
-            eq(playerStats.tournamentId, tournamentId),
-            sql`${playerStats.playerId} = ANY(${playerIds}::varchar[])`
-          )
-        );
+        .where(eq(playerStats.tournamentId, tournamentId));
       
-      const statsMap = new Map(stats.map(s => [s.playerId, s]));
+      const statsMap = new Map(allStats.map(s => [s.playerId, s]));
       
       // Combine: all registered players with their stats (or zeros if no stats)
       const result = registeredPlayers.map(player => {
