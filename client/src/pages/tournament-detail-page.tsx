@@ -1889,6 +1889,12 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
               const isDoubles = match.matchType === "doubles";
               const team1Won = match.winnerId === match.player1Id || (isDoubles && match.winnerId === match.player3Id);
               const team2Won = match.winnerId === match.player2Id || (isDoubles && match.winnerId === match.player4Id);
+              
+              // Check if there's an active stats session for this match
+              const { data: activeSession } = useQuery({
+                queryKey: [`/api/stats/active/${match.id}`],
+                refetchInterval: 5000 // Refetch every 5 seconds to check for active sessions
+              });
 
               return (
                 <Card key={match.id} className="p-3 sm:p-4" data-testid={`match-item-${match.id}`}>
@@ -1977,18 +1983,32 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   {/* Capture stats button for admin, superadmin, organizador, arbitro, escribano */}
                   {(user?.role === "superadmin" || user?.role === "admin" || user?.role === "organizador" || user?.role === "arbitro" || user?.role === "escribano") && match.status !== "completed" && (
                     <div className="mt-4 pt-4 border-t">
-                      <Link href={`/stats/capture/${match.id}`}>
+                      {activeSession ? (
                         <Button
-                          variant="default"
+                          variant="secondary"
                           size="sm"
+                          disabled
                           data-testid={`button-capture-stats-${match.id}`}
                           className="w-full min-h-[44px]"
-                          aria-label="Capturar estadísticas del partido"
+                          aria-label="Captura en progreso"
                         >
                           <Trophy className="h-4 w-4 mr-2" />
-                          Capturar estadísticas
+                          Captura en progreso...
                         </Button>
-                      </Link>
+                      ) : (
+                        <Link href={`/stats/capture/${match.id}`}>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            data-testid={`button-capture-stats-${match.id}`}
+                            className="w-full min-h-[44px]"
+                            aria-label="Capturar estadísticas del partido"
+                          >
+                            <Trophy className="h-4 w-4 mr-2" />
+                            Capturar estadísticas
+                          </Button>
+                        </Link>
+                      )}
                     </div>
                   )}
 
