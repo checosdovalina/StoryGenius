@@ -283,6 +283,50 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Admin/organizer can unregister specific players
+  app.patch("/api/tournaments/:id/players/:playerId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { id: tournamentId, playerId } = req.params;
+
+      // Verify permission to manage tournament
+      const canManage = await storage.canManageTournament(req.user!.id, tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      // Verify player is registered in tournament
+      const registration = await storage.getTournamentRegistration(tournamentId, playerId);
+      if (!registration) {
+        return res.status(404).json({ message: "Player not registered in tournament" });
+      }
+
+      const updateSchema = z.object({
+        name: z.string().optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional(),
+        photoUrl: z.string().optional().nullable(),
+        nationality: z.string().optional().nullable(),
+        phone: z.string().optional().nullable(),
+        club: z.string().optional().nullable(),
+        role: z.enum(["superadmin", "admin", "jugador", "organizador", "arbitro", "escrutador", "escribano"]).optional(),
+        categories: z.array(z.enum(["PRO_SINGLES_IRT","DOBLES_OPEN","AMATEUR_A","AMATEUR_B","AMATEUR_C","PRINCIPIANTES","JUVENIL_18_VARONIL","JUVENIL_18_FEMENIL","DOBLES_AB","DOBLES_BC","MASTER_35","MASTER_55","DOBLES_MASTER_35"])).max(3).optional().nullable()
+      });
+
+      const validatedData = updateSchema.parse(req.body);
+      const updatedUser = await storage.updateUserPartial(playerId, validatedData);
+
+      res.json({ message: "Player updated", user: updatedUser });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update player" });
+    }
+  });
+
   app.delete("/api/tournaments/:id/players/:playerId", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {

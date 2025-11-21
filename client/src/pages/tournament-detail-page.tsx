@@ -755,7 +755,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
   // Update player profile mutation
   const updatePlayerMutation = useMutation({
     mutationFn: async (data: Partial<User>) => {
-      return apiRequest("PATCH", `/api/users/${editingPlayer!.id}`, data);
+      return apiRequest("PATCH", `/api/tournaments/${tournament.id}/players/${editingPlayer!.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/players`] });
@@ -764,8 +764,9 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
       setEditingPlayer(null);
       toast({ title: "Perfil actualizado exitosamente", variant: "default" });
     },
-    onError: () => {
-      toast({ title: "Error al actualizar perfil", variant: "destructive" });
+    onError: (error) => {
+      console.error("Update error:", error);
+      toast({ title: "Error al actualizar perfil", description: error.message, variant: "destructive" });
     }
   });
 

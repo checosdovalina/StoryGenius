@@ -295,6 +295,37 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async updateUserPartial(id: string, data: any): Promise<User> {
+    const updates: any = { updatedAt: new Date() };
+    
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.email !== undefined) updates.email = data.email.trim().toLowerCase();
+    if (data.password !== undefined) updates.password = await this.hashPassword(data.password);
+    if (data.photoUrl !== undefined) updates.photoUrl = data.photoUrl;
+    if (data.nationality !== undefined) updates.nationality = data.nationality;
+    if (data.phone !== undefined) updates.phone = data.phone;
+    if (data.club !== undefined) updates.club = data.club;
+    if (data.role !== undefined) updates.role = data.role;
+    if (data.categories !== undefined) updates.categories = data.categories;
+
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async hashPassword(password: string): Promise<string> {
+    const { scrypt, randomBytes } = await import("crypto");
+    const { promisify } = await import("util");
+    const scryptAsync = promisify(scrypt);
+    
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
+  }
+
   // Tournament management
   async createTournament(tournament: InsertTournament): Promise<Tournament> {
     const [newTournament] = await db
