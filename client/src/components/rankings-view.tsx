@@ -24,9 +24,11 @@ interface RankingPlayer {
 
 export function RankingsView() {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | undefined>();
+  const [selectedIRTCategory] = useState<string>("PRO_SINGLES_IRT");
+  const [selectedTournamentCategory, setSelectedTournamentCategory] = useState<string | undefined>();
 
   const { data: irtRanking, isLoading: isLoadingIRT } = useQuery<RankingPlayer[]>({
-    queryKey: ["/api/ranking/global"],
+    queryKey: ["/api/ranking/global", selectedIRTCategory],
   });
 
   const { data: tournaments } = useQuery<Tournament[]>({
@@ -34,7 +36,7 @@ export function RankingsView() {
   });
 
   const { data: tournamentRanking, isLoading: isLoadingTournament } = useQuery<RankingPlayer[]>({
-    queryKey: [`/api/tournaments/${selectedTournamentId}/rankings`],
+    queryKey: [`/api/tournaments/${selectedTournamentId}/rankings`, selectedTournamentCategory],
     enabled: !!selectedTournamentId,
   });
 
@@ -306,20 +308,49 @@ export function RankingsView() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium min-w-fit">Seleccionar Torneo:</label>
-                <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
-                  <SelectTrigger className="max-w-md" data-testid="tournament-selector">
-                    <SelectValue placeholder="Selecciona un torneo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tournaments?.map((tournament) => (
-                      <SelectItem key={tournament.id} value={tournament.id} data-testid={`tournament-option-${tournament.id}`}>
-                        {tournament.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium min-w-fit">Seleccionar Torneo:</label>
+                  <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
+                    <SelectTrigger className="max-w-md" data-testid="tournament-selector">
+                      <SelectValue placeholder="Selecciona un torneo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tournaments?.map((tournament) => (
+                        <SelectItem key={tournament.id} value={tournament.id} data-testid={`tournament-option-${tournament.id}`}>
+                          {tournament.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedTournamentId && (
+                  <div className="flex items-center gap-4">
+                    <label className="text-sm font-medium min-w-fit">Filtrar por Categoría:</label>
+                    <Select value={selectedTournamentCategory || ""} onValueChange={(value) => setSelectedTournamentCategory(value || undefined)}>
+                      <SelectTrigger className="max-w-md" data-testid="tournament-category-filter">
+                        <SelectValue placeholder="Todas las categorías" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todas las categorías</SelectItem>
+                        <SelectItem value="PRO_SINGLES_IRT">PRO Singles IRT</SelectItem>
+                        <SelectItem value="DOBLES_OPEN">Dobles Open</SelectItem>
+                        <SelectItem value="AMATEUR_A">Amateur A</SelectItem>
+                        <SelectItem value="AMATEUR_B">Amateur B</SelectItem>
+                        <SelectItem value="AMATEUR_C">Amateur C</SelectItem>
+                        <SelectItem value="PRINCIPIANTES">Principiantes</SelectItem>
+                        <SelectItem value="JUVENIL_18">Juvenil 18 y menores (Varonil)</SelectItem>
+                        <SelectItem value="JUVENIL_18_F">Juvenil 18 y menores (Femenil)</SelectItem>
+                        <SelectItem value="DOBLES_AB">Dobles AB</SelectItem>
+                        <SelectItem value="DOBLES_BC">Dobles BC</SelectItem>
+                        <SelectItem value="MASTER_35">Master 35+</SelectItem>
+                        <SelectItem value="MASTER_55">Master 55+</SelectItem>
+                        <SelectItem value="DOBLES_MASTER_35">Dobles Master 35+</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               {selectedTournament && (
