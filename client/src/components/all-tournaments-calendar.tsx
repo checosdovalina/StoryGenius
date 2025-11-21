@@ -181,12 +181,17 @@ export function AllTournamentsCalendar() {
   // Combine scheduled matches and tournament matches
   const combinedMatches = useMemo(() => {
     const selected = format(selectedDate, "yyyy-MM-dd");
-    const scheduledOnly = [...scheduledMatches];
+    const seenIds = new Set<string>();
+    const result: any[] = [];
     
-    // Add tournament matches that match the selected date
+    // Filter scheduled matches that are NOT completed
+    const scheduledOnly = scheduledMatches.filter(m => m.status !== "completed");
+    
+    // Add tournament matches that match the selected date and are NOT completed
     const tournamentMatchesForDate = allTournamentMatches
       .filter(match => {
         if (!match.scheduledAt) return false;
+        if (match.status === "completed") return false;
         const utcDate = new Date(match.scheduledAt);
         const timezone = tournaments.find(t => t.id === match.tournamentId)?.timezone || "America/Mexico_City";
         const zonedDate = toZonedTime(utcDate, timezone);
@@ -217,7 +222,23 @@ export function AllTournamentsCalendar() {
         player2Sets: match.player2Sets
       }));
     
-    return [...scheduledOnly, ...tournamentMatchesForDate];
+    // Add scheduled matches without duplicates
+    scheduledOnly.forEach(match => {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        result.push(match);
+      }
+    });
+    
+    // Add tournament matches without duplicates
+    tournamentMatchesForDate.forEach(match => {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        result.push(match);
+      }
+    });
+    
+    return result;
   }, [scheduledMatches, allTournamentMatches, selectedDate, tournaments]);
 
   // Group matches by tournament
