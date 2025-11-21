@@ -100,7 +100,9 @@ function PlayerDisplay({ player, side }: { player: PlayerInfo; side: "left" | "r
         )}
       </div>
       <div className={`${side === "right" ? "text-right" : "text-left"}`}>
-        <h3 className="text-2xl font-bold text-white">{player.name}</h3>
+        <h3 className="text-2xl font-bold text-white">
+          {player.name} {player.nationality && <span className="text-3xl ml-2">{getFlagEmoji(player.nationality)}</span>}
+        </h3>
       </div>
     </div>
   );
