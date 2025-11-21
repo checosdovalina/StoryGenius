@@ -14,6 +14,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 import { SponsorsManagement } from "./sponsors-management";
 
 interface TournamentConfigurationTabProps {
@@ -51,8 +63,35 @@ export function TournamentConfigurationTab({ tournament }: TournamentConfigurati
     },
   });
 
+  // Reset tournament mutation
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/tournaments/${tournament.id}/reset`, {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/tournaments/${tournament.id}`],
+      });
+      toast({
+        title: "Torneo reiniciado",
+        description: `Se eliminaron ${data.playersRemoved} jugadores y ${data.matchesRemoved} partidos. Los jugadores con rol en el torneo fueron preservados.`,
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo reiniciar el torneo",
+      });
+    },
+  });
+
   const handleSaveRotationInterval = () => {
     updateRotationMutation.mutate(rotationInterval);
+  };
+
+  const handleResetTournament = () => {
+    resetMutation.mutate();
   };
 
   return (
@@ -123,6 +162,54 @@ export function TournamentConfigurationTab({ tournament }: TournamentConfigurati
 
       {/* Sponsors Management */}
       <SponsorsManagement tournamentId={tournament.id} />
+
+      {/* Tournament Reset */}
+      <Card className="border-red-200 dark:border-red-800">
+        <CardHeader>
+          <CardTitle className="text-red-600 dark:text-red-400">Reiniciar Torneo</CardTitle>
+          <CardDescription>
+            Elimina todos los jugadores y partidos del torneo. Los jugadores con roles asignados serán preservados.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+            <p className="text-sm text-red-900 dark:text-red-200">
+              ⚠️ <strong>Advertencia:</strong> Esta acción es irreversible. Se eliminarán todos los jugadores registrados (excepto los con roles) y todos los partidos del torneo.
+            </p>
+          </div>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                className="min-h-[44px]"
+                data-testid="button-reset-tournament"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Reiniciar Torneo
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción eliminará todos los jugadores registrados (excepto aquellos con roles en el torneo) y todos los partidos. Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleResetTournament}
+                  disabled={resetMutation.isPending}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {resetMutation.isPending ? "Reiniciando..." : "Reiniciar Torneo"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
     </div>
   );
 }

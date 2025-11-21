@@ -162,6 +162,9 @@ export interface IStorage {
   // Active matches for public display
   getActiveMatches(tournamentId?: string): Promise<any[]>;
 
+  // Tournament reset
+  resetTournamentPlayersAndMatches(tournamentId: string): Promise<{ playersRemoved: number; matchesRemoved: number }>;
+
   sessionStore: session.Store;
 }
 
@@ -2173,6 +2176,52 @@ export class DatabaseStorage implements IStorage {
       ...r.tournament_user_roles,
       user: r.users
     }));
+  }
+
+  async resetTournamentPlayersAndMatches(tournamentId: string): Promise<{ playersRemoved: number; matchesRemoved: number }> {
+    // Get all users with roles in this tournament
+    const usersWithRoles = await db
+      .select({ userId: tournamentUserRoles.userId })
+      .from(tournamentUserRoles)
+      .where(eq(tournamentUserRoles.tournamentId, tournamentId));
+    
+    const userIdsWithRoles = usersWithRoles.map(r => r.userId);
+
+    // Delete all tournament registrations where user does NOT have a role
+    const registrationsToDelete = await db
+      .select({ playerId: tournamentRegistrations.playerId })
+      .from(tournamentRegistrations)
+      .where(eq(tournamentRegistrations.tournamentId, tournamentId));
+
+    let playersRemoved = 0;
+    for (const reg of registrationsToDelete) {
+      if (!userIdsWithRoles.includes(reg.playerId)) {
+        await db
+          .delete(tournamentRegistrations)
+          .where(
+            and(
+              eq(tournamentRegistrations.tournamentId, tournamentId),
+              eq(tournamentRegistrations.playerId, reg.playerId)
+            )
+          );
+        playersRemoved++;
+      }
+    }
+
+    // Delete all matches in this tournament
+    const deletedMatches = await db
+      .delete(matches)
+      .where(eq(matches.tournamentId, tournamentId));
+
+    // Delete all scheduled matches in this tournament
+    await db
+      .delete(scheduledMatches)
+      .where(eq(scheduledMatches.tournamentId, tournamentId));
+
+    return {
+      playersRemoved,
+      matchesRemoved: deletedMatches.rowCount || 0
+    };
   }
 
   async importPlayersFromExcel(

@@ -145,6 +145,29 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.post("/api/tournaments/:id/reset", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const existingTournament = await storage.getTournament(req.params.id);
+      if (!existingTournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+
+      const canManage = await storage.canManageTournament(req.user!.id, req.params.id);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const result = await storage.resetTournamentPlayersAndMatches(req.params.id);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reset tournament" });
+    }
+  });
+
   app.delete("/api/tournaments/:id", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
