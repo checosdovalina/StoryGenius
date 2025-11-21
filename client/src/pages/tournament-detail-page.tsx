@@ -1124,11 +1124,19 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
             {filteredAndSortedPlayers.map((player, index) => (
               <div key={player.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg gap-3" data-testid={`player-card-${player.id}`}>
                 <div className="flex items-center space-x-3 sm:space-x-4 w-full sm:w-auto">
-                  <div className="h-10 w-10 flex-shrink-0 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
-                      {player.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                  {player.photoUrl ? (
+                    <img
+                      src={player.photoUrl}
+                      alt={player.name}
+                      className="h-10 w-10 flex-shrink-0 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 flex-shrink-0 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
+                        {player.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-900 dark:text-white truncate" data-testid={`player-name-${player.id}`}>
                       {player.name}
