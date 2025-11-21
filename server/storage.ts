@@ -1342,14 +1342,14 @@ export class DatabaseStorage implements IStorage {
       ...eventStats.map(s => s.playerId),
       ...matchOutcomes.map(o => o.playerId)
     ]);
+
+    if (allPlayerIds.size === 0) {
+      console.log(`[IRT RANKING] No players with stats found`);
+      return [];
+    }
     
-    // Get user info for all players
-    const whereCondition = and(
-      eq(users.isActive, true),
-      sql`${users.id} = ANY(${Array.from(allPlayerIds)}::varchar[])`
-    );
-    
-    const playerUsers = await db
+    // Get all active users and filter in memory
+    const allUsers = await db
       .select({
         id: users.id,
         name: users.name,
@@ -1358,7 +1358,10 @@ export class DatabaseStorage implements IStorage {
         categories: users.categories
       })
       .from(users)
-      .where(whereCondition);
+      .where(eq(users.isActive, true));
+    
+    // Filter to only users that have stats/outcomes
+    const playerUsers = allUsers.filter(u => allPlayerIds.has(u.id));
     
     // Filter by category if specified
     const filteredPlayerUsers = category

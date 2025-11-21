@@ -1,5 +1,5 @@
 # Overview
-This project is a comprehensive full-stack TypeScript sports tournament management system specifically designed for **racquetball**. It offers robust features for tournament administration, including user and role management, tournament creation, match scheduling, court management, and detailed player statistics tracking with shot-type analysis. The system aims to streamline tournament operations and enhance the experience for organizers and participants. Padel support is preserved in the backend schema for historical data but is hidden from all UI forms and selectors to ensure a racquetball-only user experience.
+This project is a full-stack TypeScript sports tournament management system specifically for racquetball. It offers comprehensive features for tournament administration, including multi-role user management (admin, player, organizer, referee, scrutineer), tournament creation, match scheduling, court management, and detailed player statistics with shot-type analysis. The system aims to streamline tournament operations, enhance participant experience, and provide specialized scoring for formats like the International Racquetball Tour (IRT). While the backend schema preserves historical Padel data, the user interface is strictly racquetball-focused.
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
@@ -8,41 +8,37 @@ Preferred language: Spanish
 # System Architecture
 
 ## Frontend Architecture
-The frontend is a React 18 application built with TypeScript, utilizing Vite, Tailwind CSS, and `shadcn/ui`. It employs `React Query` for server state management, `Wouter` for routing, and the `Context API` for authentication. The UI features a consistent `AppShell` with a Sidebar and Header, and root routing dynamically redirects users based on authentication state and role.
+The frontend is a React 18 application built with TypeScript, using Vite, Tailwind CSS, and `shadcn/ui`. It leverages `React Query` for server state management, `Wouter` for routing, and the `Context API` for authentication. A consistent `AppShell` provides layout, and root routing dynamically redirects users based on authentication and role.
 
 ## Backend Architecture
-The backend is an Express.js application developed with TypeScript, featuring a modular design. It uses `Passport.js` with a Local Strategy for authentication, `scrypt` for password hashing, and session-based authentication with PostgreSQL storage. `Zod` ensures type-safe data validation. A centralized error handling system provides Spanish translations for common HTTP errors.
+The backend is a modular Express.js application with TypeScript. It uses `Passport.js` with a Local Strategy for session-based authentication, `scrypt` for password hashing, and PostgreSQL for session storage. `Zod` provides type-safe data validation, and a centralized error handling system offers Spanish translations for common HTTP errors.
 
 ## Database Design
-The system uses PostgreSQL with Drizzle ORM. The schema includes tables for `Users`, `Tournaments`, `Courts`, `Matches`, `Tournament Registrations`, and `Player Statistics`, interconnected through one-to-many and many-to-many relationships.
+The system uses PostgreSQL with Drizzle ORM. The schema includes tables for `Users`, `Tournaments`, `Courts`, `Matches`, `Tournament Registrations`, and `Player Statistics`, all interconnected through defined relationships.
 
 ## Authentication & Authorization
-The system implements session-based authentication with a hierarchical multi-tenant role-based access control. Password hashing is handled by Node.js `crypto.scrypt`, and sessions are managed with `Express-session` using a PostgreSQL store.
-- **Global Roles**: `superadmin`.
-- **Tournament-Scoped Roles**: `tournament_admin`, `organizador`, `arbitro`, `escrutador`, `jugador`.
-All backend endpoints enforce authorization through authentication checks, resource existence verification, and permission validation based on these roles.
+The system employs session-based authentication with a hierarchical multi-tenant role-based access control (RBAC). Passwords are hashed using Node.js `crypto.scrypt`. RBAC includes global roles (`superadmin`) and tournament-scoped roles (`tournament_admin`, `organizador`, `arbitro`, `escrutador`, `jugador`). Authorization checks on all backend endpoints verify authentication, resource existence, and permissions based on both global and tournament-specific roles.
+
+## UI/UX Decisions
+The interface is designed to be racquetball-only, hiding all Padel-related elements. Player profiles are enhanced with profile photos, nationality flags, and category badges. Public display components feature real-time scoreboards with player information (photos, flags), live scores, and sponsor banners, all accessible without authentication.
+
+## Feature Specifications
+-   **Real-Time Match Statistics Capture**: Live scoring module with racquetball-specific logic, granular event recording (shot types, serves). Roles with access: superadmin, admin (global), and tournament_admin, organizador, arbitro, escrutador (tournament-scoped).
+-   **Open IRT Format Implementation**: Specialized scoring for International Racquetball Tour (IRT) matches, including server-only scoring, timeouts, appellations, technical fouls, undo functionality, and fault tracking.
+-   **Enhanced Statistics Module**: Tracks shot-type breakdown, serve effectiveness (ace tracking), and aggregates summary metrics (wins/losses, sets) from completed matches. Differentiates singles and doubles performance.
+-   **Comprehensive CRUD**: Full Create, Read, Update, Delete functionality for tournaments and matches with role-based access controls.
+-   **Bracket Generation**: System for generating tournament brackets with transactional safety.
+-   **Tournament Doubles Integration**: Supports creating, editing, and viewing singles and doubles matches with conditional player fields and team formatting.
+-   **Excel Import Module**: Bulk import functionality for players and matches (Singles/Doubles) with automatic data processing, validation, and category mapping.
+-   **Tournament-Scoped Calendar System**: Integrated calendar showing scheduled matches. Players see their own matches; admins can manage matches within tournaments. SuperAdmins/Admins have a global "All Tournaments" view. Displays matches in the tournament's configured timezone.
+-   **Tournament Timezone Support**: Each tournament can have a configurable timezone. Backend queries are timezone-aware.
+-   **IRT Ranking System**: Automatic calculation and permanent accumulation of IRT ranking points based on tournament tiers, match types, and rounds reached. Global IRT ranking displays top PRO_SINGLES_IRT players by cumulative points. SuperAdmins can manually adjust points with audit trails.
+-   **Match and Player Categories**: Comprehensive categorization system with 13 official competition categories. Players can be assigned up to 3 categories.
+-   **Player Profile Enhancement**: Players can have profile photos (uploaded to Replit Object Storage), nationality, and up to 3 assigned categories. Admins have full control over player profiles.
+-   **Real-Time Public Display System**: Live scoreboard system (`/public-display`) with WebSocket real-time updates (throttled and sanitized), automatic match rotation, player information, live scores, and sponsor banners.
 
 ## System Design Choices
-- **Real-Time Match Statistics Capture**: Features a live scoring module with racquetball-specific logic, granular event recording including shot types, and serve tracking. Authorization includes global and tournament-scoped roles.
-- **Open IRT Format Implementation**: Specialized scoring logic for International Racquetball Tour (IRT), including server-only scoring, timeout management, appellation system, technical foul tracking, undo functionality, and fault/double-fault tracking.
-- **Enhanced Statistics Module**: Tracks shot-type breakdown, serve effectiveness, and aggregates summary metrics. Differentiates between singles and doubles performance, with player statistics automatically updating upon match completion.
-- **Comprehensive CRUD**: Full Create, Read, Update, Delete functionality for tournaments and matches with role-based access controls.
-- **Bracket Generation**: System for generating tournament brackets with transactional safety.
-- **Racquetball-Only UI**: Padel-related elements are hidden from the UI.
-- **Tournament Doubles Integration**: Supports singles and doubles matches with conditional player fields, validation for unique players in doubles, and team-based formatting.
-- **Excel Import Module**: Bulk import functionality for players and matches (Singles/Doubles) with automatic data processing, player creation, and tournament registration. Includes templates, Zod validation, and category mapping.
-- **Tournament-Scoped Calendar System**: Integrated calendar accessible via sidebar, with role-based filtering. Admins can manage matches; SuperAdmins/Admins have a global "All Tournaments" view. Displays matches in the tournament's configured timezone.
-- **Tournament Timezone Support**: Each tournament can have its own timezone setting. Backend queries are timezone-aware.
-- **IRT Ranking System**: Implements the official International Racquetball Tour (IRT) ranking system with automatic point calculation based on tournament tier, match type, round, and result. Points accumulate permanently and are visible in a global ranking view for PRO_SINGLES_IRT players.
-- **Match and Player Categories**: Comprehensive categorization system with 13 official categories. Players can be assigned up to 3 categories.
-- **Player Profile Enhancement**: Players can upload profile photos, specify nationality, and have up to 3 assigned categories. Admins have full control over player profiles within tournaments.
-- **Real-Time Public Display System**: Live scoreboard display system accessible without authentication at `/public-display`. Features WebSocket real-time updates (throttled and sanitized), automatic match rotation, player information display, live score display, and a sponsor banner system.
-
-## WebSocket Architecture
-A unified WebSocket server with two channels:
-- **Stats Capture Channel** (`/ws/match-stats`): Protected, requires session authentication for match officials.
-- **Public Display Channel** (`/ws/public-display`): Public, read-only for scoreboard displays with tournament filtering.
-Match state changes broadcast to both channels, with throttled updates to public displays. A heartbeat mechanism ensures connection health.
+-   **WebSocket Architecture**: A unified WebSocket server with two channels: a protected stats capture channel and a public display channel. All match state changes broadcast to both channels with appropriate throttling and sanitization for public views. Heartbeat mechanism ensures connection health.
 
 # External Dependencies
 -   **Neon PostgreSQL**: Serverless PostgreSQL database.
@@ -53,7 +49,6 @@ Match state changes broadcast to both channels, with throttled updates to public
 -   **Lucide React**: Icon library.
 -   **Vite**: Build tool and development server.
 -   **TypeScript**: Static type checking.
--   **ESBuild**: Fast bundler.
 -   **Passport.js**: Authentication middleware.
 -   **Zod**: Runtime type validation.
 -   **drizzle-zod**: Drizzle and Zod integration.
