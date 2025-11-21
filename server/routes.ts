@@ -1694,10 +1694,11 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Match not found" });
       }
 
-      // Only SuperAdmin or Tournament Admin can update sessions
+      // Only the user who started the session or SuperAdmin/Tournament Admin can update sessions
+      const isStartedByUser = session.startedBy === req.user!.id;
       const canManage = await storage.canManageTournament(req.user!.id, match.tournamentId);
-      if (!canManage) {
-        return res.status(403).json({ message: "Insufficient permissions to update match session" });
+      if (!isStartedByUser && !canManage) {
+        return res.status(403).json({ message: "Solo el usuario que inició la captura de estadísticas puede modificar esta sesión" });
       }
 
       const updatedSession = await storage.updateStatsSession(req.params.sessionId, req.body);
@@ -1733,10 +1734,11 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Match not found" });
       }
 
-      // Only SuperAdmin or Tournament Admin can complete sessions
+      // Only the user who started the session or SuperAdmin/Tournament Admin can complete sessions
+      const isStartedByUser = session.startedBy === req.user!.id;
       const canManage = await storage.canManageTournament(req.user!.id, match.tournamentId);
-      if (!canManage) {
-        return res.status(403).json({ message: "Insufficient permissions to complete stats sessions" });
+      if (!isStartedByUser && !canManage) {
+        return res.status(403).json({ message: "Solo el usuario que inició la captura de estadísticas puede finalizar esta sesión" });
       }
 
       const completedSession = await storage.completeStatsSession(req.params.sessionId);
