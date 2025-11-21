@@ -64,6 +64,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Match } from "@shared/schema";
 import { TournamentRolesTab } from "@/components/tournament-roles-tab";
 import { ExcelImportDialog } from "@/components/excel-import-dialog";
+import { TournamentConfigurationTab } from "@/components/tournament-configuration-tab";
 
 // =======================
 // 1️⃣ Página principal
@@ -567,7 +568,7 @@ export default function TournamentDetailPage() {
 
           {/* Main content tabs */}
           <Tabs defaultValue="players" className="w-full">
-            <TabsList className={`grid w-full ${canManage ? 'grid-cols-4' : 'grid-cols-2'}`}>
+            <TabsList className={`grid w-full ${canManage ? 'grid-cols-5' : 'grid-cols-2'}`}>
               <TabsTrigger value="players" data-testid="tab-players" className="min-h-[44px]">
                 Jugadores
               </TabsTrigger>
@@ -581,6 +582,9 @@ export default function TournamentDetailPage() {
                   </TabsTrigger>
                   <TabsTrigger value="roles" data-testid="tab-roles" className="min-h-[44px]">
                     Roles
+                  </TabsTrigger>
+                  <TabsTrigger value="configuration" data-testid="tab-configuration" className="min-h-[44px]">
+                    Configuración
                   </TabsTrigger>
                 </>
               )}
@@ -645,6 +649,10 @@ export default function TournamentDetailPage() {
 
                 <TabsContent value="roles" className="mt-4 sm:mt-6">
                   <TournamentRolesTab tournament={tournament} />
+                </TabsContent>
+
+                <TabsContent value="configuration" className="mt-4 sm:mt-6">
+                  <TournamentConfigurationTab tournament={tournament} />
                 </TabsContent>
               </>
             )}
