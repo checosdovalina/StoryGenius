@@ -26,6 +26,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserRole(id: string, role: string): Promise<User>;
+  updateUserProfile(id: string, data: any): Promise<User>;
+  updateUserPartial(id: string, data: any): Promise<User>;
   getAllUsers(): Promise<User[]>;
   deleteUser(id: string): Promise<void>;
 
@@ -41,6 +43,7 @@ export interface IStorage {
   // Tournament registrations
   registerPlayerForTournament(registration: InsertTournamentRegistration): Promise<TournamentRegistration>;
   getTournamentRegistrations(tournamentId: string): Promise<TournamentRegistration[]>;
+  getTournamentRegistration(tournamentId: string, playerId: string): Promise<TournamentRegistration | undefined>;
   getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date }>>;
   getPlayerTournaments(playerId: string): Promise<Tournament[]>;
   unregisterPlayerFromTournament(tournamentId: string, playerId: string): Promise<void>;
