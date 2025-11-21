@@ -85,25 +85,22 @@ function getFlagEmoji(countryCode: string | null): string {
 
 function PlayerDisplay({ player, side }: { player: PlayerInfo; side: "left" | "right" }) {
   return (
-    <div className={`flex items-center gap-3 ${side === "right" ? "flex-row-reverse" : ""}`}>
+    <div className={`flex items-center gap-4 ${side === "right" ? "flex-row-reverse" : ""}`}>
       <div className="flex-shrink-0">
         {player.photoUrl ? (
           <img
             src={player.photoUrl}
             alt={player.name}
-            className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-lg"
+            className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
           />
         ) : (
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xl font-bold border-2 border-white shadow-lg">
+          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
             {player.name.charAt(0)}
           </div>
         )}
       </div>
       <div className={`${side === "right" ? "text-right" : "text-left"}`}>
-        <h3 className="text-base font-bold text-white mb-0.5">{player.name}</h3>
-        {player.nationality && (
-          <div className="text-2xl">{getFlagEmoji(player.nationality)}</div>
-        )}
+        <h3 className="text-2xl font-bold text-white">{player.name}</h3>
       </div>
     </div>
   );
@@ -270,24 +267,19 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
         <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-6 mb-6 shadow-2xl border-4 border-yellow-400">
           <div className="text-center">
             <p className="text-white text-xl font-bold mb-3">EQUIPO GANADOR</p>
-            <div className="flex items-center gap-4 justify-center">
+            <div className="flex items-center gap-6 justify-center">
               {winner?.photoUrl ? (
                 <img
                   src={winner.photoUrl}
                   alt={winner.name}
-                  className="w-16 h-16 rounded-full object-cover border-4 border-white"
+                  className="w-24 h-24 rounded-full object-cover border-4 border-white"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-orange-500">
+                <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center text-4xl font-bold text-orange-500">
                   {winner?.name.charAt(0)}
                 </div>
               )}
-              <div className="text-left">
-                <h2 className="text-3xl font-bold text-white">{winner?.name}</h2>
-                {winner?.nationality && (
-                  <div className="text-4xl mt-1">{getFlagEmoji(winner.nationality)}</div>
-                )}
-              </div>
+              <h2 className="text-4xl font-bold text-white">{winner?.name}</h2>
             </div>
           </div>
         </div>
