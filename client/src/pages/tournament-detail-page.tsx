@@ -680,6 +680,9 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const [searchingPartner, setSearchingPartner] = useState(false);
   const [foundPartner, setFoundPartner] = useState<User | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [editingPlayer, setEditingPlayer] = useState<User | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const { toast } = useToast();
 
   // Get tournament players
@@ -720,6 +723,23 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     },
     onError: () => {
       toast({ title: "Error al desregistrar jugador", variant: "destructive" });
+    }
+  });
+
+  // Update player profile mutation
+  const updatePlayerMutation = useMutation({
+    mutationFn: async (data: Partial<User>) => {
+      return apiRequest("PATCH", `/api/users/${editingPlayer!.id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/players`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setShowEditDialog(false);
+      setEditingPlayer(null);
+      toast({ title: "Perfil actualizado exitosamente", variant: "default" });
+    },
+    onError: () => {
+      toast({ title: "Error al actualizar perfil", variant: "destructive" });
     }
   });
 
@@ -863,6 +883,19 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     const registeredPlayerIds = players.map(p => p.id);
     return allUsers.filter(user => !registeredPlayerIds.includes(user.id));
   }, [players, allUsers]);
+
+  // Filter and sort players by category
+  const filteredAndSortedPlayers = useMemo(() => {
+    let filtered = [...players];
+    
+    // Filter by category if selected
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(p => p.categories?.includes(selectedCategory));
+    }
+    
+    // Sort alphabetically by name
+    return filtered.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  }, [players, selectedCategory]);
 
   return (
     <Card>
@@ -1025,7 +1058,26 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
           Gestiona los jugadores registrados en este torneo
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {players.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Label htmlFor="category-filter" className="text-sm font-medium">Filtrar por categoría:</Label>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger id="category-filter" className="w-48" data-testid="select-category-filter">
+                <SelectValue placeholder="Todas las categorías" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las categorías</SelectItem>
+                {MATCH_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {loadingPlayers ? (
           <div className="text-center py-8" data-testid="loading-players">
             <p>Cargando jugadores...</p>
@@ -1036,9 +1088,13 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
             <p>No hay jugadores registrados aún</p>
             <p className="text-sm">Los jugadores aparecerán aquí cuando se registren</p>
           </div>
+        ) : filteredAndSortedPlayers.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p>No hay jugadores en esta categoría</p>
+          </div>
         ) : (
           <div className="space-y-3 sm:space-y-4">
-            {players.map((player, index) => (
+            {filteredAndSortedPlayers.map((player, index) => (
               <div key={player.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg gap-3" data-testid={`player-card-${player.id}`}>
                 <div className="flex items-center space-x-3 sm:space-x-4 w-full sm:w-auto">
                   <div className="h-10 w-10 flex-shrink-0 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
@@ -1074,24 +1130,184 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                     {format(new Date(player.registeredAt), 'dd/MM/yyyy')}
                   </Badge>
                   {canManage && (
-                    <Button
-                      variant="outline"
-                      onClick={() => unregisterMutation.mutate(player.id)}
-                      disabled={unregisterMutation.isPending}
-                      data-testid={`button-unregister-${player.id}`}
-                      className="min-h-[44px] min-w-[44px] p-2"
-                      aria-label={`Eliminar a ${player.name} del torneo`}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingPlayer(player);
+                          setShowEditDialog(true);
+                        }}
+                        data-testid={`button-edit-player-${player.id}`}
+                        className="min-h-[44px] min-w-[44px] p-2"
+                        aria-label={`Editar a ${player.name}`}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => unregisterMutation.mutate(player.id)}
+                        disabled={unregisterMutation.isPending}
+                        data-testid={`button-unregister-${player.id}`}
+                        className="min-h-[44px] min-w-[44px] p-2"
+                        aria-label={`Eliminar a ${player.name} del torneo`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        {/* Edit Player Dialog */}
+        {editingPlayer && (
+          <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Editar Perfil de {editingPlayer.name}</DialogTitle>
+                <DialogDescription>
+                  Modifica los datos del jugador
+                </DialogDescription>
+              </DialogHeader>
+              <EditPlayerForm
+                player={editingPlayer}
+                onSubmit={(data) => updatePlayerMutation.mutate(data)}
+                isPending={updatePlayerMutation.isPending}
+                onCancel={() => setShowEditDialog(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function EditPlayerForm({ 
+  player, 
+  onSubmit, 
+  isPending, 
+  onCancel 
+}: { 
+  player: User; 
+  onSubmit: (data: Partial<User>) => void; 
+  isPending: boolean;
+  onCancel: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    name: player.name || "",
+    phone: player.phone || "",
+    club: player.club || "",
+    nationality: player.nationality || "",
+    categories: player.categories || []
+  });
+
+  const handleCategoryToggle = (category: string) => {
+    setFormData(prev => ({
+      ...prev,
+      categories: prev.categories.includes(category)
+        ? prev.categories.filter(c => c !== category)
+        : prev.categories.length < 3 
+          ? [...prev.categories, category]
+          : prev.categories
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="name">Nombre Completo</Label>
+        <Input
+          id="name"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          placeholder="Nombre completo"
+          data-testid="input-edit-player-name"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="phone">Teléfono</Label>
+        <Input
+          id="phone"
+          value={formData.phone}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          placeholder="+56912345678"
+          data-testid="input-edit-player-phone"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="club">Club</Label>
+        <Input
+          id="club"
+          value={formData.club}
+          onChange={(e) => setFormData({ ...formData, club: e.target.value })}
+          placeholder="Club del jugador"
+          data-testid="input-edit-player-club"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="nationality">Nacionalidad</Label>
+        <Input
+          id="nationality"
+          value={formData.nationality}
+          onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+          placeholder="ej: Chile, México, etc"
+          data-testid="input-edit-player-nationality"
+        />
+      </div>
+
+      <div>
+        <Label className="mb-3 block">Categorías (máximo 3)</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {MATCH_CATEGORIES.map((cat) => (
+            <div key={cat.value} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`cat-${cat.value}`}
+                checked={formData.categories.includes(cat.value)}
+                onChange={() => handleCategoryToggle(cat.value)}
+                disabled={formData.categories.length === 3 && !formData.categories.includes(cat.value)}
+                data-testid={`checkbox-category-${cat.value}`}
+                className="cursor-pointer"
+              />
+              <label htmlFor={`cat-${cat.value}`} className="text-sm cursor-pointer">
+                {cat.label}
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isPending}
+          data-testid="button-cancel-edit-player"
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="submit"
+          disabled={isPending}
+          data-testid="button-save-edit-player"
+        >
+          {isPending ? "Guardando..." : "Guardar"}
+        </Button>
+      </div>
+    </form>
   );
 }
 
