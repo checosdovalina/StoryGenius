@@ -271,6 +271,9 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
           <h1 className="text-5xl font-bold text-green-400 mb-2">🏆 PARTIDO TERMINADO 🏆</h1>
           <p className="text-2xl text-white">{match.tournament.name}</p>
           <p className="text-lg text-white/80">{match.match.round}</p>
+          {match.match.court && (
+            <p className="text-lg text-yellow-300 mt-2">🏟️ Cancha: <span className="font-bold">{match.match.court.name}</span> - {match.match.court.venue}</p>
+          )}
         </div>
 
         {/* GANADOR */}
@@ -331,22 +334,22 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
             <div className="bg-black/60 backdrop-blur-sm rounded-xl p-4 shadow-2xl">
               <h3 className="text-white text-lg font-bold text-center mb-4">ESTADÍSTICAS</h3>
               
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="text-left">
-                  <div className="text-white/70 mb-1">Equipo 1</div>
-                  <div className="text-white/90">🎯 Aces: <span className="font-bold text-green-400">{stats.team1.aces}</span></div>
-                  <div className="text-white/90">➡️ Recto: <span className="font-bold">{stats.team1.recto}</span></div>
-                  <div className="text-white/90">📐 Esquina: <span className="font-bold">{stats.team1.esquina}</span></div>
-                  <div className="text-white/90">↗️ Cruzado: <span className="font-bold">{stats.team1.cruzado}</span></div>
-                  <div className="text-white/90">⚡ Punto: <span className="font-bold">{stats.team1.punto}</span></div>
+              <div className="grid grid-cols-2 gap-3 text-lg">
+                <div className="text-left space-y-1.5">
+                  <div className="text-white/70 mb-2 font-bold">Equipo 1</div>
+                  <div className="text-white/90">🎯 Aces: <span className="font-bold text-green-400 text-xl">{stats.team1.aces}</span></div>
+                  <div className="text-white/90">➡️ Recto: <span className="font-bold text-xl">{stats.team1.recto}</span></div>
+                  <div className="text-white/90">📐 Esquina: <span className="font-bold text-xl">{stats.team1.esquina}</span></div>
+                  <div className="text-white/90">↗️ Cruzado: <span className="font-bold text-xl">{stats.team1.cruzado}</span></div>
+                  <div className="text-white/90">⚡ Punto: <span className="font-bold text-xl">{stats.team1.punto}</span></div>
                 </div>
-                <div className="text-right">
-                  <div className="text-white/70 mb-1">Equipo 2</div>
-                  <div className="text-white/90"><span className="font-bold text-green-400">{stats.team2.aces}</span> 🎯 Aces</div>
-                  <div className="text-white/90"><span className="font-bold">{stats.team2.recto}</span> ➡️ Recto</div>
-                  <div className="text-white/90"><span className="font-bold">{stats.team2.esquina}</span> 📐 Esquina</div>
-                  <div className="text-white/90"><span className="font-bold">{stats.team2.cruzado}</span> ↗️ Cruzado</div>
-                  <div className="text-white/90"><span className="font-bold">{stats.team2.punto}</span> ⚡ Punto</div>
+                <div className="text-right space-y-1.5">
+                  <div className="text-white/70 mb-2 font-bold">Equipo 2</div>
+                  <div className="text-white/90"><span className="font-bold text-green-400 text-xl">{stats.team2.aces}</span> 🎯 Aces</div>
+                  <div className="text-white/90"><span className="font-bold text-xl">{stats.team2.recto}</span> ➡️ Recto</div>
+                  <div className="text-white/90"><span className="font-bold text-xl">{stats.team2.esquina}</span> 📐 Esquina</div>
+                  <div className="text-white/90"><span className="font-bold text-xl">{stats.team2.cruzado}</span> ↗️ Cruzado</div>
+                  <div className="text-white/90"><span className="font-bold text-xl">{stats.team2.punto}</span> ⚡ Punto</div>
                 </div>
               </div>
             </div>
