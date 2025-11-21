@@ -429,6 +429,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTournament(id: string): Promise<void> {
+    // Delete in cascade order to avoid foreign key constraint violations
+    await db.delete(matchStatsSessions).where(
+      sql`match_id IN (SELECT id FROM matches WHERE tournament_id = ${id})`
+    );
+    await db.delete(matchEvents).where(
+      sql`session_id IN (SELECT id FROM match_stats_sessions WHERE match_id IN (SELECT id FROM matches WHERE tournament_id = ${id}))`
+    );
+    await db.delete(matches).where(eq(matches.tournamentId, id));
+    await db.delete(scheduledMatches).where(eq(scheduledMatches.tournamentId, id));
+    await db.delete(tournamentRegistrations).where(eq(tournamentRegistrations.tournamentId, id));
+    await db.delete(playerStats).where(eq(playerStats.tournamentId, id));
+    await db.delete(tournamentUserRoles).where(eq(tournamentUserRoles.tournamentId, id));
+    await db.delete(tournamentSponsors).where(eq(tournamentSponsors.tournamentId, id));
     await db.delete(tournaments).where(eq(tournaments.id, id));
   }
 
