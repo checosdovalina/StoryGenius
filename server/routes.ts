@@ -506,12 +506,14 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Match routes
+  // Match routes - Get all matches for a tournament (public, no auth required)
   app.get("/api/tournaments/:id/matches", async (req, res) => {
     try {
       const matches = await storage.getTournamentMatches(req.params.id);
-      res.json(matches);
+      // Return all matches without any role-based filtering
+      res.json(matches || []);
     } catch (error) {
+      console.error("Error fetching tournament matches:", error);
       res.status(500).json({ message: "Failed to fetch matches" });
     }
   });
