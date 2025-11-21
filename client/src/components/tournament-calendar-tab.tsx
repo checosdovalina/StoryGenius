@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { ScheduledMatch, Court, Tournament } from "@shared/schema";
+import type { ScheduledMatch, Court, Tournament, Match } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 import { Trophy } from "lucide-react";
@@ -82,7 +82,7 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
   });
 
   // Fetch scheduled matches for selected date
-  const { data: scheduledMatches = [], isLoading } = useQuery<ScheduledMatch[]>({
+  const { data: scheduledMatches = [], isLoading: scheduledLoading } = useQuery<ScheduledMatch[]>({
     queryKey: [`/api/tournaments/${tournament.id}/scheduled-matches`, format(selectedDate, "yyyy-MM-dd")],
     queryFn: async () => {
       const response = await fetch(
@@ -93,6 +93,44 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
       return response.json();
     }
   });
+
+  // Fetch tournament matches for selected date
+  const { data: tournamentMatches = [], isLoading: tournamentLoading } = useQuery<Match[]>({
+    queryKey: [`/api/tournaments/${tournament.id}/matches`]
+  });
+
+  // Combine both match sources for calendar display
+  const allMatches = useMemo(() => {
+    const selected = format(selectedDate, "yyyy-MM-dd");
+    const tournamentTimezone = tournament.timezone || "America/Mexico_City";
+    
+    // Filter tournament matches by selected date
+    const filteredTournamentMatches = tournamentMatches
+      .filter(match => match.scheduledAt)
+      .filter(match => {
+        const utcDate = new Date(match.scheduledAt!);
+        const zonedDate = toZonedTime(utcDate, tournamentTimezone);
+        return format(zonedDate, "yyyy-MM-dd") === selected;
+      })
+      .map(match => ({
+        id: match.id,
+        title: `${match.round || "Partido"}`,
+        scheduledDate: match.scheduledAt!,
+        sport: "racquetball" as const,
+        matchType: match.matchType as "singles" | "doubles",
+        courtId: match.courtId || "",
+        duration: 90,
+        player1Name: "",
+        player2Name: "",
+        player3Name: "",
+        player4Name: "",
+        notes: ""
+      })) as ScheduledMatch[];
+
+    return [...scheduledMatches, ...filteredTournamentMatches];
+  }, [scheduledMatches, tournamentMatches, selectedDate, tournament.timezone]);
+
+  const isLoading = scheduledLoading || tournamentLoading;
 
   const form = useForm<MatchFormData>({
     resolver: zodResolver(matchFormSchema),
@@ -248,7 +286,7 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
     const slotStartUtc = fromZonedTime(slotDateString, tournamentTimezone);
     const slotEndUtc = new Date(slotStartUtc.getTime() + 90 * 60 * 1000);
 
-    return scheduledMatches.filter(match => {
+    return allMatches.filter(match => {
       if (match.courtId !== courtId) return false;
       
       const matchStart = new Date(match.scheduledDate);
