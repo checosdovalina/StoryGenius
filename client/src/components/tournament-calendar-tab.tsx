@@ -96,7 +96,15 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
 
   // Fetch tournament matches for selected date
   const { data: tournamentMatches = [], isLoading: tournamentLoading } = useQuery<Match[]>({
-    queryKey: [`/api/tournaments/${tournament.id}/matches`]
+    queryKey: [`/api/tournaments/${tournament.id}/matches`],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/tournaments/${tournament.id}/matches`,
+        { credentials: "include" }
+      );
+      if (!response.ok) throw new Error("Failed to fetch tournament matches");
+      return response.json();
+    }
   });
 
   // Combine both match sources for calendar display
@@ -104,18 +112,22 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
     const selected = format(selectedDate, "yyyy-MM-dd");
     const tournamentTimezone = tournament.timezone || "America/Mexico_City";
     
-    // Filter tournament matches by selected date
+    // Filter tournament matches by selected date or show unscheduled on first day
     const filteredTournamentMatches = tournamentMatches
-      .filter(match => match.scheduledAt)
       .filter(match => {
-        const utcDate = new Date(match.scheduledAt!);
-        const zonedDate = toZonedTime(utcDate, tournamentTimezone);
-        return format(zonedDate, "yyyy-MM-dd") === selected;
+        // Show matches with scheduled dates on their specific date
+        if (match.scheduledAt) {
+          const utcDate = new Date(match.scheduledAt);
+          const zonedDate = toZonedTime(utcDate, tournamentTimezone);
+          return format(zonedDate, "yyyy-MM-dd") === selected;
+        }
+        // Show unscheduled matches on first day of month
+        return selected === format(new Date(tournamentTimezone), "yyyy-MM-01");
       })
       .map(match => ({
         id: match.id,
-        title: `${match.round || "Partido"}`,
-        scheduledDate: match.scheduledAt!,
+        title: `${match.round || "Partido"}${!match.scheduledAt ? " (sin fecha)" : ""}`,
+        scheduledDate: match.scheduledAt || new Date().toISOString(),
         sport: "racquetball" as const,
         matchType: match.matchType as "singles" | "doubles",
         courtId: match.courtId || "",
