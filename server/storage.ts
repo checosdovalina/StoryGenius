@@ -1326,7 +1326,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getRankingEntries(tournamentId?: string, limit = 50): Promise<any[]> {
+  async getRankingEntries(tournamentId?: string, limit = 50, category?: string): Promise<any[]> {
     // Get event stats and match outcomes
     const [eventStats, matchOutcomes] = await Promise.all([
       this.getPlayersEventStats(tournamentId),
@@ -1343,7 +1343,19 @@ export class DatabaseStorage implements IStorage {
       ...matchOutcomes.map(o => o.playerId)
     ]);
     
-    // Get user info for all players
+    // Get user info for all players - filter by category if specified
+    let whereCondition: any = and(
+      eq(users.isActive, true),
+      sql`${users.id} = ANY(${Array.from(allPlayerIds)}::varchar[])`
+    );
+    
+    if (category) {
+      whereCondition = and(
+        whereCondition,
+        sql`${users.categories} @> ARRAY[${category}]`
+      );
+    }
+    
     const playerUsers = await db
       .select({
         id: users.id,
@@ -1352,12 +1364,7 @@ export class DatabaseStorage implements IStorage {
         club: users.club
       })
       .from(users)
-      .where(
-        and(
-          eq(users.isActive, true),
-          sql`${users.id} = ANY(${Array.from(allPlayerIds)}::varchar[])`
-        )
-      );
+      .where(whereCondition);
     
     const usersMap = new Map(playerUsers.map(u => [u.id, u]));
     
@@ -1439,8 +1446,8 @@ export class DatabaseStorage implements IStorage {
       .slice(0, limit);
   }
 
-  async getGlobalRankings(limit = 50): Promise<any[]> {
-    return this.getRankingEntries(undefined, limit);
+  async getGlobalRankings(limit = 50, category: string = "PRO_SINGLES_IRT"): Promise<any[]> {
+    return this.getRankingEntries(undefined, limit, category);
   }
 
   async getTournamentRankings(tournamentId: string, limit = 50): Promise<any[]> {
