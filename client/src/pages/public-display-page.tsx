@@ -619,13 +619,20 @@ export default function PublicDisplayPage() {
   useEffect(() => {
     if (displayMatches.length <= 1) return;
 
-    const rotationInterval = currentMatch?.tournament?.matchRotationInterval || 40;
+    // Get rotation interval from first match (should be same for all matches in same tournament)
+    const rotationInterval = (displayMatches[0]?.tournament?.matchRotationInterval || 40);
+    
     const interval = setInterval(() => {
       setCurrentMatchIndex((prev) => (prev + 1) % displayMatches.length);
     }, rotationInterval * 1000);
 
-    return () => clearInterval(interval);
-  }, [displayMatches.length, currentMatch?.tournament?.matchRotationInterval]);
+    console.log(`[Public Display] Rotation started: ${displayMatches.length} matches, interval: ${rotationInterval}s`);
+
+    return () => {
+      clearInterval(interval);
+      console.log('[Public Display] Rotation cleared');
+    };
+  }, [displayMatches.length]);
 
   if (matchesLoading) {
     return (
