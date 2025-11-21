@@ -1343,33 +1343,37 @@ export class DatabaseStorage implements IStorage {
       ...matchOutcomes.map(o => o.playerId)
     ]);
     
-    // Get user info for all players - filter by category if specified
-    let whereCondition: any = and(
+    // Get user info for all players
+    const whereCondition = and(
       eq(users.isActive, true),
       sql`${users.id} = ANY(${Array.from(allPlayerIds)}::varchar[])`
     );
-    
-    if (category) {
-      whereCondition = and(
-        whereCondition,
-        sql`${users.categories} @> ARRAY[${category}]`
-      );
-    }
     
     const playerUsers = await db
       .select({
         id: users.id,
         name: users.name,
         email: users.email,
-        club: users.club
+        club: users.club,
+        categories: users.categories
       })
       .from(users)
       .where(whereCondition);
     
-    const usersMap = new Map(playerUsers.map(u => [u.id, u]));
+    // Filter by category if specified
+    const filteredPlayerUsers = category
+      ? playerUsers.filter(u => u.categories && u.categories.includes(category))
+      : playerUsers;
+    
+    const usersMap = new Map(filteredPlayerUsers.map(u => [u.id, u]));
+    
+    // Filter allPlayerIds to only include users with the category
+    const filteredPlayerIds = category
+      ? Array.from(allPlayerIds).filter(id => usersMap.has(id))
+      : Array.from(allPlayerIds);
     
     // Combine and calculate ranking scores
-    const rankings = Array.from(allPlayerIds).map(playerId => {
+    const rankings = filteredPlayerIds.map(playerId => {
       const stats = statsMap.get(playerId) || {
         totalPoints: 0,
         aces: 0,
