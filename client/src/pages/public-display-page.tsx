@@ -18,6 +18,13 @@ interface MatchStats {
   totalPoints: number;
 }
 
+interface CourtInfo {
+  id: string;
+  name: string;
+  venue: string;
+  description?: string | null;
+}
+
 interface ActiveMatch {
   session: {
     id: string;
@@ -53,6 +60,7 @@ interface ActiveMatch {
     tournamentId: string;
     round: string;
     courtId: string | null;
+    court?: CourtInfo | null;
   };
   tournament: {
     id: string;
@@ -266,22 +274,27 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
         </div>
 
         {/* GANADOR */}
-        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-6 mb-6 shadow-2xl border-4 border-yellow-400">
+        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 mb-6 shadow-2xl border-4 border-yellow-400">
           <div className="text-center">
-            <p className="text-white text-xl font-bold mb-3">EQUIPO GANADOR</p>
-            <div className="flex items-center gap-6 justify-center">
+            <p className="text-white text-2xl font-bold mb-4">EQUIPO GANADOR</p>
+            <div className="flex items-center gap-8 justify-center flex-col sm:flex-row">
               {winner?.photoUrl ? (
                 <img
                   src={winner.photoUrl}
                   alt={winner.name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white"
+                  className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-xl"
                 />
               ) : (
-                <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center text-4xl font-bold text-orange-500">
+                <div className="w-40 h-40 rounded-full bg-white flex items-center justify-center text-6xl font-bold text-orange-500 shadow-xl">
                   {winner?.name.charAt(0)}
                 </div>
               )}
-              <h2 className="text-4xl font-bold text-white">{winner?.name}</h2>
+              <div>
+                <h2 className="text-5xl font-bold text-white mb-2">{winner?.name}</h2>
+                {winner?.nationality && (
+                  <p className="text-5xl">{getFlagEmoji(winner.nationality)}</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
