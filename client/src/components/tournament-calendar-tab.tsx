@@ -112,17 +112,17 @@ export function TournamentCalendarTab({ tournament }: TournamentCalendarTabProps
     const selected = format(selectedDate, "yyyy-MM-dd");
     const tournamentTimezone = tournament.timezone || "America/Mexico_City";
     
-    // Filter tournament matches by selected date or show unscheduled on first day
+    // Convert tournament matches to scheduled matches format
     const filteredTournamentMatches = tournamentMatches
       .filter(match => {
-        // Show matches with scheduled dates on their specific date
+        // Show matches on their scheduled date if set, or show unscheduled on any date
         if (match.scheduledAt) {
           const utcDate = new Date(match.scheduledAt);
           const zonedDate = toZonedTime(utcDate, tournamentTimezone);
           return format(zonedDate, "yyyy-MM-dd") === selected;
         }
-        // Show unscheduled matches on first day of month
-        return selected === format(new Date(tournamentTimezone), "yyyy-MM-01");
+        // Show all unscheduled matches on the selected date so they're visible
+        return true;
       })
       .map(match => ({
         id: match.id,
