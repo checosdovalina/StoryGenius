@@ -1362,8 +1362,13 @@ export class DatabaseStorage implements IStorage {
     
     // Filter by category if specified
     const filteredPlayerUsers = category
-      ? playerUsers.filter(u => u.categories && u.categories.includes(category))
+      ? playerUsers.filter(u => {
+          const hasCategory = u.categories && u.categories.includes(category);
+          return hasCategory;
+        })
       : playerUsers;
+    
+    console.log(`[IRT RANKING] Total players: ${playerUsers.length}, Category: ${category}, Filtered: ${filteredPlayerUsers.length}`);
     
     const usersMap = new Map(filteredPlayerUsers.map(u => [u.id, u]));
     
