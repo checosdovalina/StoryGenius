@@ -493,6 +493,7 @@ export default function PublicDisplayPage() {
   const [tournamentId, setTournamentId] = useState<string | null>(null);
   const [allMatches, setAllMatches] = useState<ActiveMatch[]>([]);
   const [wsConnected, setWsConnected] = useState(false);
+  const [lastMatchCount, setLastMatchCount] = useState(0);
 
   // Extract tournament ID from URL query params
   useEffect(() => {
@@ -520,6 +521,21 @@ export default function PublicDisplayPage() {
   
   // For rotation, prioritize active matches, then completed matches
   const displayMatches = activeMatches.length > 0 ? activeMatches : completedMatches;
+
+  // Simple rotation timer - auto-advance every 20 seconds
+  useEffect(() => {
+    if (displayMatches.length === 0) return;
+    
+    const timer = setInterval(() => {
+      setCurrentMatchIndex(prev => {
+        const next = (prev + 1) % displayMatches.length;
+        console.log(`[ROTATE] Moving to match ${next + 1}/${displayMatches.length}`);
+        return next;
+      });
+    }, 20000);
+    
+    return () => clearInterval(timer);
+  }, [displayMatches.length]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -601,11 +617,17 @@ export default function PublicDisplayPage() {
     };
   }, [tournamentId]);
 
-  // Reset index if currentMatchIndex exceeds available matches
+  // Auto-rotate matches every 10 seconds (simplified rotation)
   useEffect(() => {
-    if (displayMatches.length > 0 && currentMatchIndex >= displayMatches.length) {
-      setCurrentMatchIndex(0);
-    }
+    const interval = setInterval(() => {
+      setCurrentMatchIndex((prev) => {
+        const nextIndex = (prev + 1) % displayMatches.length;
+        console.log(`[Rotation] ${prev + 1} -> ${nextIndex + 1} of ${displayMatches.length}`);
+        return nextIndex;
+      });
+    }, 10000); // 10 seconds for testing
+
+    return () => clearInterval(interval);
   }, [displayMatches.length]);
 
   // Fetch sponsors for current tournament
@@ -614,25 +636,6 @@ export default function PublicDisplayPage() {
     queryKey: currentMatch ? ["/api/tournaments", currentMatch.tournament.id, "sponsors"] : [],
     enabled: !!currentMatch,
   });
-
-  // Auto-rotate matches
-  useEffect(() => {
-    if (displayMatches.length <= 1) return;
-
-    // Get rotation interval from first match (should be same for all matches in same tournament)
-    const rotationInterval = (displayMatches[0]?.tournament?.matchRotationInterval || 40);
-    
-    const interval = setInterval(() => {
-      setCurrentMatchIndex((prev) => (prev + 1) % displayMatches.length);
-    }, rotationInterval * 1000);
-
-    console.log(`[Public Display] Rotation started: ${displayMatches.length} matches, interval: ${rotationInterval}s`);
-
-    return () => {
-      clearInterval(interval);
-      console.log('[Public Display] Rotation cleared');
-    };
-  }, [displayMatches.length]);
 
   if (matchesLoading) {
     return (
