@@ -1367,17 +1367,11 @@ export class DatabaseStorage implements IStorage {
     const filteredPlayerUsers = category
       ? playerUsers.filter(u => {
           const hasCategory = u.categories && u.categories.includes(category);
-          if (!hasCategory) {
-            console.log(`[IRT RANKING] EXCLUDING player ${u.id} ${u.name} - categories: ${JSON.stringify(u.categories)}`);
-          }
           return hasCategory;
         })
       : playerUsers;
     
-    console.log(`[IRT RANKING] Total players: ${playerUsers.length}, Category: ${category}, Filtered: ${filteredPlayerUsers.length}`);
-    filteredPlayerUsers.forEach((p, i) => {
-      console.log(`[IRT RANKING] Included player ${i+1}: ${p.name} - categories: ${JSON.stringify(p.categories)}`);
-    });
+    console.log(`[IRT RANKING] Total players: ${playerUsers.length}, Category: ${category || 'all'}, Filtered: ${filteredPlayerUsers.length}`);
     
     const usersMap = new Map(filteredPlayerUsers.map(u => [u.id, u]));
     
@@ -1464,7 +1458,7 @@ export class DatabaseStorage implements IStorage {
       .slice(0, limit);
   }
 
-  async getGlobalRankings(limit = 50, category: string = "PRO_SINGLES_IRT"): Promise<any[]> {
+  async getGlobalRankings(limit = 50, category?: string): Promise<any[]> {
     return this.getRankingEntries(undefined, limit, category);
   }
 
