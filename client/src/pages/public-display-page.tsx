@@ -173,23 +173,23 @@ function ScoreBoard({ session, stats }: { session: ActiveMatch["session"], stats
             {/* Team 1 Stats */}
             <div className="text-left space-y-0.5">
               <div className="text-white/90 flex justify-between">
-                <span>🎯 Aces:</span>
+                <span>Aces:</span>
                 <span className="font-bold text-green-400">{stats.team1.aces}</span>
               </div>
               <div className="text-white/90 flex justify-between">
-                <span>➡️ Recto:</span>
+                <span>Recto:</span>
                 <span className="font-bold">{stats.team1.recto}</span>
               </div>
               <div className="text-white/90 flex justify-between">
-                <span>📐 Esquina:</span>
+                <span>Esquina:</span>
                 <span className="font-bold">{stats.team1.esquina}</span>
               </div>
               <div className="text-white/90 flex justify-between">
-                <span>↗️ Cruzado:</span>
+                <span>Cruzado:</span>
                 <span className="font-bold">{stats.team1.cruzado}</span>
               </div>
               <div className="text-white/90 flex justify-between">
-                <span>⚡ Punto:</span>
+                <span>Punto:</span>
                 <span className="font-bold">{stats.team1.punto}</span>
               </div>
               <div className="text-white/90 flex justify-between border-t border-white/20 pt-1 mt-1">
@@ -202,23 +202,23 @@ function ScoreBoard({ session, stats }: { session: ActiveMatch["session"], stats
             <div className="text-right space-y-0.5">
               <div className="text-white/90 flex justify-between">
                 <span className="font-bold text-green-400">{stats.team2.aces}</span>
-                <span>🎯 Aces:</span>
+                <span>Aces:</span>
               </div>
               <div className="text-white/90 flex justify-between">
                 <span className="font-bold">{stats.team2.recto}</span>
-                <span>➡️ Recto:</span>
+                <span>Recto:</span>
               </div>
               <div className="text-white/90 flex justify-between">
                 <span className="font-bold">{stats.team2.esquina}</span>
-                <span>📐 Esquina:</span>
+                <span>Esquina:</span>
               </div>
               <div className="text-white/90 flex justify-between">
                 <span className="font-bold">{stats.team2.cruzado}</span>
-                <span>↗️ Cruzado:</span>
+                <span>Cruzado:</span>
               </div>
               <div className="text-white/90 flex justify-between">
                 <span className="font-bold">{stats.team2.punto}</span>
-                <span>⚡ Punto:</span>
+                <span>Punto:</span>
               </div>
               <div className="text-white/90 flex justify-between border-t border-white/20 pt-1 mt-1">
                 <span className="font-bold text-yellow-400">{stats.team2.totalPoints}</span>
