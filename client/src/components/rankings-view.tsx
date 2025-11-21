@@ -328,12 +328,12 @@ export function RankingsView() {
                 {selectedTournamentId && (
                   <div className="flex items-center gap-4">
                     <label className="text-sm font-medium min-w-fit">Filtrar por Categoría:</label>
-                    <Select value={selectedTournamentCategory || ""} onValueChange={(value) => setSelectedTournamentCategory(value || undefined)}>
+                    <Select value={selectedTournamentCategory || "all"} onValueChange={(value) => setSelectedTournamentCategory(value === "all" ? undefined : value)}>
                       <SelectTrigger className="max-w-md" data-testid="tournament-category-filter">
                         <SelectValue placeholder="Todas las categorías" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todas las categorías</SelectItem>
+                        <SelectItem value="all">Todas las categorías</SelectItem>
                         <SelectItem value="PRO_SINGLES_IRT">PRO Singles IRT</SelectItem>
                         <SelectItem value="DOBLES_OPEN">Dobles Open</SelectItem>
                         <SelectItem value="AMATEUR_A">Amateur A</SelectItem>

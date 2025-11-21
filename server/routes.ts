@@ -1161,8 +1161,8 @@ export function registerRoutes(app: Express): Server {
 
   app.get("/api/tournaments/:id/rankings", async (req, res) => {
     try {
-      const { limit = 50 } = req.query;
-      const rankings = await storage.getTournamentRankings(req.params.id, Number(limit));
+      const { limit = 50, category } = req.query;
+      const rankings = await storage.getTournamentRankings(req.params.id, Number(limit), category ? String(category) : undefined);
       res.json(rankings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch tournament rankings" });
