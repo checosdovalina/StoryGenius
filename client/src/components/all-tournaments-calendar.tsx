@@ -1,20 +1,30 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Calendar, Clock, Users, MapPin, Trophy } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ChevronLeft, ChevronRight, Calendar, Clock, Users, MapPin, Trophy, Edit } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from "date-fns-tz";
 import type { ScheduledMatch, Court, Tournament, Match, User } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 export function AllTournamentsCalendar() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [editingMatch, setEditingMatch] = useState<any>(null);
+  const [resultWinnerId, setResultWinnerId] = useState("");
+  const [resultPlayer1Sets, setResultPlayer1Sets] = useState("0");
+  const [resultPlayer2Sets, setResultPlayer2Sets] = useState("0");
 
   // Fetch all scheduled matches for the selected date
   const { data: scheduledMatches = [], isLoading: matchesLoading } = useQuery<ScheduledMatch[]>({
@@ -65,6 +75,35 @@ export function AllTournamentsCalendar() {
       const response = await fetch("/api/users", { credentials: "include" });
       if (!response.ok) return [];
       return response.json();
+    }
+  });
+
+  // Mutation to save match result
+  const saveResultMutation = useMutation({
+    mutationFn: async (data: { matchId: string; winnerId: string; player1Sets: number; player2Sets: number }) => {
+      const response = await fetch(`/api/matches/${data.matchId}/result`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          winnerId: data.winnerId,
+          player1Sets: data.player1Sets,
+          player2Sets: data.player2Sets,
+          player1Games: "0,0",
+          player2Games: "0,0"
+        })
+      });
+      if (!response.ok) throw new Error("Failed to save result");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Éxito", description: "Resultado guardado correctamente" });
+      setEditingMatch(null);
+      // Refetch matches
+      window.location.reload();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
     }
   });
 
@@ -282,20 +321,36 @@ export function AllTournamentsCalendar() {
                           </p>
                         )}
 
-                        {/* Capture stats button for admin */}
-                        {(user?.role === "superadmin" || user?.role === "admin") && match.status !== "completado" && (
-                          <div className="mt-3 pt-3 border-t">
-                            <Link href={`/stats/capture/${match.id}`}>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="w-full"
-                                data-testid={`button-capture-stats-${match.id}`}
-                              >
-                                <Trophy className="h-4 w-4 mr-2" />
-                                Capturar estadísticas
-                              </Button>
-                            </Link>
+                        {/* Action buttons for admin */}
+                        {(user?.role === "superadmin" || user?.role === "admin") && (
+                          <div className="mt-3 pt-3 border-t space-y-2">
+                            {match.status !== "completado" && (
+                              <Link href={`/stats/capture/${match.id}`}>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="w-full"
+                                  data-testid={`button-capture-stats-${match.id}`}
+                                >
+                                  <Trophy className="h-4 w-4 mr-2" />
+                                  Capturar estadísticas
+                                </Button>
+                              </Link>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => {
+                                setEditingMatch(match);
+                                setResultWinnerId(match.winnerId || match.player1Id || "");
+                                setResultPlayer1Sets(match.player1Sets?.toString() || "0");
+                                setResultPlayer2Sets(match.player2Sets?.toString() || "0");
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar resultado
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -307,6 +362,95 @@ export function AllTournamentsCalendar() {
           ))}
         </div>
       )}
+
+      {/* Edit Result Dialog */}
+      <Dialog open={!!editingMatch} onOpenChange={(open) => !open && setEditingMatch(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar resultado del partido</DialogTitle>
+          </DialogHeader>
+          {editingMatch && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium mb-2">{getPlayerDisplay(editingMatch)}</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Ganador</Label>
+                <Select value={resultWinnerId} onValueChange={setResultWinnerId}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editingMatch.matchType === "singles" ? (
+                      <>
+                        <SelectItem value={editingMatch.player1Id || ""}>
+                          {getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)}
+                        </SelectItem>
+                        <SelectItem value={editingMatch.player2Id || ""}>
+                          {getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)}
+                        </SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        <SelectItem value={`${editingMatch.player1Id}-${editingMatch.player3Id}`}>
+                          {getPlayerName(editingMatch.player1Id, editingMatch.player1Name, 1)} & {getPlayerName(editingMatch.player3Id, editingMatch.player3Name, 3)}
+                        </SelectItem>
+                        <SelectItem value={`${editingMatch.player2Id}-${editingMatch.player4Id}`}>
+                          {getPlayerName(editingMatch.player2Id, editingMatch.player2Name, 2)} & {getPlayerName(editingMatch.player4Id, editingMatch.player4Name, 4)}
+                        </SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Sets {editingMatch.matchType === "singles" ? "Jugador 1" : "Equipo 1"}</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={resultPlayer1Sets}
+                    onChange={(e) => setResultPlayer1Sets(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sets {editingMatch.matchType === "singles" ? "Jugador 2" : "Equipo 2"}</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={resultPlayer2Sets}
+                    onChange={(e) => setResultPlayer2Sets(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMatch(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (!resultWinnerId) {
+                  toast({ title: "Error", description: "Selecciona el ganador", variant: "destructive" });
+                  return;
+                }
+                saveResultMutation.mutate({
+                  matchId: editingMatch.id,
+                  winnerId: resultWinnerId,
+                  player1Sets: parseInt(resultPlayer1Sets) || 0,
+                  player2Sets: parseInt(resultPlayer2Sets) || 0
+                });
+              }}
+              disabled={saveResultMutation.isPending}
+            >
+              {saveResultMutation.isPending ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
