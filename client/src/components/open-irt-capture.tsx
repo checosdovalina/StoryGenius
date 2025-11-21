@@ -616,11 +616,11 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       updates.matchWinner = isTeam1Player ? match.player2Id : match.player1Id;
       
       const losingTeamName = isTeam1Player
-        ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
-        : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
+        ? (isDoubles && player3 ? `${player1.name} & ${player3.name}` : player1.name)
+        : (isDoubles && player4 ? `${player2.name} & ${player4.name}` : player2.name);
       const winningTeamName = !isTeam1Player
-        ? (isDoubles ? `${player1.name} & ${player3?.name}` : player1.name)
-        : (isDoubles ? `${player2.name} & ${player4?.name}` : player2.name);
+        ? (isDoubles && player3 ? `${player1.name} & ${player3.name}` : player1.name)
+        : (isDoubles && player4 ? `${player2.name} & ${player4.name}` : player2.name);
       
       // Update local state to show winner
       const updatedState = { 
