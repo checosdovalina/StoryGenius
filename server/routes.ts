@@ -1151,8 +1151,8 @@ export function registerRoutes(app: Express): Server {
 
   app.get("/api/rankings/global", async (req, res) => {
     try {
-      const { limit = 50, category = "PRO_SINGLES_IRT" } = req.query;
-      const rankings = await storage.getGlobalRankings(Number(limit), String(category));
+      const { limit = 50, category } = req.query;
+      const rankings = await storage.getGlobalRankings(Number(limit), category ? String(category) : undefined);
       res.json(rankings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch global rankings" });
