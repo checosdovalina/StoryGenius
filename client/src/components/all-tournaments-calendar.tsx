@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, Calendar, Clock, Users, MapPin, Trophy } fro
 import { format, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { toZonedTime } from "date-fns-tz";
-import type { ScheduledMatch, Court, Tournament, Match } from "@shared/schema";
+import type { ScheduledMatch, Court, Tournament, Match, User } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 
@@ -58,6 +58,16 @@ export function AllTournamentsCalendar() {
     enabled: tournaments.length > 0
   });
 
+  // Fetch all users for player name mapping
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const response = await fetch("/api/users", { credentials: "include" });
+      if (!response.ok) return [];
+      return response.json();
+    }
+  });
+
   const getCourtName = (courtId: string) => {
     const court = courts.find(c => c.id === courtId);
     return court?.name || "Cancha desconocida";
@@ -74,11 +84,26 @@ export function AllTournamentsCalendar() {
     return tournaments.find(t => t.id === tournamentId) || null;
   };
 
+  const getPlayerName = (playerId: string | undefined, fallbackName: string | undefined, index: number) => {
+    if (fallbackName) return fallbackName;
+    if (playerId) {
+      const player = users.find(u => u.id === playerId);
+      return player?.name || `Jugador ${index}`;
+    }
+    return `Jugador ${index}`;
+  };
+
   const getPlayerDisplay = (match: ScheduledMatch | any) => {
     if (match.matchType === "doubles") {
-      return `${match.player1Name || "J1"} & ${match.player3Name || "J3"} vs ${match.player2Name || "J2"} & ${match.player4Name || "J4"}`;
+      const p1 = getPlayerName(match.player1Id, match.player1Name, 1);
+      const p2 = getPlayerName(match.player2Id, match.player2Name, 2);
+      const p3 = getPlayerName(match.player3Id, match.player3Name, 3);
+      const p4 = getPlayerName(match.player4Id, match.player4Name, 4);
+      return `${p1} & ${p3} vs ${p2} & ${p4}`;
     }
-    return `${match.player1Name || "Jugador 1"} vs ${match.player2Name || "Jugador 2"}`;
+    const p1 = getPlayerName(match.player1Id, match.player1Name, 1);
+    const p2 = getPlayerName(match.player2Id, match.player2Name, 2);
+    return `${p1} vs ${p2}`;
   };
 
   // Combine scheduled matches and tournament matches
@@ -104,13 +129,17 @@ export function AllTournamentsCalendar() {
         courtId: match.courtId || "",
         duration: 90,
         tournamentId: match.tournamentId,
-        status: "scheduled" as const,
-        player1Name: "",
-        player2Name: "",
-        player3Name: "",
-        player4Name: "",
+        category: match.category,
+        player1Id: match.player1Id,
+        player2Id: match.player2Id,
+        player3Id: match.player3Id,
+        player4Id: match.player4Id,
+        player1Name: match.player1Name || "",
+        player2Name: match.player2Name || "",
+        player3Name: match.player3Name || "",
+        player4Name: match.player4Name || "",
         notes: ""
-      })) as ScheduledMatch[];
+      })) as any;
 
     return [...scheduledOnly, ...tournamentMatchesForDate];
   }, [scheduledMatches, allTournamentMatches, selectedDate, tournaments]);
@@ -209,6 +238,11 @@ export function AllTournamentsCalendar() {
                               <Badge variant="outline" className="ml-2">
                                 {match.matchType === "singles" ? "Singles" : "Dobles"}
                               </Badge>
+                              {match.category && (
+                                <Badge variant="secondary" className="ml-1">
+                                  {match.category}
+                                </Badge>
+                              )}
                             </div>
                           </div>
                           <Badge
