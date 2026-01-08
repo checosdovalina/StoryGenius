@@ -248,6 +248,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<void> {
+    // Delete in cascade order to avoid foreign key constraint violations
+    await db.delete(matchStatsSessions).where(
+      or(
+        eq(matchStatsSessions.startedBy, id),
+        sql`match_id IN (SELECT id FROM matches WHERE player1_id = ${id} OR player2_id = ${id} OR player3_id = ${id} OR player4_id = ${id})`
+      )
+    );
+    await db.delete(matchEvents).where(
+      sql`session_id IN (SELECT id FROM match_stats_sessions WHERE started_by = ${id} OR match_id IN (SELECT id FROM matches WHERE player1_id = ${id} OR player2_id = ${id} OR player3_id = ${id} OR player4_id = ${id}))`
+    );
+    await db.delete(matches).where(
+      or(
+        eq(matches.player1Id, id),
+        eq(matches.player2Id, id),
+        eq(matches.player3Id, id),
+        eq(matches.player4Id, id)
+      )
+    );
+    await db.delete(scheduledMatches).where(
+      or(
+        eq(scheduledMatches.player1Id, id),
+        eq(scheduledMatches.player2Id, id),
+        eq(scheduledMatches.player3Id, id),
+        eq(scheduledMatches.player4Id, id)
+      )
+    );
+    await db.delete(tournamentRegistrations).where(eq(tournamentRegistrations.playerId, id));
+    await db.delete(playerStats).where(eq(playerStats.playerId, id));
+    await db.delete(tournamentUserRoles).where(eq(tournamentUserRoles.userId, id));
+    await db.delete(playerRankingHistory).where(eq(playerRankingHistory.playerId, id));
+    await db.delete(statShareTokens).where(or(eq(statShareTokens.ownerUserId, id), eq(statShareTokens.targetPlayerId, id)));
     await db.delete(users).where(eq(users.id, id));
   }
 
