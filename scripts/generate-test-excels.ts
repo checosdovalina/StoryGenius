@@ -24,7 +24,7 @@ function generateExcels() {
   XLSX.utils.book_append_sheet(wbPlayersSingles, wsPlayersSingles, 'Jugadores');
   XLSX.writeFile(wbPlayersSingles, path.join(assetsDir, 'prueba_jugadores_singles.xlsx'));
 
-  // 2. Partidos Singles
+  // 2. Partidos Singles - CORREGIDO: "modalidad" con Mayúscula para coincidir con la validación literal
   const matchesSinglesData = [
     { fecha: '2026-02-10', hora: '09:00', modalidad: 'Singles', jugador1: 'Juan Pérez', jugador2: 'Carlos López' },
     { fecha: '2026-02-10', hora: '10:30', modalidad: 'Singles', jugador1: 'Ricardo Martínez', jugador2: 'Sofía García' }
