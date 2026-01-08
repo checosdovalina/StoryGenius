@@ -1187,20 +1187,33 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                   </Badge>
                   {canManage && (
                     <>
-                      {player.paymentStatus !== 'paid' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updatePaymentMutation.mutate({ playerId: player.id, paymentStatus: 'paid' })}
-                          disabled={updatePaymentMutation.isPending}
-                          data-testid={`button-mark-paid-${player.id}`}
-                          className="min-h-[44px] min-w-[44px] p-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                          aria-label={`Marcar como pagado a ${player.name}`}
-                        >
-                          <DollarSign className="h-4 w-4" />
-                        </Button>
+                      {player.paymentStatus === 'pending' && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updatePaymentMutation.mutate({ playerId: player.id, paymentStatus: 'paid' })}
+                            disabled={updatePaymentMutation.isPending}
+                            data-testid={`button-mark-paid-${player.id}`}
+                            className="min-h-[44px] min-w-[44px] p-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            aria-label={`Marcar como pagado a ${player.name}`}
+                          >
+                            <DollarSign className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updatePaymentMutation.mutate({ playerId: player.id, paymentStatus: 'waived' })}
+                            disabled={updatePaymentMutation.isPending}
+                            data-testid={`button-mark-waived-${player.id}`}
+                            className="min-h-[44px] min-w-[44px] p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            aria-label={`Marcar como exento a ${player.name}`}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
-                      {player.paymentStatus === 'paid' && (
+                      {(player.paymentStatus === 'paid' || player.paymentStatus === 'waived') && (
                         <Button
                           variant="outline"
                           size="sm"
