@@ -94,7 +94,7 @@ export function MyTournamentsView() {
   };
 
   const getActiveTournaments = () => {
-    return myTournaments.filter(t => t.status === 'active');
+    return myTournaments.filter(t => t.status === 'active' || t.status === 'registration');
   };
 
   const getCompletedTournaments = () => {
@@ -139,7 +139,9 @@ export function MyTournamentsView() {
   }
 
   const activeTournaments = getActiveTournaments();
-  const availableTournaments = getAvailableTournaments();
+  const availableTournaments = getAvailableTournaments().filter(
+    t => !myTournaments.some(myT => myT.id === t.id)
+  );
   const completedTournaments = getCompletedTournaments();
 
   return (
