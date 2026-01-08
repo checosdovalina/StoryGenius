@@ -2419,7 +2419,33 @@ export class DatabaseStorage implements IStorage {
 
     for (let i = 0; i < data.length; i++) {
       try {
-        const row = data[i];
+        const row = { ...data[i] };
+        
+        // Convert dates/times from Excel numeric format if necessary
+        if (typeof row.fecha === 'number') {
+          // Excel date serial to YYYY-MM-DD
+          const date = new Date((row.fecha - 25569) * 86400 * 1000);
+          row.fecha = date.toISOString().split('T')[0];
+        } else if (row.fecha instanceof Date) {
+          row.fecha = row.fecha.toISOString().split('T')[0];
+        } else {
+          row.fecha = String(row.fecha || '').trim();
+        }
+
+        if (typeof row.hora === 'number') {
+          // Excel time serial to HH:mm
+          const totalSeconds = Math.round(row.hora * 86400);
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          row.hora = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        } else if (row.hora instanceof Date) {
+          const hours = row.hora.getHours();
+          const minutes = row.hora.getMinutes();
+          row.hora = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        } else {
+          row.hora = String(row.hora || '').trim();
+        }
+
         const rowNumber = i + 2;
 
         // Normalize modality to handle case insensitivity
