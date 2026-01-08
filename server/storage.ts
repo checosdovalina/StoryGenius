@@ -341,6 +341,8 @@ export class DatabaseStorage implements IStorage {
     if (data.email !== undefined) updates.email = data.email.trim().toLowerCase();
     if (data.password !== undefined) updates.password = await this.hashPassword(data.password);
     if (data.photoUrl !== undefined) updates.photoUrl = data.photoUrl;
+    if (data.photoData !== undefined) updates.photoData = data.photoData;
+    if (data.photoMimeType !== undefined) updates.photoMimeType = data.photoMimeType;
     if (data.nationality !== undefined) updates.nationality = data.nationality;
     if (data.phone !== undefined) updates.phone = data.phone;
     if (data.club !== undefined) updates.club = data.club;
@@ -353,6 +355,29 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  async updateUserPhoto(id: string, data: { photoUrl: string; photoData: string; photoMimeType: string }): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        photoUrl: data.photoUrl,
+        photoData: data.photoData,
+        photoMimeType: data.photoMimeType,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async getUserPhotoData(id: string): Promise<{ photoData: string; photoMimeType: string } | null> {
+    const [user] = await db.select({ 
+      photoData: users.photoData, 
+      photoMimeType: users.photoMimeType 
+    }).from(users).where(eq(users.id, id));
+    if (!user || !user.photoData || !user.photoMimeType) return null;
+    return { photoData: user.photoData, photoMimeType: user.photoMimeType };
   }
 
   async hashPassword(password: string): Promise<string> {

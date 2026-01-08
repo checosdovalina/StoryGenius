@@ -1345,6 +1345,7 @@ function EditPlayerForm({
           userName={formData.name}
           showManualInput={true}
           autoSave={false}
+          targetUserId={player.id}
         />
       </div>
 

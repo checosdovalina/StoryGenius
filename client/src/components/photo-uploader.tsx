@@ -13,6 +13,7 @@ interface PhotoUploaderProps {
   userName?: string;
   showManualInput?: boolean;
   autoSave?: boolean; // Auto-save to profile after upload
+  targetUserId?: string; // For admin uploading photos for other users
 }
 
 export function PhotoUploader({ 
@@ -20,7 +21,8 @@ export function PhotoUploader({
   onPhotoChange, 
   userName = "Usuario",
   showManualInput = true,
-  autoSave = false
+  autoSave = false,
+  targetUserId
 }: PhotoUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentPhotoUrl || null);
@@ -69,7 +71,12 @@ export function PhotoUploader({
       const formData = new FormData();
       formData.append('photo', file);
 
-      const response = await apiRequest("POST", "/api/media/profile-photo", formData);
+      // Build URL with optional targetUserId for admin uploads
+      const uploadUrl = targetUserId 
+        ? `/api/media/profile-photo?targetUserId=${encodeURIComponent(targetUserId)}`
+        : "/api/media/profile-photo";
+      
+      const response = await apiRequest("POST", uploadUrl, formData);
       const data = await response.json();
 
       // Update with server URL

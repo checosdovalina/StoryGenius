@@ -1044,7 +1044,8 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Upload profile photo endpoint
+  // Upload profile photo endpoint - supports both Object Storage (Replit) and Database storage (Render/other)
+  // Also supports admin uploading for other users via targetUserId query parameter
   app.post("/api/media/profile-photo", (req, res) => {
     photoUpload.single('photo')(req, res, async (err) => {
       try {
@@ -1072,14 +1073,61 @@ export function registerRoutes(app: Express): Server {
           return res.status(400).json({ message: "No file uploaded" });
         }
 
-        // Upload to object storage
-        const result = await uploadProfilePhoto(req.file, req.user.id);
+        // Determine target user - allow admins to upload for other users
+        let targetUserId = req.user.id;
+        const queryTargetUserId = req.query.targetUserId as string | undefined;
+        
+        if (queryTargetUserId && queryTargetUserId !== req.user.id) {
+          // Check if current user is admin/superadmin
+          const isAdmin = req.user.role === 'superadmin' || req.user.role === 'admin';
+          if (!isAdmin) {
+            return res.status(403).json({ message: "Only admins can upload photos for other users" });
+          }
+          // Verify target user exists
+          const targetUser = await storage.getUser(queryTargetUserId);
+          if (!targetUser) {
+            return res.status(404).json({ message: "Target user not found" });
+          }
+          targetUserId = queryTargetUserId;
+        }
+
+        // Check if Object Storage is available (Replit environment)
+        const hasObjectStorage = !!process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+        
+        if (hasObjectStorage) {
+          try {
+            // Try Object Storage first
+            const result = await uploadProfilePhoto(req.file, targetUserId);
+            
+            // Update user's photoUrl in database
+            await storage.updateUserPartial(targetUserId, { photoUrl: result.url });
+            
+            return res.json({
+              message: "Photo uploaded successfully",
+              url: result.url,
+              filename: result.filename,
+              size: result.size
+            });
+          } catch (objectStorageError: any) {
+            console.log("Object Storage failed, falling back to database storage:", objectStorageError.message);
+          }
+        }
+        
+        // Fallback: Store photo as base64 in database
+        const base64Data = req.file.buffer.toString('base64');
+        const photoUrl = `/api/media/db-photo/${targetUserId}`;
+        
+        await storage.updateUserPhoto(targetUserId, {
+          photoUrl,
+          photoData: base64Data,
+          photoMimeType: req.file.mimetype
+        });
 
         res.json({
           message: "Photo uploaded successfully",
-          url: result.url,
-          filename: result.filename,
-          size: result.size
+          url: photoUrl,
+          filename: `db-photo-${targetUserId}`,
+          size: req.file.size
         });
       } catch (error: any) {
         console.error("Error uploading profile photo:", error);
@@ -1088,7 +1136,7 @@ export function registerRoutes(app: Express): Server {
     });
   });
 
-  // Serve profile photos
+  // Serve profile photos from Object Storage
   app.get("/api/media/profile-photos/:filename(*)", async (req, res) => {
     try {
       const filename = decodeURIComponent(req.params.filename);
@@ -1109,6 +1157,31 @@ export function registerRoutes(app: Express): Server {
       res.send(photoData);
     } catch (error: any) {
       console.error("Error serving profile photo:", error);
+      res.status(404).json({ message: "Photo not found" });
+    }
+  });
+
+  // Serve profile photos from database (fallback for Render/other environments)
+  app.get("/api/media/db-photo/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const photoData = await storage.getUserPhotoData(userId);
+      
+      if (!photoData) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+
+      const buffer = Buffer.from(photoData.photoData, 'base64');
+      
+      res.set({
+        'Content-Type': photoData.photoMimeType,
+        'Content-Length': buffer.length.toString(),
+        'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+      });
+
+      res.send(buffer);
+    } catch (error: any) {
+      console.error("Error serving DB profile photo:", error);
       res.status(404).json({ message: "Photo not found" });
     }
   });

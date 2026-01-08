@@ -365,6 +365,7 @@ export function UserFormModal({ user, open, onClose }: UserFormModalProps) {
                       onPhotoChange={field.onChange}
                       userName={form.watch("name") || "Usuario"}
                       showManualInput={true}
+                      targetUserId={user?.id}
                     />
                   </FormControl>
                   <FormMessage />
