@@ -263,8 +263,21 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
   const player2Timeouts = match.session.player2TimeoutsUsed ? JSON.parse(match.session.player2TimeoutsUsed).length : 0;
   const stats = match.stats;
 
+  // Determine winner name for doubles
+  let winnerName = winner?.name || "TBD";
+  if (isDoubles && winner) {
+    if (winner.id === match.player1.id || winner.id === match.player3?.id) {
+      winnerName = `${match.player1.name} & ${match.player3?.name || "TBD"}`;
+    } else if (winner.id === match.player2?.id || winner.id === match.player4?.id) {
+      winnerName = `${match.player2?.name || "TBD"} & ${match.player4?.name || "TBD"}`;
+    }
+  }
+
+  // Update stats if match is completed to show final stats
+  const finalStats = stats;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 py-4 px-4 pb-20 flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 py-4 px-4 pb-24 flex flex-col items-center justify-center overflow-hidden">
       <div className="container mx-auto max-w-5xl">
         {/* PARTIDO TERMINADO */}
         <div className="text-center mb-6 animate-pulse">
@@ -289,11 +302,11 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
                 />
               ) : (
                 <div className="w-40 h-40 rounded-full bg-white flex items-center justify-center text-6xl font-bold text-orange-500 shadow-xl">
-                  {winner?.name.charAt(0)}
+                  {winner?.name ? winner.name.charAt(0) : "W"}
                 </div>
               )}
-              <div>
-                <h2 className="text-5xl font-bold text-white mb-2">{winner?.name}</h2>
+              <div className="max-w-full overflow-hidden">
+                <h2 className="text-4xl sm:text-6xl font-bold text-white mb-2 break-words leading-tight">{winnerName}</h2>
                 {winner?.nationality && (
                   <p className="text-5xl">{getFlagEmoji(winner.nationality)}</p>
                 )}
@@ -303,53 +316,53 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
         </div>
 
         {/* RESULTADO Y ESTADÍSTICAS */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {/* Resultados */}
-          <div className="bg-black/60 backdrop-blur-sm rounded-xl p-4 shadow-2xl">
+          <div className="bg-black/60 backdrop-blur-sm rounded-xl p-4 shadow-2xl flex flex-col justify-center">
             <h3 className="text-white text-lg font-bold text-center mb-4">RESULTADO FINAL</h3>
             
-            <div className="space-y-3">
+            <div className="space-y-6">
               <div className="text-center">
-                <p className="text-white/70 text-xs mb-1">Sets</p>
-                <div className="flex justify-center gap-3 items-center">
-                  <div className="text-4xl font-bold text-yellow-400">{match.session.player1Sets}</div>
-                  <div className="text-2xl text-white/50">-</div>
-                  <div className="text-4xl font-bold text-yellow-400">{match.session.player2Sets}</div>
+                <p className="text-white/70 text-sm mb-2">Sets</p>
+                <div className="flex justify-center gap-6 items-center">
+                  <div className="text-6xl font-bold text-yellow-400">{match.session.player1Sets}</div>
+                  <div className="text-4xl text-white/30">-</div>
+                  <div className="text-6xl font-bold text-yellow-400">{match.session.player2Sets}</div>
                 </div>
               </div>
               
-              <div className="text-center">
-                <p className="text-white/70 text-xs mb-1">Puntuación Final</p>
-                <div className="flex justify-center gap-3 items-center">
-                  <div className="text-4xl font-bold text-yellow-400">{match.session.player1CurrentScore}</div>
-                  <div className="text-2xl text-white/50">-</div>
-                  <div className="text-4xl font-bold text-yellow-400">{match.session.player2CurrentScore}</div>
+              <div className="text-center border-t border-white/10 pt-4">
+                <p className="text-white/70 text-sm mb-2">Puntuación Final Set {match.session.currentSet}</p>
+                <div className="flex justify-center gap-6 items-center">
+                  <div className="text-5xl font-bold text-yellow-400">{match.session.player1CurrentScore}</div>
+                  <div className="text-3xl text-white/30">-</div>
+                  <div className="text-5xl font-bold text-yellow-400">{match.session.player2CurrentScore}</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Estadísticas */}
-          {stats && (
+          {finalStats && (
             <div className="bg-black/60 backdrop-blur-sm rounded-xl p-4 shadow-2xl">
               <h3 className="text-white text-lg font-bold text-center mb-4">ESTADÍSTICAS</h3>
               
-              <div className="grid grid-cols-2 gap-3 text-lg">
-                <div className="text-left space-y-1.5">
-                  <div className="text-white/70 mb-2 font-bold">Equipo 1</div>
-                  <div className="text-white/90">🎯 Aces: <span className="font-bold text-green-400 text-xl">{stats.team1.aces}</span></div>
-                  <div className="text-white/90">➡️ Recto: <span className="font-bold text-xl">{stats.team1.recto}</span></div>
-                  <div className="text-white/90">📐 Esquina: <span className="font-bold text-xl">{stats.team1.esquina}</span></div>
-                  <div className="text-white/90">↗️ Cruzado: <span className="font-bold text-xl">{stats.team1.cruzado}</span></div>
-                  <div className="text-white/90">⚡ Punto: <span className="font-bold text-xl">{stats.team1.punto}</span></div>
+              <div className="grid grid-cols-2 gap-6 text-lg">
+                <div className="text-left space-y-2">
+                  <div className="text-white/70 mb-2 font-bold border-b border-white/10 pb-1">Equipo 1</div>
+                  <div className="text-white/90 flex justify-between"><span>🎯 Aces:</span> <span className="font-bold text-green-400 text-2xl">{finalStats.team1.aces}</span></div>
+                  <div className="text-white/90 flex justify-between"><span>➡️ Recto:</span> <span className="font-bold text-2xl">{finalStats.team1.recto}</span></div>
+                  <div className="text-white/90 flex justify-between"><span>📐 Esquina:</span> <span className="font-bold text-2xl">{finalStats.team1.esquina}</span></div>
+                  <div className="text-white/90 flex justify-between"><span>↗️ Cruzado:</span> <span className="font-bold text-2xl">{finalStats.team1.cruzado}</span></div>
+                  <div className="text-white/90 flex justify-between border-t border-white/10 pt-1"><span>⚡ Punto:</span> <span className="font-bold text-2xl text-yellow-400">{finalStats.team1.punto}</span></div>
                 </div>
-                <div className="text-right space-y-1.5">
-                  <div className="text-white/70 mb-2 font-bold">Equipo 2</div>
-                  <div className="text-white/90"><span className="font-bold text-green-400 text-xl">{stats.team2.aces}</span> 🎯 Aces</div>
-                  <div className="text-white/90"><span className="font-bold text-xl">{stats.team2.recto}</span> ➡️ Recto</div>
-                  <div className="text-white/90"><span className="font-bold text-xl">{stats.team2.esquina}</span> 📐 Esquina</div>
-                  <div className="text-white/90"><span className="font-bold text-xl">{stats.team2.cruzado}</span> ↗️ Cruzado</div>
-                  <div className="text-white/90"><span className="font-bold text-xl">{stats.team2.punto}</span> ⚡ Punto</div>
+                <div className="text-right space-y-2">
+                  <div className="text-white/70 mb-2 font-bold border-b border-white/10 pb-1">Equipo 2</div>
+                  <div className="text-white/90 flex justify-between"><span className="font-bold text-green-400 text-2xl">{finalStats.team2.aces}</span> <span>Aces 🎯</span></div>
+                  <div className="text-white/90 flex justify-between"><span className="font-bold text-2xl">{finalStats.team2.recto}</span> <span>Recto ➡️</span></div>
+                  <div className="text-white/90 flex justify-between"><span className="font-bold text-2xl">{finalStats.team2.esquina}</span> <span>Esquina 📐</span></div>
+                  <div className="text-white/90 flex justify-between"><span className="font-bold text-2xl">{finalStats.team2.cruzado}</span> <span>Cruzado ↗️</span></div>
+                  <div className="text-white/90 flex justify-between border-t border-white/10 pt-1"><span className="font-bold text-2xl text-yellow-400">{finalStats.team2.punto}</span> <span>Punto ⚡</span></div>
                 </div>
               </div>
             </div>
@@ -466,47 +479,50 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
 function SponsorBanner({ sponsors }: { sponsors: Sponsor[] }) {
   if (sponsors.length === 0) return null;
 
-  // Duplicate sponsors for infinite scroll effect
-  const sponsorsList = [...sponsors, ...sponsors];
+  // Quadruple sponsors for infinite scroll effect
+  const sponsorsList = [...sponsors, ...sponsors, ...sponsors, ...sponsors];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-purple-900 via-purple-800 to-purple-900 backdrop-blur-sm shadow-lg py-6">
+    <div className="fixed bottom-0 left-0 right-0 w-full bg-black/80 backdrop-blur-md shadow-2xl py-8 z-50 border-t border-white/10">
       <style>{`
         @keyframes scrollSponsors {
           0% {
             transform: translateX(0);
           }
           100% {
-            transform: translateX(-50%);
+            transform: translateX(-25%);
           }
         }
         .sponsor-scroll {
-          animation: scrollSponsors 20s linear infinite;
+          animation: scrollSponsors 40s linear infinite;
+          display: flex;
+          width: max-content;
+          align-items: center;
         }
         .sponsor-scroll:hover {
           animation-play-state: paused;
         }
       `}</style>
       
-      <div className="overflow-hidden">
-        <div className="sponsor-scroll flex gap-12 whitespace-nowrap py-2">
+      <div className="overflow-hidden w-full px-4">
+        <div className="sponsor-scroll flex gap-24 py-2">
           {sponsorsList.map((sponsor, index) => (
             <div
               key={`${sponsor.id}-${index}`}
-              className="flex-shrink-0 h-12 flex items-center justify-center px-6 hover:opacity-80 transition-opacity"
+              className="flex-shrink-0 h-20 flex items-center justify-center px-10 hover:scale-110 transition-transform duration-300"
             >
               {sponsor.logoUrl ? (
                 <img
                   src={sponsor.logoUrl}
                   alt={sponsor.name}
-                  className="h-full max-w-[150px] object-contain"
+                  className="h-full w-auto max-w-[250px] object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
               ) : (
-                <span className="text-sm font-bold text-white px-4 whitespace-nowrap">
-                  {sponsor.name}
+                <span className="text-2xl font-black text-white px-6 whitespace-nowrap tracking-wider">
+                  {sponsor.name.toUpperCase()}
                 </span>
               )}
             </div>
