@@ -77,6 +77,8 @@ export const users = pgTable("users", {
   racquetballLevel: racquetballLevelEnum("racquetball_level"),
   categories: matchCategoryEnum("categories").array(),
   photoUrl: text("photo_url"),
+  photoData: text("photo_data"),
+  photoMimeType: text("photo_mime_type"),
   nationality: text("nationality"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
