@@ -213,8 +213,8 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     // Clear fault tracking
     setLastFault(null);
 
-    // Don't allow scoring if match is already won
-    if (scoreState.matchWinner) {
+    // Don't allow scoring if match is already won or session is completed
+    if (scoreState.matchWinner || session.status === "completed") {
       toast({ 
         title: "Partido terminado", 
         description: "El partido ya ha finalizado",
@@ -241,27 +241,46 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     let serverId = newState.serverId;
     let initialServersUpdate = session.initialServers;
     let nextServerName = "";
+    let player1GamesUpdate = session.player1Games;
+    let player2GamesUpdate = session.player2Games;
     
-    // If a set was won (but match not finished), calculate next set server
-    if (newState.setWinner && !newState.matchWinner) {
+    // If a set was won, save the final scores before they reset
+    if (newState.setWinner) {
       const player1Games = JSON.parse(session.player1Games || "[]");
       const player2Games = JSON.parse(session.player2Games || "[]");
       
-      // Calculate total points including the set just finished
-      const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
-      const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
+      // Add the final score of the set that just ended (using previous scores before reset)
+      // The winner scored the winning point, so add 1 to their previous score
+      const setWinnerIsPlayer1 = newState.setWinner === "player1";
+      player1Games.push(scoreState.player1Score + (setWinnerIsPlayer1 ? 1 : 0));
+      player2Games.push(scoreState.player2Score + (!setWinnerIsPlayer1 ? 1 : 0));
       
-      const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
-      nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+      player1GamesUpdate = JSON.stringify(player1Games);
+      player2GamesUpdate = JSON.stringify(player2Games);
       
-      // Update initialServers array
-      const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
-      initialServers.push(nextSetServer);
-      initialServersUpdate = JSON.stringify(initialServers);
-      serverId = nextSetServer;
+      // If match not finished, calculate next set server
+      if (!newState.matchWinner) {
+        // Calculate total points including the set just finished
+        const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0);
+        const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0);
+        
+        const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
+        nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+        
+        // Update initialServers array
+        const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
+        initialServers.push(nextSetServer);
+        initialServersUpdate = JSON.stringify(initialServers);
+        serverId = nextSetServer;
+      }
     }
 
-    // Update session (single call)
+    // Determine winner ID if match is won
+    const matchWinnerId = newState.matchWinner 
+      ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) 
+      : null;
+
+    // Update session (single call) - mark as completed if match won
     updateSessionMutation.mutate({
       player1CurrentScore: newState.player1Score.toString(),
       player2CurrentScore: newState.player2Score.toString(),
@@ -270,7 +289,10 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       currentSet: newState.currentSet,
       serverId: serverId,
       initialServers: initialServersUpdate,
-      matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
+      player1Games: player1GamesUpdate,
+      player2Games: player2GamesUpdate,
+      matchWinner: matchWinnerId,
+      ...(matchWinnerId ? { status: "completed" as const } : {})
     });
 
     // Show appropriate toasts
@@ -307,8 +329,8 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     // Clear fault tracking
     setLastFault(null);
 
-    // Don't allow scoring if match is already won
-    if (scoreState.matchWinner) {
+    // Don't allow scoring if match is already won or session is completed
+    if (scoreState.matchWinner || session.status === "completed") {
       toast({ 
         title: "Partido terminado", 
         description: "El partido ya ha finalizado",
@@ -334,24 +356,43 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     let serverId = newState.serverId;
     let initialServersUpdate = session.initialServers;
     let nextServerName = "";
+    let player1GamesUpdate = session.player1Games;
+    let player2GamesUpdate = session.player2Games;
     
-    // If a set was won (but match not finished), calculate next set server
-    if (newState.setWinner && !newState.matchWinner) {
+    // If a set was won, save the final scores before they reset
+    if (newState.setWinner) {
       const player1Games = JSON.parse(session.player1Games || "[]");
       const player2Games = JSON.parse(session.player2Games || "[]");
       
-      const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
-      const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
+      // Add the final score of the set that just ended
+      const setWinnerIsPlayer1 = newState.setWinner === "player1";
+      player1Games.push(scoreState.player1Score + (setWinnerIsPlayer1 ? 1 : 0));
+      player2Games.push(scoreState.player2Score + (!setWinnerIsPlayer1 ? 1 : 0));
       
-      const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
-      nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+      player1GamesUpdate = JSON.stringify(player1Games);
+      player2GamesUpdate = JSON.stringify(player2Games);
       
-      const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
-      initialServers.push(nextSetServer);
-      initialServersUpdate = JSON.stringify(initialServers);
-      serverId = nextSetServer;
+      // If match not finished, calculate next set server
+      if (!newState.matchWinner) {
+        const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0);
+        const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0);
+        
+        const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
+        nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+        
+        const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
+        initialServers.push(nextSetServer);
+        initialServersUpdate = JSON.stringify(initialServers);
+        serverId = nextSetServer;
+      }
     }
 
+    // Determine winner ID if match is won
+    const matchWinnerId = newState.matchWinner 
+      ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) 
+      : null;
+
+    // Update session - mark as completed if match won
     updateSessionMutation.mutate({
       player1CurrentScore: newState.player1Score.toString(),
       player2CurrentScore: newState.player2Score.toString(),
@@ -360,7 +401,10 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       currentSet: newState.currentSet,
       serverId: serverId,
       initialServers: initialServersUpdate,
-      matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
+      player1Games: player1GamesUpdate,
+      player2Games: player2GamesUpdate,
+      matchWinner: matchWinnerId,
+      ...(matchWinnerId ? { status: "completed" as const } : {})
     });
 
     // Show appropriate toasts
@@ -389,8 +433,8 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
 
   // Handle fault (simple fault - no score change)
   const handleFault = (playerId: string) => {
-    // Don't allow if match is already won
-    if (scoreState.matchWinner) {
+    // Don't allow if match is already won or session is completed
+    if (scoreState.matchWinner || session.status === "completed") {
       toast({ 
         title: "Partido terminado", 
         description: "El partido ya ha finalizado",
@@ -425,8 +469,8 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     // Clear fault tracking
     setLastFault(null);
 
-    // Don't allow scoring if match is already won
-    if (scoreState.matchWinner) {
+    // Don't allow scoring if match is already won or session is completed
+    if (scoreState.matchWinner || session.status === "completed") {
       toast({ 
         title: "Partido terminado", 
         description: "El partido ya ha finalizado",
@@ -457,24 +501,43 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     let serverId = newState.serverId;
     let initialServersUpdate = session.initialServers;
     let nextServerName = "";
+    let player1GamesUpdate = session.player1Games;
+    let player2GamesUpdate = session.player2Games;
     
-    // If a set was won (but match not finished), calculate next set server
-    if (newState.setWinner && !newState.matchWinner) {
+    // If a set was won, save the final scores before they reset
+    if (newState.setWinner) {
       const player1Games = JSON.parse(session.player1Games || "[]");
       const player2Games = JSON.parse(session.player2Games || "[]");
       
-      const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
-      const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
+      // Add the final score of the set that just ended (use scoreState which has pre-double-fault scores)
+      const setWinnerIsPlayer1 = newState.setWinner === "player1";
+      player1Games.push(scoreState.player1Score + (setWinnerIsPlayer1 ? 1 : 0));
+      player2Games.push(scoreState.player2Score + (!setWinnerIsPlayer1 ? 1 : 0));
       
-      const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
-      nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+      player1GamesUpdate = JSON.stringify(player1Games);
+      player2GamesUpdate = JSON.stringify(player2Games);
       
-      const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
-      initialServers.push(nextSetServer);
-      initialServersUpdate = JSON.stringify(initialServers);
-      serverId = nextSetServer;
+      // If match not finished, calculate next set server
+      if (!newState.matchWinner) {
+        const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0);
+        const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0);
+        
+        const nextSetServer = calculateNextSetServer(newState.currentSet, player1TotalPoints, player2TotalPoints);
+        nextServerName = nextSetServer === match.player1Id ? player1.name : player2.name;
+        
+        const initialServers = session.initialServers ? JSON.parse(session.initialServers) : [];
+        initialServers.push(nextSetServer);
+        initialServersUpdate = JSON.stringify(initialServers);
+        serverId = nextSetServer;
+      }
     }
 
+    // Determine winner ID if match is won
+    const matchWinnerId = newState.matchWinner 
+      ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) 
+      : null;
+
+    // Update session - mark as completed if match won
     updateSessionMutation.mutate({
       player1CurrentScore: newState.player1Score.toString(),
       player2CurrentScore: newState.player2Score.toString(),
@@ -483,7 +546,10 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       currentSet: newState.currentSet,
       serverId: serverId,
       initialServers: initialServersUpdate,
-      matchWinner: newState.matchWinner ? (newState.matchWinner === "player1" ? match.player1Id : match.player2Id) : null
+      player1Games: player1GamesUpdate,
+      player2Games: player2GamesUpdate,
+      matchWinner: matchWinnerId,
+      ...(matchWinnerId ? { status: "completed" as const } : {})
     });
 
     // Show appropriate toasts
