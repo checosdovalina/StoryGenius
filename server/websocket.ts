@@ -285,7 +285,8 @@ export class MatchStatsWebSocketServer {
           status: match.session.status,
           matchType: match.session.matchType,
           currentSet: match.session.currentSet,
-          currentServer: match.session.currentServer,
+          currentServer: match.session.serverId,
+          serverId: match.session.serverId,
           player1Set1Score: match.session.player1Set1Score,
           player2Set1Score: match.session.player2Set1Score,
           player1Set2Score: match.session.player1Set2Score,
@@ -298,11 +299,27 @@ export class MatchStatsWebSocketServer {
           player2Timeouts: match.session.player2Timeouts,
           player1Appellations: match.session.player1Appellations,
           player2Appellations: match.session.player2Appellations,
+          player1Sets: match.session.player1Sets,
+          player2Sets: match.session.player2Sets,
+          player1CurrentScore: match.session.player1CurrentScore,
+          player2CurrentScore: match.session.player2CurrentScore,
+          player1Games: match.session.player1Games,
+          player2Games: match.session.player2Games,
+          player1TimeoutsUsed: match.session.player1TimeoutsUsed,
+          player2TimeoutsUsed: match.session.player2TimeoutsUsed,
+          player1AppellationsUsed: match.session.player1AppellationsUsed,
+          player2AppellationsUsed: match.session.player2AppellationsUsed,
+          player1Technicals: match.session.player1Technicals,
+          player2Technicals: match.session.player2Technicals,
+          matchWinner: match.session.matchWinner,
+          completedAt: match.session.completedAt || null,
         },
         match: {
           id: match.match.id,
           tournamentId: match.match.tournamentId,
           round: match.match.round,
+          courtId: match.match.courtId || null,
+          court: match.match.court || null,
         },
         tournament: {
           id: match.tournament.id,
@@ -333,6 +350,8 @@ export class MatchStatsWebSocketServer {
           photoUrl: match.player4.photoUrl,
           nationality: match.player4.nationality,
         } : null,
+        matchWinner: match.matchWinner || null,
+        stats: match.stats || null,
       }
     };
   }
@@ -373,5 +392,147 @@ export class MatchStatsWebSocketServer {
   // Get number of public display clients
   getPublicClientCount(): number {
     return this.publicClients.size;
+  }
+
+  // Broadcast completed match to public displays
+  async broadcastMatchCompleted(matchId: string, sessionData?: any) {
+    try {
+      // Fetch the completed match data directly
+      const match = await storage.getMatch(matchId);
+      if (!match) return;
+
+      const tournament = await storage.getTournament(match.tournamentId);
+      if (!tournament) return;
+
+      const player1 = match.player1Id ? await storage.getUser(match.player1Id) : null;
+      const player2 = match.player2Id ? await storage.getUser(match.player2Id) : null;
+      const player3 = match.player3Id ? await storage.getUser(match.player3Id) : null;
+      const player4 = match.player4Id ? await storage.getUser(match.player4Id) : null;
+
+      // Use provided session data or get the latest session (including completed)
+      const session = sessionData || await storage.getLatestStatsSessionByMatchId(matchId);
+      if (!session) return;
+
+      const court = match.courtId ? await storage.getCourt(match.courtId) : null;
+
+      // Build the match payload using same structure as sanitizePublicPayload
+      const matchData = {
+        session: {
+          id: session.id,
+          matchId: session.matchId,
+          player1Id: session.player1Id,
+          player2Id: session.player2Id,
+          player3Id: session.player3Id,
+          player4Id: session.player4Id,
+          status: session.status,
+          matchType: session.matchType,
+          currentSet: session.currentSet,
+          currentServer: session.serverId,
+          serverId: session.serverId,
+          player1Set1Score: session.player1Set1Score,
+          player2Set1Score: session.player2Set1Score,
+          player1Set2Score: session.player1Set2Score,
+          player2Set2Score: session.player2Set2Score,
+          player1Set3Score: session.player1Set3Score,
+          player2Set3Score: session.player2Set3Score,
+          player1TechnicalFouls: session.player1Technicals,
+          player2TechnicalFouls: session.player2Technicals,
+          player1Timeouts: session.player1Timeouts,
+          player2Timeouts: session.player2Timeouts,
+          player1Appellations: session.player1Appellations,
+          player2Appellations: session.player2Appellations,
+          player1Sets: session.player1Sets,
+          player2Sets: session.player2Sets,
+          player1CurrentScore: session.player1CurrentScore,
+          player2CurrentScore: session.player2CurrentScore,
+          player1Games: session.player1Games,
+          player2Games: session.player2Games,
+          player1TimeoutsUsed: session.player1TimeoutsUsed,
+          player2TimeoutsUsed: session.player2TimeoutsUsed,
+          player1AppellationsUsed: session.player1AppellationsUsed,
+          player2AppellationsUsed: session.player2AppellationsUsed,
+          player1Technicals: session.player1Technicals,
+          player2Technicals: session.player2Technicals,
+          matchWinner: session.matchWinner,
+          completedAt: session.completedAt || null,
+        },
+        match: {
+          id: match.id,
+          tournamentId: match.tournamentId,
+          round: match.round,
+          courtId: match.courtId || null,
+          court: match.court || null,
+        },
+        tournament: {
+          id: tournament.id,
+          name: tournament.name,
+          matchRotationInterval: tournament.matchRotationInterval,
+        },
+        player1: player1 ? {
+          id: player1.id,
+          name: player1.name,
+          photoUrl: player1.photoUrl,
+          nationality: player1.nationality,
+        } : null,
+        player2: player2 ? {
+          id: player2.id,
+          name: player2.name,
+          photoUrl: player2.photoUrl,
+          nationality: player2.nationality,
+        } : null,
+        player3: player3 ? {
+          id: player3.id,
+          name: player3.name,
+          photoUrl: player3.photoUrl,
+          nationality: player3.nationality,
+        } : null,
+        player4: player4 ? {
+          id: player4.id,
+          name: player4.name,
+          photoUrl: player4.photoUrl,
+          nationality: player4.nationality,
+        } : null,
+        matchWinner: session.matchWinner ? (
+          session.matchWinner === player1?.id ? player1 :
+          session.matchWinner === player2?.id ? player2 :
+          session.matchWinner === player3?.id ? player3 :
+          session.matchWinner === player4?.id ? player4 : null
+        ) : null,
+      };
+
+      // Fetch events to calculate stats
+      const events = await storage.getSessionEvents(session.id);
+      const team1Ids = [session.player1Id, session.player3Id].filter(Boolean);
+      const team2Ids = [session.player2Id, session.player4Id].filter(Boolean);
+      const team1Events = events.filter((e: any) => team1Ids.includes(e.playerId || ''));
+      const team2Events = events.filter((e: any) => team2Ids.includes(e.playerId || ''));
+
+      const calculateStats = (teamEvents: any[]) => {
+        const aces = teamEvents.filter((e: any) => e.eventType === 'ace').length;
+        const recto = teamEvents.filter((e: any) => e.shotType === 'recto').length;
+        const esquina = teamEvents.filter((e: any) => e.shotType === 'esquina').length;
+        const cruzado = teamEvents.filter((e: any) => e.shotType === 'cruzado').length;
+        const punto = teamEvents.filter((e: any) => e.shotType === 'punto').length;
+        return { aces, recto, esquina, cruzado, punto, totalPoints: aces + recto + esquina + cruzado + punto };
+      };
+
+      const stats = {
+        team1: calculateStats(team1Events),
+        team2: calculateStats(team2Events)
+      };
+
+      const payload = {
+        type: "match_completed",
+        match: {
+          ...matchData,
+          stats,
+        },
+      };
+
+      this.broadcastToPublicClients(payload);
+      console.log(`[WebSocket] Broadcasted match_completed for match ${matchId}`);
+    } catch (error) {
+      console.error('[WebSocket] Error broadcasting match completed:', error);
+    }
   }
 }

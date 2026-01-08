@@ -1954,6 +1954,17 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
+      // Broadcast match completion to WebSocket clients
+      if (wsServer) {
+        // Broadcast to stats capture clients
+        wsServer.broadcastToMatch(session.matchId, {
+          type: "match_completed",
+          session: completedSession
+        });
+        // Broadcast to public display with full match data
+        wsServer.broadcastMatchCompleted(session.matchId, completedSession);
+      }
+
       res.json(completedSession);
     } catch (error) {
       res.status(500).json({ message: "Failed to complete session" });

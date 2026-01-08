@@ -118,6 +118,7 @@ export interface IStorage {
   createStatsSession(session: InsertMatchStatsSession): Promise<MatchStatsSession>;
   getStatsSession(id: string): Promise<MatchStatsSession | undefined>;
   getActiveStatsSession(matchId: string): Promise<MatchStatsSession | undefined>;
+  getLatestStatsSessionByMatchId(matchId: string): Promise<MatchStatsSession | undefined>;
   updateStatsSession(id: string, updates: Partial<InsertMatchStatsSession>): Promise<MatchStatsSession>;
   completeStatsSession(id: string): Promise<MatchStatsSession>;
   getAllStatsSessions(): Promise<StatsSessionSummary[]>;
@@ -1656,6 +1657,16 @@ export class DatabaseStorage implements IStorage {
           eq(matchStatsSessions.status, 'active')
         )
       );
+    return session || undefined;
+  }
+
+  async getLatestStatsSessionByMatchId(matchId: string): Promise<MatchStatsSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(matchStatsSessions)
+      .where(eq(matchStatsSessions.matchId, matchId))
+      .orderBy(desc(matchStatsSessions.startedAt))
+      .limit(1);
     return session || undefined;
   }
 

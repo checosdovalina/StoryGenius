@@ -665,9 +665,21 @@ export default function PublicDisplayPage() {
             if (data.type === 'active_matches_update') {
               console.log('[WebSocket Public] Received matches update:', data.matches.length);
               setAllMatches(data.matches);
-              
-              // If a match was just completed and it was the one being displayed, 
-              // we might need to adjust the index or handle the transition
+            } else if (data.type === 'match_update' || data.type === 'match_completed') {
+              console.log('[WebSocket Public] Received match update:', data.type);
+              setAllMatches((prevMatches) => {
+                const updatedMatch = data.match;
+                const matchId = updatedMatch.session.matchId;
+                const index = prevMatches.findIndex((m) => m.session.matchId === matchId);
+                
+                if (index >= 0) {
+                  const newMatches = [...prevMatches];
+                  newMatches[index] = updatedMatch;
+                  return newMatches;
+                } else {
+                  return [...prevMatches, updatedMatch];
+                }
+              });
             }
           } catch (err) {
             console.error('[WebSocket Public] Error parsing message:', err);
@@ -695,70 +707,6 @@ export default function PublicDisplayPage() {
     return () => {
       if (ws) ws.close();
       clearTimeout(reconnectTimeout);
-    };
-  }, [tournamentId]);
-          console.log('[Public Display] WebSocket connected');
-          setWsConnected(true);
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            
-            if (message.type === 'connected') {
-              console.log('[Public Display] Connection confirmed:', message.message);
-            } else if (message.type === 'match_update') {
-              // Update the specific match in the list
-              setAllMatches((prevMatches) => {
-                const updatedMatch = message.match;
-                const matchId = updatedMatch.session.matchId;
-                
-                const index = prevMatches.findIndex((m) => m.session.matchId === matchId);
-                
-                if (index >= 0) {
-                  // Update existing match
-                  const newMatches = [...prevMatches];
-                  newMatches[index] = updatedMatch;
-                  return newMatches;
-                } else {
-                  // Add new match
-                  return [...prevMatches, updatedMatch];
-                }
-              });
-            }
-          } catch (error) {
-            console.error('[Public Display] Error parsing WebSocket message:', error);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('[Public Display] WebSocket error:', error);
-        };
-
-        ws.onclose = () => {
-          console.log('[Public Display] WebSocket disconnected, will reconnect...');
-          setWsConnected(false);
-          
-          // Reconnect after 3 seconds
-          reconnectTimeout = setTimeout(() => {
-            connect();
-          }, 3000);
-        };
-      } catch (error) {
-        console.error('[Public Display] Failed to create WebSocket:', error);
-        setWsConnected(false);
-      }
-    };
-
-    connect();
-
-    return () => {
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      if (ws) {
-        ws.close();
-      }
     };
   }, [tournamentId]);
 
