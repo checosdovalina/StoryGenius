@@ -65,21 +65,13 @@ export function setupAuth(app: Express) {
         try {
           // Normalize email (trim and lowercase)
           const normalizedEmail = email.trim().toLowerCase();
-          console.log('[AUTH] Login attempt for:', normalizedEmail);
           
           // Try to find user by email first, then by username for backward compatibility
           let user = await storage.getUserByEmail(normalizedEmail);
           if (!user) {
-            console.log('[AUTH] User not found by email, trying username');
             user = await storage.getUserByUsername(normalizedEmail);
           }
-          if (!user) {
-            console.log('[AUTH] User not found');
-            return done(null, false);
-          }
-          const passwordMatch = await comparePasswords(password, user.password);
-          console.log('[AUTH] User found:', user.username, 'Password match:', passwordMatch);
-          if (!passwordMatch) {
+          if (!user || !(await comparePasswords(password, user.password))) {
             return done(null, false);
           } else {
             return done(null, user);
