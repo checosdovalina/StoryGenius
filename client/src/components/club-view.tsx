@@ -14,7 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Clock, Wrench, Calendar, Edit, Building, MapPin, Phone, Mail, Globe } from "lucide-react";
+import { Plus, Clock, Wrench, Calendar, Edit, Building, MapPin, Phone, Mail, Globe, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { Club, Court } from "@shared/schema";
 
 const createClubSchema = z.object({
@@ -49,6 +50,7 @@ export function ClubView() {
   const [showEditClubModal, setShowEditClubModal] = useState(false);
   const [showCreateCourtModal, setShowCreateCourtModal] = useState(false);
   const [editingClub, setEditingClub] = useState<Club | null>(null);
+  const [courtToDelete, setCourtToDelete] = useState<Court | null>(null);
 
   const { data: clubs = [], isLoading: clubsLoading } = useQuery<Club[]>({
     queryKey: ["/api/clubs"]
@@ -156,6 +158,42 @@ export function ClubView() {
       });
     }
   });
+
+  const deleteCourtMutation = useMutation({
+    mutationFn: async (courtId: string) => {
+      const res = await apiRequest("DELETE", `/api/courts/${courtId}`);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Error al eliminar la cancha");
+      }
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courts"] });
+      setCourtToDelete(null);
+      toast({
+        title: "Cancha eliminada",
+        description: "La cancha se ha eliminado exitosamente",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Error al eliminar la cancha",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleDeleteCourt = (court: Court) => {
+    setCourtToDelete(court);
+  };
+
+  const confirmDeleteCourt = () => {
+    if (courtToDelete) {
+      deleteCourtMutation.mutate(courtToDelete.id);
+    }
+  };
 
   const handleEditClub = (club: Club) => {
     setEditingClub(club);
@@ -327,6 +365,15 @@ export function ClubView() {
                         </div>
                         <div className="flex items-center gap-2">
                           {getStatusBadge(court.status)}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteCourt(court)}
+                            data-testid={`button-delete-court-${court.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -834,6 +881,34 @@ export function ClubView() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Court Confirmation Dialog */}
+      <AlertDialog open={!!courtToDelete} onOpenChange={(open) => !open && setCourtToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle data-testid="title-delete-court-dialog">
+              ¿Eliminar cancha?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar la cancha "{courtToDelete?.name}"? 
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-court">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteCourt}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteCourtMutation.isPending}
+              data-testid="button-confirm-delete-court"
+            >
+              {deleteCourtMutation.isPending ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
