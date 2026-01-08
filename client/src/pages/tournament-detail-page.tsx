@@ -9,7 +9,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users, Trophy, ArrowLeft, X, UserPlus, Edit, Trash2 } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, ArrowLeft, X, UserPlus, Edit, Trash2, DollarSign, Check } from "lucide-react";
 import { format } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { useToast } from "@/hooks/use-toast";
@@ -712,7 +712,7 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
   const { toast } = useToast();
 
   // Get tournament players
-  const { data: players = [], isLoading: loadingPlayers } = useQuery<(User & { registeredAt: string })[]>({
+  const { data: players = [], isLoading: loadingPlayers } = useQuery<(User & { registeredAt: string; paymentStatus: string })[]>({
     queryKey: [`/api/tournaments/${tournament.id}/players`]
   });
 
@@ -767,6 +767,20 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     onError: (error) => {
       console.error("Update error:", error);
       toast({ title: "Error al actualizar perfil", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Update payment status mutation
+  const updatePaymentMutation = useMutation({
+    mutationFn: async ({ playerId, paymentStatus }: { playerId: string; paymentStatus: string }) => {
+      return apiRequest("PATCH", `/api/tournaments/${tournament.id}/registrations/${playerId}/payment`, { paymentStatus });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tournaments/${tournament.id}/players`] });
+      toast({ title: "Estado de pago actualizado", variant: "default" });
+    },
+    onError: () => {
+      toast({ title: "Error al actualizar estado de pago", variant: "destructive" });
     }
   });
 
@@ -1160,12 +1174,45 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
                     )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-wrap gap-2">
                   <Badge variant="outline" data-testid={`player-registered-date-${player.id}`}>
                     {format(new Date(player.registeredAt), 'dd/MM/yyyy')}
                   </Badge>
+                  <Badge 
+                    variant={player.paymentStatus === 'paid' ? 'default' : player.paymentStatus === 'waived' ? 'secondary' : 'destructive'}
+                    className={player.paymentStatus === 'paid' ? 'bg-green-500' : ''}
+                    data-testid={`player-payment-status-${player.id}`}
+                  >
+                    {player.paymentStatus === 'paid' ? 'Pagado' : player.paymentStatus === 'waived' ? 'Exento' : 'Pendiente'}
+                  </Badge>
                   {canManage && (
                     <>
+                      {player.paymentStatus !== 'paid' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updatePaymentMutation.mutate({ playerId: player.id, paymentStatus: 'paid' })}
+                          disabled={updatePaymentMutation.isPending}
+                          data-testid={`button-mark-paid-${player.id}`}
+                          className="min-h-[44px] min-w-[44px] p-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          aria-label={`Marcar como pagado a ${player.name}`}
+                        >
+                          <DollarSign className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {player.paymentStatus === 'paid' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updatePaymentMutation.mutate({ playerId: player.id, paymentStatus: 'pending' })}
+                          disabled={updatePaymentMutation.isPending}
+                          data-testid={`button-mark-pending-${player.id}`}
+                          className="min-h-[44px] min-w-[44px] p-2"
+                          aria-label={`Marcar como pendiente a ${player.name}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -1548,7 +1595,7 @@ const MATCH_CATEGORIES_LABELS: Record<string, string> = {
 };
 
 // Helper functions moved outside component for performance
-const getUserById = (users: User[], id: string) => {
+const getUserById = <T extends { id: string }>(users: T[], id: string): T | undefined => {
   return users.find(u => u.id === id);
 };
 
@@ -1622,7 +1669,7 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
     queryKey: ["/api/users"]
   });
 
-  const { data: players = [] } = useQuery<User[]>({
+  const { data: players = [] } = useQuery<(User & { paymentStatus: string })[]>({
     queryKey: [`/api/tournaments/${tournament.id}/players`],
     refetchInterval: 30000,
     refetchOnWindowFocus: true
@@ -1916,9 +1963,22 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
               
               // Check if this match has an active stats session
               const hasActiveSession = activeSessionMatchIds.has(match.id);
+              
+              // Check if any player in match has unpaid status
+              const allMatchPlayers = [player1, player2, player3, player4].filter(Boolean);
+              const unpaidPlayers = allMatchPlayers.filter(p => p?.paymentStatus === 'pending');
+              const hasUnpaidPlayers = unpaidPlayers.length > 0;
 
               return (
-                <Card key={match.id} className="p-3 sm:p-4" data-testid={`match-item-${match.id}`}>
+                <Card key={match.id} className={`p-3 sm:p-4 ${hasUnpaidPlayers ? 'border-yellow-400 dark:border-yellow-600' : ''}`} data-testid={`match-item-${match.id}`}>
+                  {hasUnpaidPlayers && (
+                    <div className="mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg flex items-center gap-2" data-testid={`match-payment-warning-${match.id}`}>
+                      <DollarSign className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                      <span className="text-sm text-yellow-700 dark:text-yellow-300">
+                        Pago pendiente: {unpaidPlayers.map(p => p?.name).join(', ')}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-start mb-4">
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2 flex-wrap">
