@@ -388,11 +388,11 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
                 <p className="text-white/70 text-sm mb-2">Puntuación Final Set {match.session.currentSet || 3}</p>
                 <div className="flex justify-center gap-6 items-center">
                   <div className="text-5xl font-bold text-yellow-400">
-                    {match.session.player1CurrentScore !== undefined && match.session.player1CurrentScore !== null && match.session.player1CurrentScore !== "" ? match.session.player1CurrentScore : "0"}
+                    {match.session.player1CurrentScore !== undefined && match.session.player1CurrentScore !== null && match.session.player1CurrentScore !== "" ? match.session.player1CurrentScore : (match.session.player1Games ? (JSON.parse(match.session.player1Games)[(match.session.currentSet || 3) - 1] ?? "0") : "0")}
                   </div>
                   <div className="text-3xl text-white/30">-</div>
                   <div className="text-5xl font-bold text-yellow-400">
-                    {match.session.player2CurrentScore !== undefined && match.session.player2CurrentScore !== null && match.session.player2CurrentScore !== "" ? match.session.player2CurrentScore : "0"}
+                    {match.session.player2CurrentScore !== undefined && match.session.player2CurrentScore !== null && match.session.player2CurrentScore !== "" ? match.session.player2CurrentScore : (match.session.player2Games ? (JSON.parse(match.session.player2Games)[(match.session.currentSet || 3) - 1] ?? "0") : "0")}
                   </div>
                 </div>
               </div>
@@ -655,6 +655,48 @@ export default function PublicDisplayPage() {
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
+          console.log('[WebSocket Public] Connected');
+          setWsConnected(true);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'active_matches_update') {
+              console.log('[WebSocket Public] Received matches update:', data.matches.length);
+              setAllMatches(data.matches);
+              
+              // If a match was just completed and it was the one being displayed, 
+              // we might need to adjust the index or handle the transition
+            }
+          } catch (err) {
+            console.error('[WebSocket Public] Error parsing message:', err);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('[WebSocket Public] Disconnected, reconnecting...');
+          setWsConnected(false);
+          reconnectTimeout = setTimeout(connect, 3000);
+        };
+
+        ws.onerror = (err) => {
+          console.error('[WebSocket Public] Error:', err);
+          ws?.close();
+        };
+      } catch (err) {
+        console.error('[WebSocket Public] Connection error:', err);
+        reconnectTimeout = setTimeout(connect, 3000);
+      }
+    };
+
+    connect();
+
+    return () => {
+      if (ws) ws.close();
+      clearTimeout(reconnectTimeout);
+    };
+  }, [tournamentId]);
           console.log('[Public Display] WebSocket connected');
           setWsConnected(true);
         };
