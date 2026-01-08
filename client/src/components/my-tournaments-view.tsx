@@ -88,9 +88,7 @@ export function MyTournamentsView() {
   };
 
   const getAvailableTournaments = () => {
-    const myTournamentIds = myTournaments.map(t => t.id);
     return allTournaments.filter(tournament => 
-      !myTournamentIds.includes(tournament.id) && 
       (tournament.status === 'registration' || tournament.status === 'draft')
     );
   };
