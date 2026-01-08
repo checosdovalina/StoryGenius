@@ -264,13 +264,36 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
   const stats = match.stats;
 
   // Determine winner name for doubles
-  let winnerName = winner?.name || "TBD";
-  if (isDoubles && winner) {
-    if (winner.id === match.player1.id || winner.id === match.player3?.id) {
-      winnerName = `${match.player1.name} & ${match.player3?.name || "TBD"}`;
-    } else if (winner.id === match.player2?.id || winner.id === match.player4?.id) {
-      winnerName = `${match.player2?.name || "TBD"} & ${match.player4?.name || "TBD"}`;
+  let winnerName = "";
+  if (match.session.matchWinner) {
+    const winnerId = match.session.matchWinner;
+    const p1Id = match.session.player1Id;
+    const p2Id = match.session.player2Id;
+    const p3Id = match.session.player3Id;
+    const p4Id = match.session.player4Id;
+    
+    if (winnerId === p1Id || (p3Id && winnerId === p3Id)) {
+      winnerName = `${match.player1.name}${match.player3 ? ` & ${match.player3.name}` : ""}`;
+    } else if (winnerId === p2Id || (p4Id && winnerId === p4Id)) {
+      winnerName = `${match.player2?.name || "TBD"}${match.player4 ? ` & ${match.player4.name}` : ""}`;
+    } else {
+      winnerName = match.matchWinner?.name || winner?.name || "TBD";
     }
+  } else if (match.matchWinner) {
+    winnerName = match.matchWinner.name;
+  } else if (match.session.status === "completed") {
+    // Fallback logic for completed matches if matchWinner is somehow not set
+    const p1Sets = Number(match.session.player1Sets) || 0;
+    const p2Sets = Number(match.session.player2Sets) || 0;
+    if (p1Sets > p2Sets) {
+      winnerName = `${match.player1.name}${match.player3 ? ` & ${match.player3.name}` : ""}`;
+    } else if (p2Sets > p1Sets) {
+      winnerName = `${match.player2?.name || "TBD"}${match.player4 ? ` & ${match.player4.name}` : ""}`;
+    } else {
+      winnerName = winner?.name || "TBD";
+    }
+  } else {
+    winnerName = winner?.name || "TBD";
   }
 
   // Update stats if match is completed to show final stats
@@ -302,7 +325,7 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
                 />
               ) : (
                 <div className="w-40 h-40 rounded-full bg-white flex items-center justify-center text-6xl font-bold text-orange-500 shadow-xl">
-                  {winner?.name ? winner.name.charAt(0) : "W"}
+                  {winnerName ? winnerName.charAt(0) : "W"}
                 </div>
               )}
               <div className="max-w-full overflow-hidden">
@@ -323,20 +346,28 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
             
             <div className="space-y-6">
               <div className="text-center">
-                <p className="text-white/70 text-sm mb-2">Sets</p>
+                <p className="text-white/70 text-sm mb-2">Sets Ganados</p>
                 <div className="flex justify-center gap-6 items-center">
-                  <div className="text-6xl font-bold text-yellow-400">{match.session.player1Sets}</div>
+                  <div className="text-6xl font-bold text-yellow-400">
+                    {match.session.player1Sets !== undefined && match.session.player1Sets !== null ? match.session.player1Sets : 0}
+                  </div>
                   <div className="text-4xl text-white/30">-</div>
-                  <div className="text-6xl font-bold text-yellow-400">{match.session.player2Sets}</div>
+                  <div className="text-6xl font-bold text-yellow-400">
+                    {match.session.player2Sets !== undefined && match.session.player2Sets !== null ? match.session.player2Sets : 0}
+                  </div>
                 </div>
               </div>
               
               <div className="text-center border-t border-white/10 pt-4">
                 <p className="text-white/70 text-sm mb-2">Puntuación Final Set {match.session.currentSet}</p>
                 <div className="flex justify-center gap-6 items-center">
-                  <div className="text-5xl font-bold text-yellow-400">{match.session.player1CurrentScore}</div>
+                  <div className="text-5xl font-bold text-yellow-400">
+                    {match.session.player1CurrentScore !== undefined && match.session.player1CurrentScore !== null ? match.session.player1CurrentScore : "0"}
+                  </div>
                   <div className="text-3xl text-white/30">-</div>
-                  <div className="text-5xl font-bold text-yellow-400">{match.session.player2CurrentScore}</div>
+                  <div className="text-5xl font-bold text-yellow-400">
+                    {match.session.player2CurrentScore !== undefined && match.session.player2CurrentScore !== null ? match.session.player2CurrentScore : "0"}
+                  </div>
                 </div>
               </div>
             </div>
