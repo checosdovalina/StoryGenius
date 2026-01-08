@@ -273,28 +273,54 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
     const p4Id = match.session.player4Id;
     
     if (winnerId === p1Id || (p3Id && winnerId === p3Id)) {
-      winnerName = `${match.player1.name}${match.player3 ? ` & ${match.player3.name}` : ""}`;
+      const names = [];
+      if (match.player1?.name) names.push(match.player1.name);
+      if (match.matchType === "doubles" && match.player3?.name) {
+        names.push(match.player3.name);
+      }
+      winnerName = names.length > 0 ? names.join(" & ") : "TBD";
     } else if (winnerId === p2Id || (p4Id && winnerId === p4Id)) {
-      winnerName = `${match.player2?.name || "TBD"}${match.player4 ? ` & ${match.player4.name}` : ""}`;
+      const names = [];
+      if (match.player2?.name) names.push(match.player2.name);
+      if (match.matchType === "doubles" && match.player4?.name) {
+        names.push(match.player4.name);
+      }
+      winnerName = names.length > 0 ? names.join(" & ") : "TBD";
     } else {
       winnerName = match.matchWinner?.name || winner?.name || "TBD";
     }
   } else if (match.matchWinner) {
     winnerName = match.matchWinner.name;
   } else if (match.session.status === "completed") {
-    // Fallback logic for completed matches if matchWinner is somehow not set
     const p1Sets = Number(match.session.player1Sets) || 0;
     const p2Sets = Number(match.session.player2Sets) || 0;
     if (p1Sets > p2Sets) {
-      winnerName = `${match.player1.name}${match.player3 ? ` & ${match.player3.name}` : ""}`;
+      const names = [];
+      if (match.player1?.name) names.push(match.player1.name);
+      if (match.matchType === "doubles" && match.player3?.name) {
+        names.push(match.player3.name);
+      }
+      winnerName = names.length > 0 ? names.join(" & ") : "TBD";
     } else if (p2Sets > p1Sets) {
-      winnerName = `${match.player2?.name || "TBD"}${match.player4 ? ` & ${match.player4.name}` : ""}`;
+      const names = [];
+      if (match.player2?.name) names.push(match.player2.name);
+      if (match.matchType === "doubles" && match.player4?.name) {
+        names.push(match.player4.name);
+      }
+      winnerName = names.length > 0 ? names.join(" & ") : "TBD";
     } else {
       winnerName = winner?.name || "TBD";
     }
   } else {
     winnerName = winner?.name || "TBD";
   }
+
+  // Final cleanup
+  winnerName = (winnerName || "").toString()
+    .replace(/\s*&\s*(null|undefined)/g, "")
+    .replace(/(null|undefined)\s*&\s*/g, "")
+    .trim();
+  if (winnerName === "null" || winnerName === "undefined") winnerName = "TBD";
 
   // Update stats if match is completed to show final stats
   const finalStats = stats;
@@ -359,14 +385,14 @@ function MatchEndedDisplay({ match, winner }: { match: ActiveMatch; winner: Play
               </div>
               
               <div className="text-center border-t border-white/10 pt-4">
-                <p className="text-white/70 text-sm mb-2">Puntuación Final Set {match.session.currentSet}</p>
+                <p className="text-white/70 text-sm mb-2">Puntuación Final Set {match.session.currentSet || 3}</p>
                 <div className="flex justify-center gap-6 items-center">
                   <div className="text-5xl font-bold text-yellow-400">
-                    {match.session.player1CurrentScore !== undefined && match.session.player1CurrentScore !== null ? match.session.player1CurrentScore : "0"}
+                    {match.session.player1CurrentScore !== undefined && match.session.player1CurrentScore !== null && match.session.player1CurrentScore !== "" ? match.session.player1CurrentScore : "0"}
                   </div>
                   <div className="text-3xl text-white/30">-</div>
                   <div className="text-5xl font-bold text-yellow-400">
-                    {match.session.player2CurrentScore !== undefined && match.session.player2CurrentScore !== null ? match.session.player2CurrentScore : "0"}
+                    {match.session.player2CurrentScore !== undefined && match.session.player2CurrentScore !== null && match.session.player2CurrentScore !== "" ? match.session.player2CurrentScore : "0"}
                   </div>
                 </div>
               </div>
@@ -518,10 +544,10 @@ function SponsorBanner({ sponsors }: { sponsors: Sponsor[] }) {
       <style>{`
         @keyframes scrollSponsors {
           0% {
-            transform: translateX(0);
+            transform: translateX(100%);
           }
           100% {
-            transform: translateX(-25%);
+            transform: translateX(-100%);
           }
         }
         .sponsor-scroll {
@@ -529,6 +555,7 @@ function SponsorBanner({ sponsors }: { sponsors: Sponsor[] }) {
           display: flex;
           width: max-content;
           align-items: center;
+          gap: 6rem;
         }
         .sponsor-scroll:hover {
           animation-play-state: paused;
