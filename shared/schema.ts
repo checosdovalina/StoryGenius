@@ -21,6 +21,7 @@ export const matchEventTypeEnum = pgEnum("match_event_type", ["point_won", "faul
 export const shotTypeEnum = pgEnum("shot_type", ["recto", "esquina", "cruzado", "punto"]);
 export const aceSideEnum = pgEnum("ace_side", ["derecha", "izquierda"]);
 export const appellationResultEnum = pgEnum("appellation_result", ["ganada", "perdida"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "waived"]);
 export const tournamentTierEnum = pgEnum("tournament_tier", [
   "GS-1000", "GS-900", "IRT-800", "IRT-700",
   "SAT-600", "SAT-500", "SAT-400", "SAT-350", "SAT-250", "SAT-150",
@@ -135,6 +136,10 @@ export const tournamentRegistrations = pgTable("tournament_registrations", {
   tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id),
   playerId: varchar("player_id").notNull().references(() => users.id),
   pairId: varchar("pair_id").references(() => padelPairs.id), // Only for padel tournaments
+  paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
+  paymentVerifiedAt: timestamp("payment_verified_at"),
+  paymentVerifiedBy: varchar("payment_verified_by").references(() => users.id),
+  paymentNotes: text("payment_notes"),
   registeredAt: timestamp("registered_at").notNull().defaultNow()
 });
 
@@ -630,7 +635,14 @@ export const insertPadelPairSchema = createInsertSchema(padelPairs).omit({
 
 export const insertTournamentRegistrationSchema = createInsertSchema(tournamentRegistrations).omit({
   id: true,
-  registeredAt: true
+  registeredAt: true,
+  paymentVerifiedAt: true,
+  paymentVerifiedBy: true
+});
+
+export const updatePaymentStatusSchema = z.object({
+  paymentStatus: z.enum(["pending", "paid", "waived"]),
+  paymentNotes: z.string().optional()
 });
 
 export const insertPlayerStatsSchema = createInsertSchema(playerStats).omit({
@@ -818,3 +830,4 @@ export type ExcelPlayerSingles = z.infer<typeof excelPlayerSinglesSchema>;
 export type ExcelPlayerDoubles = z.infer<typeof excelPlayerDoublesSchema>;
 export type ExcelMatchSingles = z.infer<typeof excelMatchSinglesSchema>;
 export type ExcelMatchDoubles = z.infer<typeof excelMatchDoublesSchema>;
+export type UpdatePaymentStatus = z.infer<typeof updatePaymentStatusSchema>;
