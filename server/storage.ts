@@ -2422,7 +2422,15 @@ export class DatabaseStorage implements IStorage {
         const row = data[i];
         const rowNumber = i + 2;
 
-        const modalidad = row.modalidad;
+        // Normalize modality to handle case insensitivity
+        const rawModalidad = String(row.modalidad || '').trim();
+        let modalidad: 'Singles' | 'Doubles' | null = null;
+        
+        if (rawModalidad.toLowerCase() === 'singles') {
+          modalidad = 'Singles';
+        } else if (rawModalidad.toLowerCase() === 'doubles') {
+          modalidad = 'Doubles';
+        }
         
         if (modalidad === 'Singles') {
           const validated = excelMatchSinglesSchema.parse(row);
