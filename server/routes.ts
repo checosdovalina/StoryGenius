@@ -34,34 +34,26 @@ export function registerRoutes(app: Express): Server {
   // Setup authentication routes
   setupAuth(app);
 
-  // Tournament routes
   app.get("/api/tournaments", async (req, res) => {
     try {
-      // Public access: If not authenticated, return only public/active tournaments
-      // or all tournaments if that's the desired behavior for registration
-      if (!req.isAuthenticated()) {
-        const publicTournaments = await storage.getAllTournaments();
-        return res.json(publicTournaments);
+      // Public access: For unauthenticated users or during registration
+      // we return ALL tournaments so they can choose one
+      const allTournaments = await storage.getAllTournaments();
+      
+      // Filter out draft tournaments for non-admins to avoid confusion
+      let isSuperAdmin = false;
+      if (req.isAuthenticated()) {
+        isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
       }
 
-      // SuperAdmin sees all tournaments
-      const isSuperAdmin = await storage.isSuperAdmin(req.user!.id);
-      let tournaments;
+      const filteredTournaments = isSuperAdmin 
+        ? allTournaments 
+        : allTournaments.filter(t => t.status !== 'draft');
+
+      console.log(`[TOURNAMENTS] Returning ${filteredTournaments.length} tournaments (Auth: ${!!req.user})`);
       
-      console.log(`[TOURNAMENTS] User: ${req.user!.username}, IsSuperAdmin: ${isSuperAdmin}`);
-      
-      if (isSuperAdmin) {
-        tournaments = await storage.getAllTournaments();
-        console.log(`[TOURNAMENTS] SuperAdmin - returning ALL ${tournaments.length} tournaments`);
-      } else {
-        // Other users only see tournaments where they have a role or are registered
-        tournaments = await storage.getUserTournaments(req.user!.id);
-        console.log(`[TOURNAMENTS] Regular user - returning ${tournaments.length} user-specific tournaments`);
-      }
-      
-      // Disable caching to prevent stale data
       res.setHeader('Cache-Control', 'no-store');
-      res.json(tournaments);
+      res.json(filteredTournaments);
     } catch (error) {
       console.error('[TOURNAMENTS] Error:', error);
       res.status(500).json({ message: "Failed to fetch tournaments" });
