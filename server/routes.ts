@@ -37,9 +37,11 @@ export function registerRoutes(app: Express): Server {
   // Tournament routes
   app.get("/api/tournaments", async (req, res) => {
     try {
-      // Multi-tenant: Users only see tournaments they have access to
+      // Public access: If not authenticated, return only public/active tournaments
+      // or all tournaments if that's the desired behavior for registration
       if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Authentication required" });
+        const publicTournaments = await storage.getAllTournaments();
+        return res.json(publicTournaments);
       }
 
       // SuperAdmin sees all tournaments
