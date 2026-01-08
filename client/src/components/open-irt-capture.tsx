@@ -37,7 +37,7 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
       const set1Server = initialServers[0] || coinFlipWinner;
       return set1Server === match.player1Id ? match.player2Id : match.player1Id;
     } else if (currentSet === 3) {
-      // Set 3: player with higher total points
+      // Set 3: player with higher total points from Sets 1 and 2
       if (player1TotalPoints > player2TotalPoints) {
         return match.player1Id;
       } else if (player2TotalPoints > player1TotalPoints) {
@@ -244,10 +244,10 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     
     // If a set was won (but match not finished), calculate next set server
     if (newState.setWinner && !newState.matchWinner) {
-      const player1Games = session.player1Games ? JSON.parse(session.player1Games) : [];
-      const player2Games = session.player2Games ? JSON.parse(session.player2Games) : [];
+      const player1Games = JSON.parse(session.player1Games || "[]");
+      const player2Games = JSON.parse(session.player2Games || "[]");
       
-      // Add current set scores to the totals
+      // Calculate total points including the set just finished
       const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
       const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
       
@@ -337,8 +337,8 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     
     // If a set was won (but match not finished), calculate next set server
     if (newState.setWinner && !newState.matchWinner) {
-      const player1Games = session.player1Games ? JSON.parse(session.player1Games) : [];
-      const player2Games = session.player2Games ? JSON.parse(session.player2Games) : [];
+      const player1Games = JSON.parse(session.player1Games || "[]");
+      const player2Games = JSON.parse(session.player2Games || "[]");
       
       const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
       const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
@@ -460,8 +460,8 @@ export function OpenIRTCapture({ match, session, player1, player2, player3, play
     
     // If a set was won (but match not finished), calculate next set server
     if (newState.setWinner && !newState.matchWinner) {
-      const player1Games = session.player1Games ? JSON.parse(session.player1Games) : [];
-      const player2Games = session.player2Games ? JSON.parse(session.player2Games) : [];
+      const player1Games = JSON.parse(session.player1Games || "[]");
+      const player2Games = JSON.parse(session.player2Games || "[]");
       
       const player1TotalPoints = player1Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player1Score;
       const player2TotalPoints = player2Games.reduce((sum: number, pts: number) => sum + pts, 0) + newState.player2Score;
