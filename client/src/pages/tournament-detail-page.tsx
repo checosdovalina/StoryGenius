@@ -2005,17 +2005,18 @@ function MatchesTab({ tournament, canManage }: { tournament: Tournament; canMana
                   {(user?.role === "superadmin" || user?.role === "admin" || user?.role === "organizador" || user?.role === "arbitro" || user?.role === "escribano") && match.status !== "completed" && (
                     <div className="mt-4 pt-4 border-t">
                       {hasActiveSession ? (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled
-                          data-testid={`button-capture-stats-${match.id}`}
-                          className="w-full min-h-[44px]"
-                          aria-label="Captura en progreso"
-                        >
-                          <Trophy className="h-4 w-4 mr-2" />
-                          Captura en progreso...
-                        </Button>
+                        <Link href={`/stats/capture/${match.id}`}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            data-testid={`button-capture-stats-${match.id}`}
+                            className="w-full min-h-[44px]"
+                            aria-label="Continuar captura"
+                          >
+                            <Trophy className="h-4 w-4 mr-2" />
+                            Continuar captura...
+                          </Button>
+                        </Link>
                       ) : (
                         <Link href={`/stats/capture/${match.id}`}>
                           <Button
