@@ -44,9 +44,10 @@ export interface IStorage {
   registerPlayerForTournament(registration: InsertTournamentRegistration): Promise<TournamentRegistration>;
   getTournamentRegistrations(tournamentId: string): Promise<TournamentRegistration[]>;
   getTournamentRegistration(tournamentId: string, playerId: string): Promise<TournamentRegistration | undefined>;
-  getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date }>>;
+  getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date; paymentStatus: string }>>;
   getPlayerTournaments(playerId: string): Promise<Tournament[]>;
   unregisterPlayerFromTournament(tournamentId: string, playerId: string): Promise<void>;
+  updatePaymentStatus(tournamentId: string, playerId: string, status: string, verifiedBy: string, notes?: string): Promise<TournamentRegistration | undefined>;
   
   // Bracket generation
   generateTournamentBrackets(tournamentId: string, forceRegenerate?: boolean): Promise<void>;
@@ -501,7 +502,7 @@ export class DatabaseStorage implements IStorage {
     return registration || undefined;
   }
 
-  async getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date }>> {
+  async getTournamentPlayers(tournamentId: string): Promise<Array<Omit<User, 'password'> & { registeredAt: Date; paymentStatus: string }>> {
     const result = await db
       .select({
         id: users.id,
@@ -520,8 +521,8 @@ export class DatabaseStorage implements IStorage {
         isActive: users.isActive,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
-        // Password field omitted for security
-        registeredAt: tournamentRegistrations.registeredAt
+        registeredAt: tournamentRegistrations.registeredAt,
+        paymentStatus: tournamentRegistrations.paymentStatus
       })
       .from(users)
       .innerJoin(tournamentRegistrations, eq(users.id, tournamentRegistrations.playerId))
@@ -570,6 +571,25 @@ export class DatabaseStorage implements IStorage {
           eq(tournamentRegistrations.playerId, playerId)
         )
       );
+  }
+
+  async updatePaymentStatus(tournamentId: string, playerId: string, status: string, verifiedBy: string, notes?: string): Promise<TournamentRegistration | undefined> {
+    const [updated] = await db
+      .update(tournamentRegistrations)
+      .set({
+        paymentStatus: status as "pending" | "paid" | "waived",
+        paymentVerifiedAt: new Date(),
+        paymentVerifiedBy: verifiedBy,
+        paymentNotes: notes
+      })
+      .where(
+        and(
+          eq(tournamentRegistrations.tournamentId, tournamentId),
+          eq(tournamentRegistrations.playerId, playerId)
+        )
+      )
+      .returning();
+    return updated;
   }
 
   // Bracket generation with safeguards

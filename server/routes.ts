@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, updateMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, updateScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema, excelPlayerSinglesSchema, excelPlayerDoublesSchema, excelMatchSinglesSchema, excelMatchDoublesSchema } from "@shared/schema";
+import { insertTournamentSchema, updateTournamentSchema, insertCourtSchema, insertMatchSchema, updateMatchSchema, insertTournamentRegistrationSchema, insertPadelPairSchema, insertScheduledMatchSchema, updateScheduledMatchSchema, insertClubSchema, insertMatchStatsSessionSchema, insertMatchEventSchema, insertTournamentUserRoleSchema, excelPlayerSinglesSchema, excelPlayerDoublesSchema, excelMatchSinglesSchema, excelMatchDoublesSchema, updatePaymentStatusSchema } from "@shared/schema";
 import { z } from "zod";
 import { MatchStatsWebSocketServer } from "./websocket";
 import multer from "multer";
@@ -228,6 +228,42 @@ export function registerRoutes(app: Express): Server {
       res.json(registrations);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch registrations" });
+    }
+  });
+
+  app.patch("/api/tournaments/:tournamentId/registrations/:playerId/payment", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { tournamentId, playerId } = req.params;
+
+      const canManage = await storage.canManageTournament(req.user!.id, tournamentId);
+      if (!canManage) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const data = updatePaymentStatusSchema.parse(req.body);
+      
+      const registration = await storage.updatePaymentStatus(
+        tournamentId,
+        playerId,
+        data.paymentStatus,
+        req.user!.id,
+        data.paymentNotes
+      );
+      
+      if (!registration) {
+        return res.status(404).json({ message: "Registration not found" });
+      }
+      
+      res.json(registration);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid payment data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update payment status" });
     }
   });
 
