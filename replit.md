@@ -43,6 +43,14 @@ The interface is designed to be racquetball-only, hiding all Padel-related eleme
 -   **Permission Control**: Only the user who initiated stats capture can modify or reopen recording sessions (except admins).
 -   **Calendar System**: Unified calendar for scheduled and bracket matches with timezone support and completed match filtering.
 
+# Recent Additions (Session: Jan 8, 2026)
+- Profile Photo Storage Fallback: Added database fallback for profile photos when Object Storage is not available (for Render/other deployments)
+  - Photos stored as base64 in database columns: photoData and photoMimeType
+  - New endpoint: GET /api/media/db-photo/:userId for serving photos from database
+  - Automatic fallback: Uses Object Storage if DEFAULT_OBJECT_STORAGE_BUCKET_ID is set, otherwise falls back to database
+- Admin Photo Uploads: Admins can now upload photos for other users via targetUserId query parameter
+- Payment Tracking System: Three payment statuses (pending/paid/waived) with visual indicators in player lists
+
 # Recent Additions (Session: Nov 21, 2025)
 - Fixed calendar display: Completed matches now properly hidden; duplicate match deduplication implemented
 - Permission control: Added startedBy validation for stats session reopening  
