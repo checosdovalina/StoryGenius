@@ -945,10 +945,13 @@ function PlayersTab({ tournament, canManage }: { tournament: Tournament; canMana
     }
   };
 
-  // Filter available users (not already registered) - memoized
+  // Filter available users (not already registered and only players) - memoized
   const availableUsers = useMemo(() => {
     const registeredPlayerIds = players.map(p => p.id);
-    return allUsers.filter(user => !registeredPlayerIds.includes(user.id));
+    return allUsers.filter(user => 
+      !registeredPlayerIds.includes(user.id) && 
+      user.role === 'jugador'
+    );
   }, [players, allUsers]);
 
   // Filter and sort players by category
