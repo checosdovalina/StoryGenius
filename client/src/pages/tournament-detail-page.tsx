@@ -123,6 +123,7 @@ export default function TournamentDetailPage() {
       description: "",
       sport: "padel",
       format: "elimination",
+      status: "draft",
       venue: "",
       timezone: "America/Mexico_City",
       startDate: undefined,
@@ -141,6 +142,7 @@ export default function TournamentDetailPage() {
         description: tournament.description || "",
         sport: tournament.sport,
         format: tournament.format,
+        status: tournament.status as "draft" | "registration" | "active" | "completed" | "cancelled",
         venue: clubId,
         timezone: tournament.timezone || "America/Mexico_City",
         startDate: tournament.startDate as any,
@@ -390,6 +392,30 @@ export default function TournamentDetailPage() {
                                 )}
                               />
                             </div>
+                            <FormField
+                              control={editForm.control}
+                              name="status"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Estado del Torneo</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger data-testid="select-edit-status" className="min-h-[44px]">
+                                        <SelectValue placeholder="Seleccionar estado" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="draft">Borrador</SelectItem>
+                                      <SelectItem value="registration">Inscripciones Abiertas</SelectItem>
+                                      <SelectItem value="active">Activo</SelectItem>
+                                      <SelectItem value="completed">Completado</SelectItem>
+                                      <SelectItem value="cancelled">Cancelado</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                             <div className="grid grid-cols-2 gap-4">
                               <FormField
                                 control={editForm.control}

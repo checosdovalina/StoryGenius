@@ -576,6 +576,7 @@ export const updateTournamentSchema = z.object({
   description: z.string().nullable().optional(),
   sport: z.enum(["padel", "racquetball"]).optional(),
   format: z.enum(["elimination", "round_robin", "groups"]).optional(),
+  status: z.enum(["draft", "registration", "active", "completed", "cancelled"]).optional(),
   venue: z.string().optional(),
   timezone: z.string().optional(),
   startDate: z.coerce.date().optional(),
